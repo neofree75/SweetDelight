@@ -105,7 +105,20 @@ function App() {
     console.log('User logged in:', userData);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Call logout API to clear server session
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Continue with logout even if API call fails
+    }
+    
     setUser(null);
     setLocation('/');
     console.log('User logged out');

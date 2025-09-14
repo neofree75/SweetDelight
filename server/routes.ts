@@ -380,6 +380,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User login endpoint
+  app.post("/api/login", async (req, res) => {
+    try {
+      // Validate required fields
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email a heslo sú povinné polia" 
+        });
+      }
+
+      // Prepare login credentials for ERPNext
+      const credentials = {
+        email: email.trim(),
+        password: password
+      };
+
+      // Authenticate user with ERPNext
+      const result = await erpNextService.loginUser(credentials);
+      
+      if (result.success) {
+        // Store user session data
+        if (req.session && result.data) {
+          (req.session as any).user = {
+            email: result.data.email,
+            name: result.data.name,
+            firstName: result.data.firstName,
+            lastName: result.data.lastName
+          };
+          if (result.data.sessionId) {
+            (req.session as any).erpNextSessionId = result.data.sessionId;
+          }
+        }
+        
+        res.status(200).json({
+          success: true,
+          message: result.message,
+          user: {
+            email: result.data.email,
+            name: result.data.name
+          }
+        });
+      } else {
+        res.status(401).json(result);
+      }
+      
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Chyba pri prihlásení" 
+      });
+    }
+  });
+
+  // User logout endpoint
+  app.post("/api/logout", async (req, res) => {
+    try {
+      // Clear session
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) {
+            console.error("Error destroying session:", err);
+            return res.status(500).json({ 
+              success: false, 
+              message: "Chyba pri odhlásení" 
+            });
+          }
+          res.status(200).json({ 
+            success: true, 
+            message: "Úspešne odhlásený" 
+          });
+        });
+      } else {
+        res.status(200).json({ 
+          success: true, 
+          message: "Úspešne odhlásený" 
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Chyba pri odhlásení" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

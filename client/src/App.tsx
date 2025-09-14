@@ -12,6 +12,7 @@ import Shop from "@/pages/Shop";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Checkout from "@/pages/Checkout";
+import Billing from "@/pages/Billing";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -39,6 +40,9 @@ function Router({ cartItems, onAddToCart, onCartOpen }: {
       </Route>
       <Route path="/checkout">
         <Checkout cartItems={cartItems} />
+      </Route>
+      <Route path="/pokladna">
+        <Billing cartItems={cartItems} />
       </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />

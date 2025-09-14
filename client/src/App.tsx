@@ -13,6 +13,8 @@ import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Checkout from "@/pages/Checkout";
 import Billing from "@/pages/Billing";
+import Registration from "@/pages/Registration";
+import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -23,10 +25,16 @@ interface CartItem {
   image: string;
 }
 
-function Router({ cartItems, onAddToCart, onCartOpen }: { 
+interface User {
+  email: string;
+  name: string;
+}
+
+function Router({ cartItems, onAddToCart, onCartOpen, onLogin }: { 
   cartItems: CartItem[]; 
   onAddToCart: (product: any, quantity: number) => void;
   onCartOpen: () => void;
+  onLogin: (userData: User) => void;
 }) {
   return (
     <Switch>
@@ -44,6 +52,10 @@ function Router({ cartItems, onAddToCart, onCartOpen }: {
       <Route path="/pokladna">
         <Billing cartItems={cartItems} />
       </Route>
+      <Route path="/registracia" component={Registration} />
+      <Route path="/prihlasenie">
+        <Login onLogin={onLogin} />
+      </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
       <Route component={NotFound} />
@@ -54,6 +66,7 @@ function Router({ cartItems, onAddToCart, onCartOpen }: {
 function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [, setLocation] = useLocation();
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -80,13 +93,26 @@ function App() {
     setLocation('/checkout');
   };
 
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+    console.log('User logged in:', userData);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setLocation('/');
+    console.log('User logged out');
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen bg-background">
           <Header 
             cartItemCount={cartItemCount} 
-            onCartClick={handleCartClick} 
+            onCartClick={handleCartClick}
+            user={user}
+            onLogout={handleLogout}
           />
           
           <main>
@@ -114,6 +140,7 @@ function App() {
                 });
               }}
               onCartOpen={handleCartClick}
+              onLogin={handleLogin}
             />
           </main>
           

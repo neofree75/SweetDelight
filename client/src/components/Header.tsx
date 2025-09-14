@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Menu, X } from 'lucide-react';
+import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut } from 'lucide-react';
+
+interface User {
+  email: string;
+  name: string;
+}
 
 interface HeaderProps {
   cartItemCount?: number;
   onCartClick?: () => void;
+  user?: User | null;
+  onLogout?: () => void;
 }
 
-export default function Header({ cartItemCount = 0, onCartClick }: HeaderProps) {
+export default function Header({ cartItemCount = 0, onCartClick, user, onLogout }: HeaderProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -49,8 +56,52 @@ export default function Header({ cartItemCount = 0, onCartClick }: HeaderProps) 
             ))}
           </nav>
 
-          {/* Cart and Mobile Menu */}
+          {/* Auth Links and Cart */}
           <div className="flex items-center space-x-4">
+            {/* Authentication Links - Desktop */}
+            <div className="hidden md:flex items-center space-x-2">
+              {user ? (
+                // User is logged in - show logout
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLogout}
+                  className="flex items-center gap-2"
+                  data-testid="button-logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Odhlásiť sa
+                </Button>
+              ) : (
+                // User is not logged in - show register and login
+                <>
+                  <Link href="/registracia">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      data-testid="button-register"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Registrovať
+                    </Button>
+                  </Link>
+                  
+                  <Link href="/prihlasenie">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      data-testid="button-login"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Prihlásiť sa
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+
             <Button
               variant="ghost"
               size="icon"
@@ -95,6 +146,55 @@ export default function Header({ cartItemCount = 0, onCartClick }: HeaderProps) 
                   </span>
                 </Link>
               ))}
+              
+              {/* Mobile Auth Links */}
+              <div className="border-t border-card-border pt-4">
+                {user ? (
+                  // User is logged in - show logout
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      onLogout?.();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 w-full justify-start"
+                    data-testid="mobile-button-logout"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Odhlásiť sa
+                  </Button>
+                ) : (
+                  // User is not logged in - show register and login
+                  <div className="space-y-2">
+                    <Link href="/registracia">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2 w-full justify-start"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        data-testid="mobile-button-register"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        Registrovať
+                      </Button>
+                    </Link>
+                    
+                    <Link href="/prihlasenie">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2 w-full justify-start"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        data-testid="mobile-button-login"
+                      >
+                        <LogIn className="h-4 w-4" />
+                        Prihlásiť sa
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </nav>
         )}

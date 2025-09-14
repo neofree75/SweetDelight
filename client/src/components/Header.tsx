@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, User } from 'lucide-react';
 
 interface User {
   email: string;
@@ -61,17 +61,30 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
             {/* Authentication Links - Desktop */}
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
-                // User is logged in - show logout
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onLogout}
-                  className="flex items-center gap-2"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Odhlásiť sa
-                </Button>
+                // User is logged in - show profile and logout
+                <>
+                  <Link href="/moj-profil">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      data-testid="button-profile"
+                    >
+                      <User className="h-4 w-4" />
+                      Môj profil
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLogout}
+                    className="flex items-center gap-2"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Odhlásiť sa
+                  </Button>
+                </>
               ) : (
                 // User is not logged in - show register and login
                 <>
@@ -150,20 +163,34 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
               {/* Mobile Auth Links */}
               <div className="border-t border-card-border pt-4">
                 {user ? (
-                  // User is logged in - show logout
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      onLogout?.();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="flex items-center gap-2 w-full justify-start"
-                    data-testid="mobile-button-logout"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Odhlásiť sa
-                  </Button>
+                  // User is logged in - show profile and logout
+                  <div className="space-y-2">
+                    <Link href="/moj-profil">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2 w-full justify-start"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        data-testid="mobile-button-profile"
+                      >
+                        <User className="h-4 w-4" />
+                        Môj profil
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        onLogout?.();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 w-full justify-start"
+                      data-testid="mobile-button-logout"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Odhlásiť sa
+                    </Button>
+                  </div>
                 ) : (
                   // User is not logged in - show register and login
                   <div className="space-y-2">

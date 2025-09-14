@@ -377,57 +377,40 @@ export class ERPNextService {
     try {
       console.log('Getting user profile for:', email);
       
-      // Get all available customer data from ERPNext
+      // Get basic customer data from ERPNext (only commonly available fields)
       const fields = [
-        "name", "customer_name", "first_name", "last_name", "email_id", 
-        "mobile_no", "phone", "fax", "website", "customer_group", 
-        "territory", "company", "address_line1", "address_line2", 
-        "city", "state", "pincode", "country", "tax_id", 
-        "creation", "modified", "customer_type", "disabled",
-        "salutation", "gender", "date_of_birth", "language"
+        "name", "customer_name", "email_id", "mobile_no", 
+        "customer_group", "territory", "creation", "modified", "customer_type"
       ];
       
       const response = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(fields)}`);
       
       if (response.data.data && response.data.data.length > 0) {
         const customer = response.data.data[0];
+        // Parse name parts from customer_name
+        const nameParts = (customer.customer_name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         return {
           success: true,
           data: {
-            // Základné údaje
+            // Základné údaje  
             customerId: customer.name || '',
             customerName: customer.customer_name || '',
-            firstName: customer.first_name || '',
-            lastName: customer.last_name || '',
+            firstName: firstName,
+            lastName: lastName,
             email: customer.email_id || email,
-            salutation: customer.salutation || '',
-            gender: customer.gender || '',
-            dateOfBirth: customer.date_of_birth || '',
-            language: customer.language || '',
             
             // Kontaktné údaje  
             mobile: customer.mobile_no || '',
-            phone: customer.phone || '',
-            fax: customer.fax || '',
-            website: customer.website || '',
-            
-            // Adresa
-            addressLine1: customer.address_line1 || '',
-            addressLine2: customer.address_line2 || '',
-            city: customer.city || '',
-            state: customer.state || '',
-            pincode: customer.pincode || '',
-            country: customer.country || '',
             
             // Biznis informácie
             customerGroup: customer.customer_group || '',
             territory: customer.territory || '',
-            company: customer.company || '',
             customerType: customer.customer_type || '',
-            taxId: customer.tax_id || '',
             
             // Systémové údaje
-            disabled: customer.disabled || false,
             created: customer.creation || '',
             modified: customer.modified || ''
           },

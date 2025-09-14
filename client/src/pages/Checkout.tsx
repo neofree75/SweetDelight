@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,21 +25,35 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [deliveryTime, setDeliveryTime] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('card');
+  const [, setLocation] = useLocation();
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const discount = 0; // Implementované neskôr s kupónmi
   const total = subtotal - discount;
 
   const handleSubmitOrder = () => {
-    console.log('Submitting order:', {
+    // Validácia povinných polí
+    if (!deliveryDate || !deliveryTime) {
+      alert('Prosím vyplňte dátum a čas doručenia');
+      return;
+    }
+
+    console.log('Proceeding to billing page with:', {
       items: cartItems,
       deliveryDate,
       deliveryTime,
-      couponCode,
       paymentMethod,
       total
     });
-    // TODO: Implementovať ERPNext integráciu
+
+    // Navigácia na pokladňa stránku - údaje sa predajú cez URL params pre jednoduchosť
+    const params = new URLSearchParams({
+      date: deliveryDate,
+      time: deliveryTime,
+      payment: paymentMethod
+    });
+    
+    setLocation(`/pokladna?${params.toString()}`);
   };
 
   if (cartItems.length === 0) {

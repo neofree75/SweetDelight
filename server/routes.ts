@@ -253,6 +253,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User password reset endpoint
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      // Validate required fields
+      const { key, user, newPassword } = req.body;
+      
+      if (!key || !user || !newPassword) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Kľúč, používateľ a nové heslo sú povinné polia" 
+        });
+      }
+
+      // Basic password validation
+      if (newPassword.length < 8) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Heslo musí mať aspoň 8 znakov" 
+        });
+      }
+
+      // Prepare password reset data for ERPNext
+      const resetData = {
+        key: key.trim(),
+        user: user.trim(),
+        new_password: newPassword
+      };
+
+      // Update password in ERPNext
+      const result = await erpNextService.updateUserPassword(resetData);
+      
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+      
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Chyba pri zmene hesla" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

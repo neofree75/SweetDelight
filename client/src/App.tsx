@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,6 +11,7 @@ import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
+import Checkout from "@/pages/Checkout";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -36,6 +37,9 @@ function Router({ cartItems, onAddToCart, onCartOpen }: {
           onCartOpen={onCartOpen}
         />
       </Route>
+      <Route path="/checkout">
+        <Checkout cartItems={cartItems} />
+      </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
       <Route component={NotFound} />
@@ -46,6 +50,7 @@ function Router({ cartItems, onAddToCart, onCartOpen }: {
 function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -67,8 +72,8 @@ function App() {
 
   const handleCheckout = () => {
     console.log('Proceeding to checkout with items:', cartItems);
-    // TODO: Integrate with ERPNext - create sales order
     setIsCartOpen(false);
+    setLocation('/checkout');
   };
 
   return (

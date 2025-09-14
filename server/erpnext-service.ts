@@ -12,11 +12,18 @@ export class ERPNextService {
   private baseUrl: string;
   private apiKey: string;
   private apiSecret: string;
+  private productCache: { data: Product[]; timestamp: number } | null = null;
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minút
 
   constructor() {
-    this.baseUrl = process.env.ERPNEXT_URL || 'https://your-erpnext-instance.com';
+    this.baseUrl = process.env.ERPNEXT_URL || '';
     this.apiKey = process.env.ERPNEXT_API_KEY || '';
     this.apiSecret = process.env.ERPNEXT_API_SECRET || '';
+
+    // Validácia konfigurčných premenných
+    if (!this.baseUrl || !this.apiKey || !this.apiSecret) {
+      console.error('ERPNext konfigurácia je neúplná. Skontrolujte premenné prostredia: ERPNEXT_URL, ERPNEXT_API_KEY, ERPNEXT_API_SECRET, ERPNEXT_COMPANY');
+    }
 
     this.client = axios.create({
       baseURL: `${this.baseUrl}/api`,
@@ -143,7 +150,7 @@ export class ERPNextService {
   // Create sales order in ERPNext
   async createSalesOrder(orderData: ERPNextSalesOrder): Promise<string | null> {
     try {
-      const response = await this.client.post('/resource/Sales Order', {
+      const response = await this.client.post('/resource/Sales%20Order', {
         data: orderData
       });
 
@@ -154,8 +161,14 @@ export class ERPNextService {
     }
   }
 
-  // Transform ERPNext items to frontend product format
+  // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
+    // Skontroluj cache
+    if (this.productCache && 
+        Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
+      return this.productCache.data;
+    }
+
     const items = await this.getItems();
     
     if (items.length === 0) {
@@ -172,7 +185,7 @@ export class ERPNextService {
     });
 
     // Transform items to products
-    return items.map(item => ({
+    const products = items.map(item => ({
       id: item.name,
       name: item.item_name,
       description: item.description || '',
@@ -181,6 +194,20 @@ export class ERPNextService {
       category: item.item_group,
       inStock: !item.disabled
     }));
+
+    // Ulož do cache
+    this.productCache = {
+      data: products,
+      timestamp: Date.now()
+    };
+
+    return products;
+  }
+
+  // Získaj konkrétny produkt podľa ID
+  async getProductById(productId: string): Promise<Product | null> {
+    const products = await this.getProductsForFrontend();
+    return products.find(p => p.id === productId) || null;
   }
 
   // Check if ERPNext is accessible

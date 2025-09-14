@@ -43,17 +43,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get specific product by ID
   app.get("/api/products/:id", async (req, res) => {
     try {
-      const products = await erpNextService.getProductsForFrontend();
-      const product = products.find(p => p.id === req.params.id);
+      const product = await erpNextService.getProductById(req.params.id);
       
       if (!product) {
-        return res.status(404).json({ error: "Product not found" });
+        return res.status(404).json({ error: "Produkt nebol nájdený" });
       }
       
       res.json(product);
     } catch (error) {
       console.error("Error fetching product:", error);
-      res.status(500).json({ error: "Failed to fetch product" });
+      res.status(500).json({ error: "Chyba pri načítavaní produktu" });
     }
   });
 
@@ -133,10 +132,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Prepare sales order data
         const deliveryDate = new Date();
         deliveryDate.setDate(deliveryDate.getDate() + 2); // 2 days from now
+        const transactionDate = new Date().toISOString().split('T')[0];
 
         const salesOrderData: ERPNextSalesOrder = {
           customer: customerId,
+          company: process.env.ERPNEXT_COMPANY || "Default Company",
           delivery_date: deliveryDate.toISOString().split('T')[0],
+          transaction_date: transactionDate,
           items: orderData.items.map(item => ({
             item_code: item.id,
             qty: item.quantity,

@@ -214,6 +214,77 @@ export class ERPNextService {
     return products.find(p => p.id === productId) || null;
   }
 
+  // Register user in ERPNext
+  async registerUser(userData: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    mobile_no?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.client.post('/method/external_reset.api.register.register_user', userData);
+      
+      if (response.data.message && response.data.message.success) {
+        return {
+          success: true,
+          message: 'Registrácia bola úspešná'
+        };
+      } else if (response.data.message && response.data.message.error) {
+        return {
+          success: false,
+          message: response.data.message.error
+        };
+      } else {
+        return {
+          success: true,
+          message: 'Registrácia bola úspešná'
+        };
+      }
+    } catch (error) {
+      console.error('Error registering user in ERPNext:', error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.data?.message) {
+          return {
+            success: false,
+            message: error.response.data.message
+          };
+        }
+        if (error.response?.data?.exc) {
+          // ERPNext often returns detailed error messages in exc field
+          const excMessage = error.response.data.exc;
+          if (typeof excMessage === 'string' && excMessage.includes('already exists')) {
+            return {
+              success: false,
+              message: 'Používateľ s týmto emailom už existuje'
+            };
+          }
+          return {
+            success: false,
+            message: 'Chyba pri registrácii používateľa'
+          };
+        }
+        if (error.response?.status === 409) {
+          return {
+            success: false,
+            message: 'Používateľ s týmto emailom už existuje'
+          };
+        }
+        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+          return {
+            success: false,
+            message: 'Neplatné údaje pre registráciu'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Chyba pri registrácii používateľa'
+      };
+    }
+  }
+
   // Check if ERPNext is accessible
   async healthCheck(): Promise<boolean> {
     try {

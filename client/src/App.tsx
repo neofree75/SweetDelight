@@ -21,11 +21,21 @@ interface CartItem {
   image: string;
 }
 
-function Router() {
+function Router({ cartItems, onAddToCart, onCartOpen }: { 
+  cartItems: CartItem[]; 
+  onAddToCart: (product: any, quantity: number) => void;
+  onCartOpen: () => void;
+}) {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/obchod" component={Shop} />
+      <Route path="/obchod">
+        <Shop 
+          cartItems={cartItems}
+          onAddToCart={onAddToCart}
+          onCartOpen={onCartOpen}
+        />
+      </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
       <Route component={NotFound} />
@@ -71,7 +81,31 @@ function App() {
           />
           
           <main>
-            <Router />
+            <Router 
+              cartItems={cartItems}
+              onAddToCart={(product, quantity) => {
+                setCartItems(prevItems => {
+                  const existingItem = prevItems.find(item => item.id === product.id);
+                  
+                  if (existingItem) {
+                    return prevItems.map(item =>
+                      item.id === product.id
+                        ? { ...item, quantity: item.quantity + quantity }
+                        : item
+                    );
+                  } else {
+                    return [...prevItems, {
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      quantity,
+                      image: product.image
+                    }];
+                  }
+                });
+              }}
+              onCartOpen={handleCartClick}
+            />
           </main>
           
           <Footer />

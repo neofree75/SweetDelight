@@ -182,11 +182,12 @@ export class ERPNextService {
 
   // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
-    // Skontroluj cache
-    if (this.productCache && 
-        Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
-      return this.productCache.data;
-    }
+    // Dočasne vypni cache pre debugging
+    console.log('Debug: Fetching products from ERPNext (cache disabled for debugging)');
+    // if (this.productCache && 
+    //     Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
+    //   return this.productCache.data;
+    // }
 
     const items = await this.getItems();
     
@@ -197,22 +198,34 @@ export class ERPNextService {
     const itemCodes = items.map(item => item.name);
     const prices = await this.getItemPrices(itemCodes);
 
-    // Create a price lookup map
+    // Create a price lookup map with debug logging
     const priceMap = new Map<string, number>();
+    console.log('Debug: Item prices from ERPNext:', prices);
     prices.forEach(price => {
+      console.log(`Debug: Setting price for ${price.item_code} = ${price.price_list_rate}`);
       priceMap.set(price.item_code, price.price_list_rate);
     });
 
     // Transform items to products
-    const products = items.map(item => ({
-      id: item.name,
-      name: item.item_name,
-      description: item.description || '',
-      price: priceMap.get(item.name) || 0,
-      image: item.image || '/placeholder-product.jpg',
-      category: item.item_group,
-      inStock: !item.disabled
-    }));
+    const products = items.map(item => {
+      // Oprav image URL - pridaj ERPNext base URL pre obrázky
+      let imageUrl = '/placeholder-product.jpg';
+      if (item.image && item.image.startsWith('/files/')) {
+        imageUrl = `${this.baseUrl}${item.image}`;
+      } else if (item.image) {
+        imageUrl = item.image;
+      }
+
+      return {
+        id: item.name,
+        name: item.item_name,
+        description: item.description || '',
+        price: priceMap.get(item.item_code) || priceMap.get(item.name) || priceMap.get(item.item_name) || 0,
+        image: imageUrl,
+        category: item.item_group,
+        inStock: !item.disabled
+      };
+    });
 
     // Ulož do cache
     this.productCache = {

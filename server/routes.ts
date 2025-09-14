@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const salesOrderData: ERPNextSalesOrder = {
           customer: customerId,
-          company: process.env.ERPNEXT_COMPANY || "Default Company",
+          company: process.env.ERPNEXT_COMPANY!,
           delivery_date: deliveryDate.toISOString().split('T')[0],
           transaction_date: transactionDate,
           items: orderData.items.map(item => ({

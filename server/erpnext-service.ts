@@ -377,18 +377,59 @@ export class ERPNextService {
     try {
       console.log('Getting user profile for:', email);
       
-      // Try to get customer data from ERPNext
-      const response = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=["first_name","last_name","email_id","mobile_no","customer_name"]`);
+      // Get all available customer data from ERPNext
+      const fields = [
+        "name", "customer_name", "first_name", "last_name", "email_id", 
+        "mobile_no", "phone", "fax", "website", "customer_group", 
+        "territory", "company", "address_line1", "address_line2", 
+        "city", "state", "pincode", "country", "tax_id", 
+        "creation", "modified", "customer_type", "disabled",
+        "salutation", "gender", "date_of_birth", "language"
+      ];
+      
+      const response = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(fields)}`);
       
       if (response.data.data && response.data.data.length > 0) {
         const customer = response.data.data[0];
         return {
           success: true,
           data: {
-            email: customer.email_id,
+            // Základné údaje
+            customerId: customer.name || '',
+            customerName: customer.customer_name || '',
             firstName: customer.first_name || '',
             lastName: customer.last_name || '',
-            mobile: customer.mobile_no || ''
+            email: customer.email_id || email,
+            salutation: customer.salutation || '',
+            gender: customer.gender || '',
+            dateOfBirth: customer.date_of_birth || '',
+            language: customer.language || '',
+            
+            // Kontaktné údaje  
+            mobile: customer.mobile_no || '',
+            phone: customer.phone || '',
+            fax: customer.fax || '',
+            website: customer.website || '',
+            
+            // Adresa
+            addressLine1: customer.address_line1 || '',
+            addressLine2: customer.address_line2 || '',
+            city: customer.city || '',
+            state: customer.state || '',
+            pincode: customer.pincode || '',
+            country: customer.country || '',
+            
+            // Biznis informácie
+            customerGroup: customer.customer_group || '',
+            territory: customer.territory || '',
+            company: customer.company || '',
+            customerType: customer.customer_type || '',
+            taxId: customer.tax_id || '',
+            
+            // Systémové údaje
+            disabled: customer.disabled || false,
+            created: customer.creation || '',
+            modified: customer.modified || ''
           },
           message: 'Profil načítaný úspešne'
         };

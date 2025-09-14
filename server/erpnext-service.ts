@@ -285,6 +285,93 @@ export class ERPNextService {
     }
   }
 
+  // Update user password via ERPNext reset password API
+  async updateUserPassword(data: { key: string; user: string; new_password: string }): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Updating password for user:', data.user);
+      
+      const requestData = {
+        key: data.key,
+        user: data.user,
+        new_password: data.new_password
+      };
+      
+      const response = await this.client.post('/method/external_reset.api.register.update_user_password', requestData);
+      
+      if (response.data.message && response.data.message.success) {
+        return {
+          success: true,
+          message: 'Heslo bolo úspešne zmenené'
+        };
+      } else if (response.data.message && response.data.message.error) {
+        return {
+          success: false,
+          message: response.data.message.error
+        };
+      } else {
+        return {
+          success: true,
+          message: 'Heslo bolo úspešne zmenené'
+        };
+      }
+    } catch (error) {
+      console.error('Error updating password in ERPNext:', error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.data?.message) {
+          return {
+            success: false,
+            message: error.response.data.message
+          };
+        }
+        if (error.response?.data?.exc) {
+          const excMessage = error.response.data.exc;
+          if (typeof excMessage === 'string') {
+            if (excMessage.includes('invalid') || excMessage.includes('expired')) {
+              return {
+                success: false,
+                message: 'Odkaz na zmenu hesla je neplatný alebo vypršal'
+              };
+            }
+            if (excMessage.includes('not found')) {
+              return {
+                success: false,
+                message: 'Používateľ nebol nájdený'
+              };
+            }
+          }
+          return {
+            success: false,
+            message: 'Chyba pri zmene hesla'
+          };
+        }
+        if (error.response?.status === 400) {
+          return {
+            success: false,
+            message: 'Neplatné údaje pre zmenu hesla'
+          };
+        }
+        if (error.response?.status === 404) {
+          return {
+            success: false,
+            message: 'Odkaz na zmenu hesla je neplatný alebo vypršal'
+          };
+        }
+        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+          return {
+            success: false,
+            message: 'Neplatné údaje pre zmenu hesla'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Chyba pri zmene hesla'
+      };
+    }
+  }
+
   // Check if ERPNext is accessible
   async healthCheck(): Promise<boolean> {
     try {

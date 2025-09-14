@@ -4,11 +4,8 @@ import Cart from '@/components/Cart';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Filter } from 'lucide-react';
-import eclairImage from '@assets/generated_images/Chocolate_éclair_product_e07f4a3d.png';
-import croissantImage from '@assets/generated_images/Golden_butter_croissant_3113f28f.png';
-import macaronsImage from '@assets/generated_images/Pastel_colored_macarons_d19a6f3c.png';
-import tartImage from '@assets/generated_images/Strawberry_fruit_tart_25e81086.png';
+import { Search, Filter, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 interface Product {
   id: string;
@@ -28,63 +25,20 @@ interface CartItem {
   image: string;
 }
 
-// TODO: Remove mock functionality - replace with real data from ERPNext
-const allProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Čokoládový Éclair',
-    description: 'Klasický francúzsky éclair s vanilkovou plnkou a čokoládovou polevou',
-    price: 3.50,
-    image: eclairImage,
-    category: 'Zákusky',
-    inStock: true
-  },
-  {
-    id: '2',
-    name: 'Maslový Croissant',
-    description: 'Čerstvý, chrumkavý croissant z maslovej chudobnej receptúry',
-    price: 2.20,
-    image: croissantImage,
-    category: 'Pečivo',
-    inStock: true
-  },
-  {
-    id: '3',
-    name: 'Francúzske Makaróny',
-    description: 'Sada 6 kusov makarónov v rôznych príchatiach',
-    price: 8.90,
-    image: macaronsImage,
-    category: 'Zákusky',
-    inStock: true
-  },
-  {
-    id: '4',
-    name: 'Jahodový Tartaletka',
-    description: 'Chrumkavý korpus s vanilkovým krémom a čerstvými jahodami',
-    price: 4.20,
-    image: tartImage,
-    category: 'Torty',
-    inStock: false
-  },
-  {
-    id: '5',
-    name: 'Pain au Chocolat',
-    description: 'Klasické francúzske pečivo s čokoládou',
-    price: 2.80,
-    image: croissantImage,
-    category: 'Pečivo',
-    inStock: true
-  },
-  {
-    id: '6',
-    name: 'Vanilkový Éclair',
-    description: 'Francúzsky éclair s vanilkovou plnkou a fondánom',
-    price: 3.50,
-    image: eclairImage,
-    category: 'Zákusky',
-    inStock: true
-  }
-];
+// Hook to fetch products from ERPNext
+function useProducts() {
+  return useQuery({
+    queryKey: ['/api/products'],
+    queryFn: async (): Promise<Product[]> => {
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
 
 const categories = ['Všetky', 'Pečivo', 'Zákusky', 'Torty'];
 
@@ -94,7 +48,10 @@ export default function Shop() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Všetky');
 
-  // TODO: Replace with real filtering logic connected to ERPNext
+  // Fetch products from ERPNext
+  const { data: allProducts = [], isLoading, error } = useProducts();
+
+  // Filter products by search term and category
   const filteredProducts = allProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -146,7 +103,8 @@ export default function Shop() {
 
   const handleViewDetails = (product: Product) => {
     console.log('Viewing product details:', product.name);
-    // TODO: Navigate to product detail page
+    // Details functionality disabled - focus on cart functionality
+    // Product details are already shown on the product card
   };
 
   return (
@@ -193,13 +151,35 @@ export default function Shop() {
           </div>
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Načítavam produkty...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <p className="text-destructive text-lg mb-4">
+              Chyba pri načítavaní produktov
+            </p>
+            <p className="text-muted-foreground text-sm">
+              {error instanceof Error ? error.message : 'Neznáma chyba'}
+            </p>
+          </div>
+        )}
+
         {/* Products Grid */}
-        <ProductGrid
-          products={filteredProducts}
-          title={`${filteredProducts.length} produktov${selectedCategory !== 'Všetky' ? ` v kategórii ${selectedCategory}` : ''}`}
-          onAddToCart={handleAddToCart}
-          onViewDetails={handleViewDetails}
-        />
+        {!isLoading && !error && (
+          <ProductGrid
+            products={filteredProducts}
+            title={`${filteredProducts.length} produktov${selectedCategory !== 'Všetky' ? ` v kategórii ${selectedCategory}` : ''}`}
+            onAddToCart={handleAddToCart}
+            onViewDetails={handleViewDetails}
+          />
+        )}
       </div>
       
       <Cart

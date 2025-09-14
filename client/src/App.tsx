@@ -15,6 +15,7 @@ import Checkout from "@/pages/Checkout";
 import Billing from "@/pages/Billing";
 import Registration from "@/pages/Registration";
 import Login from "@/pages/Login";
+import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -56,6 +57,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin }: {
       <Route path="/prihlasenie">
         <Login onLogin={onLogin} />
       </Route>
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
       <Route component={NotFound} />

@@ -16,6 +16,7 @@ import Billing from "@/pages/Billing";
 import Registration from "@/pages/Registration";
 import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -31,11 +32,12 @@ interface User {
   name: string;
 }
 
-function Router({ cartItems, onAddToCart, onCartOpen, onLogin }: { 
+function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: { 
   cartItems: CartItem[]; 
   onAddToCart: (product: any, quantity: number) => void;
   onCartOpen: () => void;
   onLogin: (userData: User) => void;
+  user: User | null;
 }) {
   return (
     <Switch>
@@ -58,6 +60,9 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin }: {
         <Login onLogin={onLogin} />
       </Route>
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/moj-profil">
+        <Profile user={user} />
+      </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
       <Route component={NotFound} />
@@ -120,6 +125,7 @@ function App() {
           <main>
             <Router 
               cartItems={cartItems}
+              user={user}
               onAddToCart={(product, quantity) => {
                 setCartItems(prevItems => {
                   const existingItem = prevItems.find(item => item.id === product.id);

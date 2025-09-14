@@ -299,6 +299,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user profile endpoint
+  app.get("/api/profile", async (req, res) => {
+    try {
+      // Pre teraz použijeme jednoduchý spôsob identifikácie používateľa
+      // V budúcnosti by sme mali implementovať sessions alebo JWT tokeny
+      const userEmail = req.query.email as string;
+      
+      if (!userEmail) {
+        return res.status(401).json({ 
+          success: false, 
+          message: "Neautorizovaný prístup - chýba email používateľa" 
+        });
+      }
+
+      // Get user profile from ERPNext
+      const result = await erpNextService.getUserProfile(userEmail);
+      
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(404).json(result);
+      }
+      
+    } catch (error) {
+      console.error("Profile get error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Chyba pri načítavaní profilu" 
+      });
+    }
+  });
+
+  // Update user profile endpoint
+  app.put("/api/profile", async (req, res) => {
+    try {
+      // Pre teraz použijeme jednoduchý spôsob identifikácie používateľa
+      // V budúcnosti by sme mali implementovať sessions alebo JWT tokeny
+      const userEmail = req.query.email as string;
+      const { firstName, lastName, email, mobile } = req.body;
+      
+      if (!userEmail) {
+        return res.status(401).json({ 
+          success: false, 
+          message: "Neautorizovaný prístup - chýba email používateľa" 
+        });
+      }
+
+      // Validate required fields
+      if (!firstName || !lastName || !email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Meno, priezvisko a email sú povinné polia" 
+        });
+      }
+
+      // Prepare profile data for ERPNext
+      const profileData = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        mobile: mobile ? mobile.trim() : undefined
+      };
+
+      // Update user profile in ERPNext
+      const result = await erpNextService.updateUserProfile(userEmail, profileData);
+      
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+      
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Chyba pri aktualizácii profilu" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

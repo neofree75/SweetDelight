@@ -35,7 +35,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
 
   return (
     <Card className="group hover-elevate cursor-pointer overflow-hidden">
-      <div className="aspect-square overflow-hidden" onClick={handleViewDetails}>
+      <div className="aspect-square overflow-hidden">
         <img
           src={product.image}
           alt={product.name}

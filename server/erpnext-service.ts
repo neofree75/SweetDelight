@@ -372,6 +372,127 @@ export class ERPNextService {
     }
   }
 
+  // Get user profile data from ERPNext
+  async getUserProfile(email: string): Promise<{ success: boolean; data?: any; message: string }> {
+    try {
+      console.log('Getting user profile for:', email);
+      
+      // Try to get customer data from ERPNext
+      const response = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=["first_name","last_name","email_id","mobile_no","customer_name"]`);
+      
+      if (response.data.data && response.data.data.length > 0) {
+        const customer = response.data.data[0];
+        return {
+          success: true,
+          data: {
+            email: customer.email_id,
+            firstName: customer.first_name || '',
+            lastName: customer.last_name || '',
+            mobile: customer.mobile_no || ''
+          },
+          message: 'Profil načítaný úspešne'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Používateľ nebol nájdený'
+        };
+      }
+    } catch (error) {
+      console.error('Error getting user profile from ERPNext:', error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          return {
+            success: false,
+            message: 'Používateľ nebol nájdený'
+          };
+        }
+        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+          return {
+            success: false,
+            message: 'Neplatné údaje používateľa'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Chyba pri načítavaní profilu'
+      };
+    }
+  }
+
+  // Update user profile data in ERPNext
+  async updateUserProfile(email: string, profileData: { firstName: string; lastName: string; email: string; mobile?: string }): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Updating user profile for:', email);
+      
+      // First, find the customer by email
+      const searchResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=["name"]`);
+      
+      if (!searchResponse.data.data || searchResponse.data.data.length === 0) {
+        return {
+          success: false,
+          message: 'Používateľ nebol nájdený'
+        };
+      }
+
+      const customerName = searchResponse.data.data[0].name;
+      
+      // Update customer data
+      const updateData = {
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        email_id: profileData.email,
+        mobile_no: profileData.mobile || '',
+        customer_name: `${profileData.firstName} ${profileData.lastName}`
+      };
+
+      const updateResponse = await this.client.put(`/resource/Customer/${customerName}`, updateData);
+      
+      if (updateResponse.status === 200) {
+        return {
+          success: true,
+          message: 'Profil bol úspešne aktualizovaný'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Chyba pri aktualizácii profilu'
+        };
+      }
+    } catch (error) {
+      console.error('Error updating user profile in ERPNext:', error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.data?.message) {
+          return {
+            success: false,
+            message: error.response.data.message
+          };
+        }
+        if (error.response?.status === 404) {
+          return {
+            success: false,
+            message: 'Používateľ nebol nájdený'
+          };
+        }
+        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+          return {
+            success: false,
+            message: 'Neplatné údaje pre aktualizáciu profilu'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Chyba pri aktualizácii profilu'
+      };
+    }
+  }
+
   // Check if ERPNext is accessible
   async healthCheck(): Promise<boolean> {
     try {

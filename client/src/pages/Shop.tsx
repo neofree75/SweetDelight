@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import ProductGrid from '@/components/ProductGrid';
-import Cart from '@/components/Cart';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -42,9 +41,13 @@ function useProducts() {
 
 const categories = ['Všetky', 'Pečivo', 'Zákusky', 'Torty'];
 
-export default function Shop() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+interface ShopProps {
+  cartItems: CartItem[];
+  onAddToCart: (product: Product, quantity: number) => void;
+  onCartOpen: () => void;
+}
+
+export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Všetky');
 
@@ -61,44 +64,10 @@ export default function Shop() {
   });
 
   const handleAddToCart = (product: Product, quantity: number) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      } else {
-        return [...prevItems, {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity,
-          image: product.image
-        }];
-      }
-    });
+    onAddToCart(product, quantity);
     console.log(`Added ${quantity}x ${product.name} to cart`);
-  };
-
-  const handleUpdateCartQuantity = (id: string, quantity: number) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
-    );
-  };
-
-  const handleRemoveFromCart = (id: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
-  };
-
-  const handleCheckout = () => {
-    console.log('Proceeding to checkout with items:', cartItems);
-    // TODO: Integrate with ERPNext - create sales order
-    setIsCartOpen(false);
+    // Automatically open cart after adding item
+    onCartOpen();
   };
 
   const handleViewDetails = (product: Product) => {
@@ -181,15 +150,6 @@ export default function Shop() {
           />
         )}
       </div>
-      
-      <Cart
-        items={cartItems}
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        onUpdateQuantity={handleUpdateCartQuantity}
-        onRemoveItem={handleRemoveFromCart}
-        onCheckout={handleCheckout}
-      />
     </div>
   );
 }

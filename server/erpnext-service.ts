@@ -493,6 +493,119 @@ export class ERPNextService {
     }
   }
 
+  // Authenticate user via ERPNext login API
+  async loginUser(credentials: { email: string; password: string }): Promise<{ success: boolean; data?: any; message: string }> {
+    try {
+      console.log('Logging in user:', credentials.email);
+      
+      const loginData = {
+        usr: credentials.email,
+        pwd: credentials.password
+      };
+      
+      // Use ERPNext's login method
+      const response = await this.client.post('/method/login', loginData);
+      
+      if (response.status === 200 && response.data.message) {
+        // Login successful, get user information
+        try {
+          // Get user profile from the session
+          const userResponse = await this.client.get('/method/frappe.auth.get_logged_user');
+          
+          if (userResponse.data.message) {
+            const userData = userResponse.data.message;
+            return {
+              success: true,
+              data: {
+                email: userData.email || credentials.email,
+                name: userData.full_name || userData.first_name + ' ' + userData.last_name || 'Používateľ',
+                firstName: userData.first_name || '',
+                lastName: userData.last_name || '',
+                sessionId: response.data.session_id || null
+              },
+              message: 'Prihlásenie úspešné'
+            };
+          }
+        } catch (userError) {
+          console.warn('Could not get user details, using basic info:', userError);
+        }
+        
+        // Fallback if we can't get detailed user info
+        return {
+          success: true,
+          data: {
+            email: credentials.email,
+            name: 'Používateľ',
+            firstName: '',
+            lastName: '',
+            sessionId: response.data.session_id || null
+          },
+          message: 'Prihlásenie úspešné'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Neplatné prihlasovacie údaje'
+        };
+      }
+    } catch (error) {
+      console.error('Error logging in user to ERPNext:', error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.data?.message) {
+          return {
+            success: false,
+            message: error.response.data.message
+          };
+        }
+        if (error.response?.data?.exc) {
+          const excMessage = error.response.data.exc;
+          if (typeof excMessage === 'string') {
+            if (excMessage.includes('password') || excMessage.includes('credentials')) {
+              return {
+                success: false,
+                message: 'Neplatné prihlasovacie údaje'
+              };
+            }
+            if (excMessage.includes('user') && excMessage.includes('not found')) {
+              return {
+                success: false,
+                message: 'Používateľ nebol nájdený'
+              };
+            }
+          }
+          return {
+            success: false,
+            message: 'Chyba pri prihlásení'
+          };
+        }
+        if (error.response?.status === 401) {
+          return {
+            success: false,
+            message: 'Neplatné prihlasovacie údaje'
+          };
+        }
+        if (error.response?.status === 403) {
+          return {
+            success: false,
+            message: 'Prístup zamietnutý'
+          };
+        }
+        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+          return {
+            success: false,
+            message: 'Neplatné prihlasovacie údaje'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Chyba pri prihlásení'
+      };
+    }
+  }
+
   // Check if ERPNext is accessible
   async healthCheck(): Promise<boolean> {
     try {

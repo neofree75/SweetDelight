@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface LoginProps {
   onLogin?: (userData: { email: string; name: string }) => void;
@@ -13,7 +14,9 @@ interface LoginProps {
 
 export default function Login({ onLogin }: LoginProps) {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -25,30 +28,69 @@ export default function Login({ onLogin }: LoginProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Základná validácia
     if (!formData.email || !formData.password) {
-      alert('Prosím vyplňte email a heslo');
+      toast({
+        title: "Chyba validácie",
+        description: "Prosím vyplňte email a heslo",
+        variant: "destructive"
+      });
       return;
     }
 
-    console.log('Login data:', formData);
-    // TODO: Implementovať prihlásenie cez backend/ERPNext
-    
-    // Pre teraz simuluj úspešné prihlásenie
-    const userData = {
-      email: formData.email,
-      name: 'Testovací Používateľ' // TODO: Získať skutočné meno z backendu
-    };
+    setIsLoading(true);
 
-    if (onLogin) {
-      onLogin(userData);
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.user) {
+        toast({
+          title: "Prihlásenie úspešné",
+          description: `Vitajte, ${result.user.name}!`,
+          action: <CheckCircle className="h-4 w-4" />
+        });
+
+        if (onLogin) {
+          onLogin(result.user);
+        }
+        
+        // Presmeruj na domovskú stránku po krátkom čase
+        setTimeout(() => {
+          setLocation('/');
+        }, 1500);
+      } else {
+        toast({
+          title: "Prihlásenie neúspešné",
+          description: result.message || "Neplatné prihlasovacie údaje",
+          variant: "destructive",
+          action: <AlertCircle className="h-4 w-4" />
+        });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Chyba spojenia",
+        description: "Nepodarilo sa spojiť so serverom. Skúste to neskôr.",
+        variant: "destructive",
+        action: <AlertCircle className="h-4 w-4" />
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    alert(`Prihlásenie úspešné! Vitajte, ${userData.name}.`);
-    setLocation('/'); // Presmeruj na domovskú stránku
   };
 
   return (
@@ -134,9 +176,10 @@ export default function Login({ onLogin }: LoginProps) {
                   type="submit" 
                   className="w-full" 
                   size="lg"
+                  disabled={isLoading}
                   data-testid="button-login"
                 >
-                  Prihlásiť sa
+                  {isLoading ? 'Prihlasuje...' : 'Prihlásiť sa'}
                 </Button>
 
                 <div className="text-center pt-4 border-t border-border">

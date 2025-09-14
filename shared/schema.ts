@@ -12,6 +12,7 @@ export const erpNextItemSchema = z.object({
   include_item_in_manufacturing: z.boolean().default(false),
   disabled: z.boolean().default(false),
   image: z.string().optional(),
+  valuation_rate: z.number().optional(), // Cena produktu v ERPNext
 });
 
 // ERPNext Price List Rate schema

@@ -383,6 +383,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User login endpoint
   app.post("/api/login", async (req, res) => {
     try {
+      // Set response content type to JSON
+      res.type('application/json');
+      
       // Validate required fields
       const { email, password } = req.body;
       
@@ -402,21 +405,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Authenticate user with ERPNext
       const result = await erpNextService.loginUser(credentials);
       
-      if (result.success) {
+      if (result.success && result.data) {
         // Store user session data
-        if (req.session && result.data) {
+        if (req.session) {
           (req.session as any).user = {
             email: result.data.email,
             name: result.data.name,
             firstName: result.data.firstName,
             lastName: result.data.lastName
           };
-          if (result.data.sessionId) {
-            (req.session as any).erpNextSessionId = result.data.sessionId;
-          }
         }
         
-        res.status(200).json({
+        return res.status(200).json({
           success: true,
           message: result.message,
           user: {
@@ -425,12 +425,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       } else {
-        res.status(401).json(result);
+        return res.status(401).json({
+          success: false,
+          message: result.message || 'Neplatné prihlasovacie údaje'
+        });
       }
       
     } catch (error) {
       console.error("Login error:", error);
-      res.status(500).json({ 
+      return res.status(500).json({ 
         success: false, 
         message: "Chyba pri prihlásení" 
       });

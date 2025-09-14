@@ -498,48 +498,56 @@ export class ERPNextService {
     try {
       console.log('Logging in user:', credentials.email);
       
-      const loginData = {
+      // Create a separate axios instance for login (without API token)
+      const loginClient = axios.create({
+        baseURL: `${this.baseUrl}/api`,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        timeout: 10000,
+        withCredentials: true // Important for cookies
+      });
+      
+      const loginData = new URLSearchParams({
         usr: credentials.email,
         pwd: credentials.password
-      };
+      });
       
       // Use ERPNext's login method
-      const response = await this.client.post('/method/login', loginData);
+      const response = await loginClient.post('/method/login', loginData);
       
-      if (response.status === 200 && response.data.message) {
-        // Login successful, get user information
-        try {
-          // Get user profile from the session
-          const userResponse = await this.client.get('/method/frappe.auth.get_logged_user');
-          
-          if (userResponse.data.message) {
-            const userData = userResponse.data.message;
-            return {
-              success: true,
-              data: {
-                email: userData.email || credentials.email,
-                name: userData.full_name || userData.first_name + ' ' + userData.last_name || 'Používateľ',
-                firstName: userData.first_name || '',
-                lastName: userData.last_name || '',
-                sessionId: response.data.session_id || null
-              },
-              message: 'Prihlásenie úspešné'
+      if (response.status === 200) {
+        // Login successful, extract user information from response
+        let userData = {
+          email: credentials.email,
+          name: credentials.email.split('@')[0], // Use email username as fallback
+          firstName: '',
+          lastName: ''
+        };
+
+        // Try to get user data from response
+        if (response.data && response.data.message) {
+          const msg = response.data.message;
+          if (typeof msg === 'object') {
+            userData = {
+              email: msg.email || credentials.email,
+              name: msg.full_name || msg.first_name + ' ' + msg.last_name || userData.name,
+              firstName: msg.first_name || '',
+              lastName: msg.last_name || ''
             };
           }
-        } catch (userError) {
-          console.warn('Could not get user details, using basic info:', userError);
+        }
+
+        // Clean up name field
+        if (userData.name.includes('undefined')) {
+          userData.name = userData.firstName && userData.lastName 
+            ? `${userData.firstName} ${userData.lastName}`.trim()
+            : userData.email.split('@')[0];
         }
         
-        // Fallback if we can't get detailed user info
         return {
           success: true,
-          data: {
-            email: credentials.email,
-            name: 'Používateľ',
-            firstName: '',
-            lastName: '',
-            sessionId: response.data.session_id || null
-          },
+          data: userData,
           message: 'Prihlásenie úspešné'
         };
       } else {

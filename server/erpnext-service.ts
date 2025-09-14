@@ -59,6 +59,14 @@ export class ERPNextService {
       };
     }
 
+    const company = process.env.ERPNEXT_COMPANY;
+    if (!company || company === 'Your Company Name') {
+      return {
+        valid: false,
+        error: 'ERPNEXT_COMPANY environment variable is not set or using default placeholder value'
+      };
+    }
+
     // Test API connectivity and authentication
     try {
       const response = await this.client.get('/method/frappe.ping');
@@ -68,6 +76,21 @@ export class ERPNextService {
           error: `ERPNext API returned status ${response.status} instead of 200`
         };
       }
+
+      // Verify company exists
+      try {
+        const companyResponse = await this.client.get(`/resource/Company?fields=["name"]&filters=[["name","=","${company}"]]`);
+        if (!companyResponse.data.data || companyResponse.data.data.length === 0) {
+          return {
+            valid: false,
+            error: `Company "${company}" does not exist in ERPNext`
+          };
+        }
+      } catch (companyError) {
+        console.warn('Could not verify company existence:', companyError);
+        // Continue without failing - company verification is optional
+      }
+
       return { valid: true };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -136,9 +159,7 @@ export class ERPNextService {
   // Create customer in ERPNext
   async createCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
     try {
-      const response = await this.client.post('/resource/Customer', {
-        data: customerData
-      });
+      const response = await this.client.post('/resource/Customer', customerData);
 
       return response.data.data.name;
     } catch (error) {
@@ -150,9 +171,7 @@ export class ERPNextService {
   // Create sales order in ERPNext
   async createSalesOrder(orderData: ERPNextSalesOrder): Promise<string | null> {
     try {
-      const response = await this.client.post('/resource/Sales%20Order', {
-        data: orderData
-      });
+      const response = await this.client.post('/resource/Sales%20Order', orderData);
 
       return response.data.data.name;
     } catch (error) {

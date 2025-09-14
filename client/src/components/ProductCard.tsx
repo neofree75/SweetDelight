@@ -21,7 +21,9 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onAddToCart, onViewDetails }: ProductCardProps) {
-  const [quantity, setQuantity] = useState(1);
+  // Minimálny počet pre zákusky je 10 ks, inak 1
+  const getMinQuantity = () => product.category === 'Zákusky' ? 10 : 1;
+  const [quantity, setQuantity] = useState(getMinQuantity());
 
   const handleAddToCart = () => {
     onAddToCart?.(product, quantity);
@@ -83,13 +85,21 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
       <CardFooter className="p-4 pt-0">
         {product.inStock ? (
           <div className="w-full space-y-3">
+            {/* Minimum quantity notice for Zákusky */}
+            {product.category === 'Zákusky' && (
+              <div className="text-xs text-muted-foreground text-center w-full">
+                Min. objednávka: {getMinQuantity()} ks
+              </div>
+            )}
+            
             {/* Quantity Selector */}
             <div className="flex items-center justify-center space-x-3">
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                onClick={() => setQuantity(Math.max(getMinQuantity(), quantity - 1))}
                 className="h-8 w-8"
+                disabled={quantity <= getMinQuantity()}
                 data-testid={`button-decrease-${product.id}`}
               >
                 <Minus className="h-4 w-4" />

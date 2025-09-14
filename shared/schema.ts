@@ -35,7 +35,9 @@ export const erpNextCustomerSchema = z.object({
 // ERPNext Sales Order schema
 export const erpNextSalesOrderSchema = z.object({
   customer: z.string(), // Customer ID from ERPNext
+  company: z.string(), // Company field required by ERPNext
   delivery_date: z.string(), // ISO date string
+  transaction_date: z.string(), // Transaction date
   items: z.array(z.object({
     item_code: z.string(),
     qty: z.number(),
@@ -85,8 +87,9 @@ export const orderSchema = z.object({
   customerInfo: customerSchema,
   items: z.array(cartItemSchema),
   total: z.number(),
-  status: z.enum(["pending", "confirmed", "preparing", "ready", "completed"]),
+  status: z.enum(["pending", "confirmed", "preparing", "ready", "completed", "failed"]),
   createdAt: z.string(),
+  sessionId: z.string().optional(), // Pre správne zmazanie košíka
 });
 
 // Type exports

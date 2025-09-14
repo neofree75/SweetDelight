@@ -55,6 +55,18 @@ export default function Login({ onLogin }: LoginProps) {
         })
       });
 
+      // Check if response is ok and content type
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const htmlText = await response.text();
+        throw new Error('Server returned HTML instead of JSON');
+      }
+
       const result = await response.json();
 
       if (result.success && result.user) {

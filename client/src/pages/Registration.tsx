@@ -5,20 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Eye, EyeOff } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 
 export default function Registration() {
   const [, setLocation] = useLocation();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     mobile: '',
-    password: '',
-    confirmPassword: '',
     agreeTerms: false
   });
 
@@ -30,13 +26,8 @@ export default function Registration() {
     e.preventDefault();
     
     // Základná validácia
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
       alert('Prosím vyplňte všetky povinné polia');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      alert('Heslá sa nezhodujú');
       return;
     }
 
@@ -127,68 +118,6 @@ export default function Registration() {
                     placeholder="+421 123 456 789"
                     data-testid="input-mobile"
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Heslo *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
-                      placeholder="Minimálne 6 znakov"
-                      required
-                      data-testid="input-password"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowPassword(!showPassword)}
-                      data-testid="button-toggle-password"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                    Potvrdenie hesla *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      placeholder="Zopakujte heslo"
-                      required
-                      data-testid="input-confirmPassword"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      data-testid="button-toggle-confirmPassword"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
                 </div>
 
                 <div className="flex items-center space-x-2">

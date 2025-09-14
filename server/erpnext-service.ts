@@ -125,7 +125,7 @@ export class ERPNextService {
     try {
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image"]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate"]',
           filters: '[["disabled","=","0"],["is_stock_item","=","1"]]',
           limit_page_length: 100
         }
@@ -138,23 +138,6 @@ export class ERPNextService {
     }
   }
 
-  // Get price for specific items
-  async getItemPrices(itemCodes: string[]): Promise<ERPNextPrice[]> {
-    try {
-      const response = await this.client.get('/resource/Item%20Price', {
-        params: {
-          fields: '["item_code","price_list_rate","currency","price_list"]',
-          filters: `[["item_code","in",${JSON.stringify(itemCodes)}],["price_list","=","Standard Selling"]]`,
-          limit_page_length: 100
-        }
-      });
-
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error fetching item prices from ERPNext:', error);
-      return [];
-    }
-  }
 
   // Create customer in ERPNext
   async createCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
@@ -182,12 +165,11 @@ export class ERPNextService {
 
   // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
-    // Dočasne vypni cache pre debugging
-    console.log('Debug: Fetching products from ERPNext (cache disabled for debugging)');
-    // if (this.productCache && 
-    //     Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
-    //   return this.productCache.data;
-    // }
+    // Skontroluj cache
+    if (this.productCache && 
+        Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
+      return this.productCache.data;
+    }
 
     const items = await this.getItems();
     
@@ -195,16 +177,6 @@ export class ERPNextService {
       return [];
     }
 
-    const itemCodes = items.map(item => item.name);
-    const prices = await this.getItemPrices(itemCodes);
-
-    // Create a price lookup map with debug logging
-    const priceMap = new Map<string, number>();
-    console.log('Debug: Item prices from ERPNext:', prices);
-    prices.forEach(price => {
-      console.log(`Debug: Setting price for ${price.item_code} = ${price.price_list_rate}`);
-      priceMap.set(price.item_code, price.price_list_rate);
-    });
 
     // Transform items to products
     const products = items.map(item => {
@@ -220,7 +192,7 @@ export class ERPNextService {
         id: item.name,
         name: item.item_name,
         description: item.description || '',
-        price: priceMap.get(item.item_code) || priceMap.get(item.name) || priceMap.get(item.item_name) || 0,
+        price: item.valuation_rate || 0,
         image: imageUrl,
         category: item.item_group,
         inStock: !item.disabled

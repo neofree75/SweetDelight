@@ -5,10 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Registration() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -22,26 +25,76 @@ export default function Registration() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Základná validácia
     if (!formData.firstName || !formData.lastName || !formData.email) {
-      alert('Prosím vyplňte všetky povinné polia');
+      toast({
+        title: "Chyba validácie",
+        description: "Prosím vyplňte všetky povinné polia",
+        variant: "destructive"
+      });
       return;
     }
 
     if (!formData.agreeTerms) {
-      alert('Pre registráciu musíte súhlasiť s obchodnými podmienkami');
+      toast({
+        title: "Chýba súhlas",
+        description: "Pre registráciu musíte súhlasiť s obchodnými podmienkami",
+        variant: "destructive"
+      });
       return;
     }
 
-    console.log('Registration data:', formData);
-    // TODO: Implementovať registráciu cez backend/ERPNext
-    
-    // Pre teraz len presmeruj na prihlásenie
-    alert('Registrácia úspešná! Môžete sa prihlásiť.');
-    setLocation('/prihlasenie');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          mobile: formData.mobile || undefined
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Registrácia úspešná",
+          description: result.message || "Váš účet bol úspešne vytvorený",
+          action: <CheckCircle className="h-4 w-4" />
+        });
+        
+        // Presmeruj na prihlásenie po krátkom čase
+        setTimeout(() => {
+          setLocation('/prihlasenie');
+        }, 2000);
+      } else {
+        toast({
+          title: "Registrácia neúspešná",
+          description: result.message || "Nastala chyba pri registrácii",
+          variant: "destructive",
+          action: <AlertCircle className="h-4 w-4" />
+        });
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        title: "Chyba spojenia",
+        description: "Nepodarilo sa spojiť so serverom. Skúste to neskôr.",
+        variant: "destructive",
+        action: <AlertCircle className="h-4 w-4" />
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -143,9 +196,10 @@ export default function Registration() {
                   type="submit" 
                   className="w-full" 
                   size="lg"
+                  disabled={isLoading}
                   data-testid="button-register"
                 >
-                  Registrovať sa
+                  {isLoading ? 'Registrujem...' : 'Registrovať sa'}
                 </Button>
 
                 <div className="text-center pt-4 border-t border-border">

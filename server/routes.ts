@@ -214,6 +214,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User registration endpoint
+  app.post("/api/register", async (req, res) => {
+    try {
+      // Validate required fields
+      const { email, firstName, lastName, mobile } = req.body;
+      
+      if (!email || !firstName || !lastName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email, meno a priezvisko sú povinné polia" 
+        });
+      }
+
+      // Prepare user data for ERPNext
+      const userData = {
+        email: email.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        mobile_no: mobile ? mobile.trim() : undefined
+      };
+
+      // Register user in ERPNext
+      const result = await erpNextService.registerUser(userData);
+      
+      if (result.success) {
+        res.status(201).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+      
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Chyba pri registrácii používateľa" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

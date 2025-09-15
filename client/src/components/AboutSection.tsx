@@ -17,7 +17,7 @@ export default function AboutSection() {
             O našej cukrárni
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Od roku 2015 prinášame do Bratislavy autentické chuť tradičných slovenských a francúzskych zákuskov.
+            Od roku 2015 prinášame autentické chuť tradičných slovenských a francúzskych zákuskov do nášho krásneho regiónu.
           </p>
         </div>
 
@@ -71,8 +71,8 @@ export default function AboutSection() {
                     <div>
                       <h4 className="font-semibold text-foreground">Adresa</h4>
                       <p className="text-sm text-muted-foreground">
-                        Hlavná 123<br />
-                        811 01 Bratislava
+                        Dvorníky 364<br />
+                        Dvorníky, Slovakia
                       </p>
                     </div>
                   </div>
@@ -81,7 +81,7 @@ export default function AboutSection() {
                     <Phone className="h-5 w-5 text-primary" />
                     <div>
                       <h4 className="font-semibold text-foreground">Telefón</h4>
-                      <p className="text-sm text-muted-foreground">+421 2 1234 5678</p>
+                      <a href="tel:+421917795731" className="text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-phone">+421 917 795 731</a>
                     </div>
                   </div>
 
@@ -89,7 +89,7 @@ export default function AboutSection() {
                     <Mail className="h-5 w-5 text-primary" />
                     <div>
                       <h4 className="font-semibold text-foreground">Email</h4>
-                      <p className="text-sm text-muted-foreground">info@sladkachvila.sk</p>
+                      <a href="mailto:marcelabakery@gmail.com" className="text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-email">marcelabakery@gmail.com</a>
                     </div>
                   </div>
                 </CardContent>
@@ -105,14 +105,14 @@ export default function AboutSection() {
                 </h4>
                 <div className="aspect-video rounded-lg overflow-hidden border border-border">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2662.2842555493987!2d17.10671731583478!3d48.14816997922141!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476c895c0d297a13%3A0xaa7da971ba2ed8c0!2sBratislava%2C%20Slovakia!5e0!3m2!1sen!2s!4v1647875400000!5m2!1sen!2s"
+                    src="https://www.google.com/maps?q=Dvorn%C3%ADky%20364,%20Dvorn%C3%ADky,%20Slovakia&z=16&output=embed"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    title="Poloha cukrárne Sladká Chvíľa"
+                    title="Poloha cukrárne Sladká Chvíľa - Dvorníky 364"
                   />
                 </div>
               </CardContent>

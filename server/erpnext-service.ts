@@ -139,6 +139,30 @@ export class ERPNextService {
   }
 
 
+  // Search for existing customer by email
+  async findCustomerByEmail(email: string): Promise<string | null> {
+    try {
+      const response = await this.client.get('/resource/Customer', {
+        params: {
+          fields: '["name","customer_name","email_id"]',
+          filters: `[["email_id","=","${email}"]]`,
+          limit_page_length: 1
+        }
+      });
+
+      const customers = response.data.data || [];
+      if (customers.length > 0) {
+        console.log(`Found existing customer: ${customers[0].name} (${customers[0].customer_name})`);
+        return customers[0].name;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error searching for customer in ERPNext:', error);
+      return null;
+    }
+  }
+
   // Create customer in ERPNext
   async createCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
     try {
@@ -149,6 +173,20 @@ export class ERPNextService {
       console.error('Error creating customer in ERPNext:', error);
       return null;
     }
+  }
+
+  // Find or create customer in ERPNext
+  async findOrCreateCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
+    // Najprv sa pokús nájsť existujúceho zákazníka
+    if (customerData.email_id) {
+      const existingCustomerId = await this.findCustomerByEmail(customerData.email_id);
+      if (existingCustomerId) {
+        return existingCustomerId;
+      }
+    }
+
+    // Ak zákazník neexistuje, vytvor nového
+    return await this.createCustomer(customerData);
   }
 
   // Create sales order in ERPNext

@@ -113,17 +113,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tempOrder = await storage.createTempOrder(orderData);
       
       try {
-        // Create customer in ERPNext
+        // Find or create customer in ERPNext
         const erpNextCustomerData: Omit<ERPNextCustomer, 'name'> = {
           customer_name: orderData.customerInfo.name,
           customer_type: "Individual",
-          customer_group: "Individual",
+          customer_group: "All Customer Groups", // Spať na pôvodnú hodnotu pre nové zákazníky
           territory: "Slovakia",
           email_id: orderData.customerInfo.email,
           mobile_no: orderData.customerInfo.phone,
         };
         
-        const customerId = await erpNextService.createCustomer(erpNextCustomerData);
+        const customerId = await erpNextService.findOrCreateCustomer(erpNextCustomerData);
         
         if (!customerId) {
           throw new Error("Failed to create customer in ERPNext");

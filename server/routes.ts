@@ -558,13 +558,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body
       const chatData = chatMessageSchema.parse(req.body);
       
-      // Check message length (additional safety)
-      if (chatData.message.length > 1000) {
+      // Check message length (additional safety) - len ak je message definované
+      if (chatData.message && chatData.message.length > 1000) {
         return res.status(400).json({ 
           error: "Správa je príliš dlhá. Maximum 1000 znakov." 
         });
       }
-
+      
       // Get webhook URL from environment
       const webhookUrl = process.env.N8N_CHAT_WEBHOOK;
       if (!webhookUrl) {
@@ -592,7 +592,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
-      console.log(`[chat] Processing message from ${clientIp}, session: ${enrichedPayload.sessionId}`);
+      // Ak nie je správa, môže byť inicializačný request
+      if (!chatData.message) {
+        console.log(`[chat] Initialization request from ${clientIp}, session: ${enrichedPayload.sessionId}`);
+      } else {
+        console.log(`[chat] Processing message from ${clientIp}, session: ${enrichedPayload.sessionId}: ${chatData.message.substring(0, 50)}...`);
+      }
 
       // Forward to n8n webhook with timeout
       const controller = new AbortController();

@@ -31,10 +31,24 @@ export class OpenAIService {
         max_completion_tokens: 1000
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      const rawContent = response.choices[0].message.content || '{}';
+      
+      // Safe JSON parsing with fallback
+      let result: any = {};
+      try {
+        result = JSON.parse(rawContent);
+        // JSON parsing successful
+      } catch (parseError) {
+        console.error(`[OpenAI] Session ${sessionId}: JSON parse failed:`, parseError);
+        result = {
+          message: 'Prepáčte, nastala chyba pri spracovaní vašej správy. Skúste neskôr alebo nás kontaktujte na +421 917 795 731.',
+          needsOrderProcessing: false,
+          intent: 'general'
+        };
+      }
       
       return {
-        message: result.message || 'Prepáčte, nastala chyba pri spracovaní vašej správy.',
+        message: result.message || 'Prepáčte, nastala chyba pri spracovaní vašej správy. Skúste neskôr alebo nás kontaktujte na +421 917 795 731.',
         needsOrderProcessing: result.needsOrderProcessing === true,
         extractedIntent: result.intent || 'general'
       };
@@ -57,7 +71,7 @@ DÔLEŽITÉ INFORMÁCIE O CUKRÁRNI:
 - Adresa: Dvorníky 364, Slovenská republika
 - Telefón: +421 917 795 731
 - Email: marcelabakery@gmail.com
-- Otváracie hodiny: Pondelok-Piatok 8:00-17:00, Sobota 9:00-15:00, Nedeľa zatvorené
+- Otváracie hodiny: Pondelok zatvorené, Utorok - štvrtok 14:00-20:00, Piatok - Nedeľa 14:00-20:30
 
 OBCHODNÉ PRAVIDLÁ:
 - Pre zákusky je minimálne množstvo 10 kusov
@@ -70,6 +84,7 @@ TVOJA ÚLOHA:
 3. Pri otázkach o objednávkach ponúkni možnosť vytvoriť objednávku priamo v chate
 4. Poskytuj presné informácie o produktoch a cenách
 5. Pri objednávkach spomeň minimálne množstvá a pravidlá
+6. Zhrň pred objednaním celú objednávku a až ked potvrdí zákazník, spracuj objednávku
 
 DETEKCIA OBJEDNÁVOK:
 - Ak zákazník chce objednať/kúpiť/chce produkty, nastav needsOrderProcessing: true

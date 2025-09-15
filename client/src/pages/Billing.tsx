@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingBag, CreditCard, Banknote, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface CartItem {
   id: string;
@@ -59,6 +60,10 @@ export default function Billing({ cartItems, user }: BillingProps) {
 
   // Poznámky k jednotlivým položkám
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+  
+  // Order submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   // Načítanie poznámok k položkám z Checkout stránky
   useEffect(() => {
@@ -146,36 +151,85 @@ export default function Billing({ cartItems, user }: BillingProps) {
   const delivery: number = 0; // Osobný odber je zadarmo
   const total = subtotal + delivery;
 
-  const handleFinalOrder = () => {
-    // Pridať poznámky k položkám
-    const cartItemsWithNotes = cartItems.map(item => ({
-      ...item,
-      additional_notes: itemNotes[item.id] || ''
-    }));
-
-    const orderData = {
-      billingInfo: {
-        email,
-        mobile,
-        firstName,
-        lastName,
-        street,
-        streetNumber,
-        zipCode,
-        city,
-        notes,
-        isBusiness,
-        ...(isBusiness && { companyName, ico, dic, icDph })
-      },
-      cartItems: cartItemsWithNotes,
-      deliveryDate,
-      deliveryTime,
-      paymentMethod,
-      total
-    };
+  const handleFinalOrder = async () => {
+    if (isSubmitting) return;
     
-    console.log('Final order data:', orderData);
-    // TODO: Implementovať ERPNext integráciu pre vytvorenie objednávky
+    setIsSubmitting(true);
+    
+    try {
+      // Pridať poznámky k položkám
+      const cartItemsWithNotes = cartItems.map(item => ({
+        ...item,
+        additional_notes: itemNotes[item.id] || ''
+      }));
+
+      // Transformovať dáta do formátu očakávaného API
+      const orderData = {
+        customerInfo: {
+          name: `${firstName} ${lastName}`,
+          email: email,
+          phone: mobile,
+          deliveryMethod: "delivery" as const,
+          address: `${street} ${streetNumber}`,
+          city: city,
+          notes: notes
+        },
+        items: cartItemsWithNotes,
+        total: total,
+        sessionId: undefined // Session handled automatically by server
+      };
+      
+      console.log('Sending order to server:', orderData);
+      
+      // Odoslať objednávku na server
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Chyba pri odosielaní objednávky');
+      }
+
+      const result = await response.json();
+      console.log('Order created successfully:', result);
+      
+      toast({
+        title: "Objednávka úspešne odoslaná!",
+        description: `Objednávka číslo ${result.orderId} bola vytvorená v ERPNext.`,
+      });
+
+      // Clear form data after successful order
+      setEmail('');
+      setMobile('');
+      setFirstName('');
+      setLastName('');
+      setStreet('');
+      setStreetNumber('');
+      setZipCode('');
+      setCity('');
+      setNotes('');
+      setItemNotes({});
+      
+      // Redirect to homepage after successful order
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Order submission error:', error);
+      toast({
+        title: "Chyba pri odosielaní objednávky",
+        description: error instanceof Error ? error.message : "Neznáma chyba",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -497,9 +551,17 @@ export default function Billing({ cartItems, user }: BillingProps) {
               className="w-full"
               size="lg"
               onClick={handleFinalOrder}
+              disabled={isSubmitting}
               data-testid="button-final-order"
             >
-              Objednať s povinnosťou platby
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Odosielanie objednávky...
+                </>
+              ) : (
+                'Objednať s povinnosťou platby'
+              )}
             </Button>
           </div>
         </div>

@@ -126,7 +126,7 @@ export class ERPNextService {
       const response = await this.client.get('/resource/Item', {
         params: {
           fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate"]',
-          filters: '[["disabled","=","0"],["is_stock_item","=","1"]]',
+          filters: '[["disabled","=","0"]]',
           limit_page_length: 100
         }
       });
@@ -236,6 +236,12 @@ export class ERPNextService {
       console.error('Error creating sales order in ERPNext:', error);
       return null;
     }
+  }
+
+  // Clear product cache
+  async clearProductCache(): Promise<void> {
+    this.productCache = null;
+    console.log('Product cache cleared');
   }
 
   // Transform ERPNext items to frontend product format with caching

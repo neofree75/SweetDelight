@@ -60,6 +60,20 @@ export default function Billing({ cartItems, user }: BillingProps) {
   // Poznámky k jednotlivým položkám
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
 
+  // Načítanie poznámok k položkám z Checkout stránky
+  useEffect(() => {
+    const savedNotes = localStorage.getItem('checkoutItemNotes');
+    if (savedNotes) {
+      try {
+        const notes = JSON.parse(savedNotes);
+        setItemNotes(notes);
+        localStorage.removeItem('checkoutItemNotes'); // Vyčistiť po použití
+      } catch (error) {
+        console.error('Error parsing item notes from localStorage:', error);
+      }
+    }
+  }, []);
+
   // Načítanie profilu prihlásených používateľov
   useEffect(() => {
     const loadUserProfile = async () => {

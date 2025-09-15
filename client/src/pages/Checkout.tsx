@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { CalendarDays, Clock, CreditCard, Banknote, ShoppingBag } from 'lucide-react';
 
 interface CartItem {
@@ -25,11 +26,20 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [deliveryTime, setDeliveryTime] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('card');
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [, setLocation] = useLocation();
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const discount = 0; // Implementované neskôr s kupónmi
   const total = subtotal - discount;
+
+  // Funkcia pre aktualizáciu poznámok k položkám
+  const updateItemNote = (itemId: string, note: string) => {
+    setItemNotes(prev => ({
+      ...prev,
+      [itemId]: note
+    }));
+  };
 
   const handleSubmitOrder = () => {
     // Validácia povinných polí
@@ -38,8 +48,14 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       return;
     }
 
+    // Pridať poznámky k položkám
+    const cartItemsWithNotes = cartItems.map(item => ({
+      ...item,
+      additional_notes: itemNotes[item.id] || ''
+    }));
+
     console.log('Proceeding to billing page with:', {
-      items: cartItems,
+      items: cartItemsWithNotes,
       deliveryDate,
       deliveryTime,
       paymentMethod,
@@ -47,6 +63,9 @@ export default function Checkout({ cartItems }: CheckoutProps) {
     });
 
     // Navigácia na pokladňa stránku - údaje sa predajú cez URL params pre jednoduchosť
+    // Poznámky k položkám sa uložia do localStorage pre prenesenie medzi stránkami
+    localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
+    
     const params = new URLSearchParams({
       date: deliveryDate,
       time: deliveryTime,
@@ -94,24 +113,39 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                 {cartItems.map((item) => (
                   <div 
                     key={item.id}
-                    className="flex items-center gap-4 p-4 border border-card-border rounded-lg"
+                    className="space-y-3 p-4 border border-card-border rounded-lg"
                     data-testid={`checkout-item-${item.id}`}
                   >
-                    <img 
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded-md"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {item.quantity} × €{item.price.toFixed(2)}
-                      </p>
+                    <div className="flex items-center gap-4">
+                      <img 
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded-md"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {item.quantity} × €{item.price.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold" data-testid={`text-item-total-${item.id}`}>
+                          €{(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold" data-testid={`text-item-total-${item.id}`}>
-                        €{(item.price * item.quantity).toFixed(2)}
-                      </p>
+                    <div>
+                      <Label htmlFor={`note-${item.id}`} className="text-xs text-muted-foreground">
+                        Poznámka k položke (voliteľné)
+                      </Label>
+                      <Textarea
+                        id={`note-${item.id}`}
+                        value={itemNotes[item.id] || ''}
+                        onChange={(e) => updateItemNote(item.id, e.target.value)}
+                        placeholder="Poznámka k tejto položke..."
+                        className="min-h-[60px] text-xs mt-1"
+                        data-testid={`textarea-item-note-${item.id}`}
+                      />
                     </div>
                   </div>
                 ))}

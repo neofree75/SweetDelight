@@ -563,7 +563,92 @@ export class ERPNextService {
       }
 
       if (contactName) {
-        // Update contact data (names, mobile, email)
+        // Get existing Contact with child tables (phone_nos, email_ids)
+        const existingContactResponse = await this.client.get(`/resource/Contact/${contactName}`);
+        const existingContact = existingContactResponse.data.data;
+        
+        // Update mobile number via Contact Phone child doctype
+        if (profileData.mobile) {
+          const phoneRows = existingContact.phone_nos || [];
+          let primaryPhoneRow = phoneRows.find(row => row.is_primary_mobile_no === 1);
+          
+          if (primaryPhoneRow) {
+            // Update existing primary mobile row
+            console.log('Updating existing Contact Phone:', primaryPhoneRow.name);
+            const phoneUpdateData = {
+              phone: profileData.mobile,
+              is_primary_mobile_no: 1,
+              is_primary_phone: 0
+            };
+            
+            await this.client.put(`/resource/Contact Phone/${primaryPhoneRow.name}`, phoneUpdateData);
+            
+            // Set other phone rows as non-primary
+            for (let phoneRow of phoneRows) {
+              if (phoneRow.name !== primaryPhoneRow.name && phoneRow.is_primary_mobile_no === 1) {
+                await this.client.put(`/resource/Contact Phone/${phoneRow.name}`, {
+                  phone: phoneRow.phone,
+                  is_primary_mobile_no: 0,
+                  is_primary_phone: phoneRow.is_primary_phone || 0
+                });
+              }
+            }
+          } else {
+            // Create new primary mobile row
+            console.log('Creating new Contact Phone for contact:', contactName);
+            const newPhoneData = {
+              doctype: "Contact Phone",
+              parent: contactName,
+              parenttype: "Contact", 
+              parentfield: "phone_nos",
+              phone: profileData.mobile,
+              is_primary_mobile_no: 1,
+              is_primary_phone: 0
+            };
+            
+            await this.client.post(`/resource/Contact Phone`, newPhoneData);
+          }
+        }
+        
+        // Update email via Contact Email child doctype
+        const emailRows = existingContact.email_ids || [];
+        let primaryEmailRow = emailRows.find(row => row.is_primary === 1);
+        
+        if (primaryEmailRow) {
+          // Update existing primary email row
+          console.log('Updating existing Contact Email:', primaryEmailRow.name);
+          const emailUpdateData = {
+            email_id: profileData.email,
+            is_primary: 1
+          };
+          
+          await this.client.put(`/resource/Contact Email/${primaryEmailRow.name}`, emailUpdateData);
+          
+          // Set other email rows as non-primary
+          for (let emailRow of emailRows) {
+            if (emailRow.name !== primaryEmailRow.name && emailRow.is_primary === 1) {
+              await this.client.put(`/resource/Contact Email/${emailRow.name}`, {
+                email_id: emailRow.email_id,
+                is_primary: 0
+              });
+            }
+          }
+        } else {
+          // Create new primary email row
+          console.log('Creating new Contact Email for contact:', contactName);
+          const newEmailData = {
+            doctype: "Contact Email",
+            parent: contactName,
+            parenttype: "Contact",
+            parentfield: "email_ids", 
+            email_id: profileData.email,
+            is_primary: 1
+          };
+          
+          await this.client.post(`/resource/Contact Email`, newEmailData);
+        }
+
+        // Finally, update parent Contact for top-level fields
         const contactUpdateData = {
           first_name: profileData.firstName,
           last_name: profileData.lastName,
@@ -574,6 +659,7 @@ export class ERPNextService {
         const contactUpdateResponse = await this.client.put(`/resource/Contact/${contactName}`, contactUpdateData);
         
         if (contactUpdateResponse.status === 200) {
+          console.log('Contact updated successfully with child doctypes');
           return {
             success: true,
             message: 'Profil bol úspešne aktualizovaný'

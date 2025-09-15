@@ -140,26 +140,49 @@ export class ERPNextService {
 
 
   // Search for existing customer by email
-  async findCustomerByEmail(email: string): Promise<string | null> {
+  async findCustomerByEmail(email: string): Promise<{customerId: string; needsGroupUpdate: boolean} | null> {
     try {
+      // Normalize email (trim and lowercase)
+      const normalizedEmail = email.trim().toLowerCase();
+      
       const response = await this.client.get('/resource/Customer', {
         params: {
-          fields: '["name","customer_name","email_id"]',
-          filters: `[["email_id","=","${email}"]]`,
+          fields: '["name","customer_name","email_id","customer_group"]',
+          filters: `[["email_id","=","${normalizedEmail}"]]`,
           limit_page_length: 1
         }
       });
 
       const customers = response.data.data || [];
       if (customers.length > 0) {
-        console.log(`Found existing customer: ${customers[0].name} (${customers[0].customer_name})`);
-        return customers[0].name;
+        const customer = customers[0];
+        const needsGroupUpdate = customer.customer_group !== "Internetový predaj";
+        console.log(`Found existing customer: ${customer.name} (${customer.customer_name}), group: ${customer.customer_group}, needs update: ${needsGroupUpdate}`);
+        
+        return {
+          customerId: customer.name,
+          needsGroupUpdate: needsGroupUpdate
+        };
       }
 
       return null;
     } catch (error) {
       console.error('Error searching for customer in ERPNext:', error);
       return null;
+    }
+  }
+
+  // Update customer's group in ERPNext
+  async updateCustomerGroup(customerId: string, customerGroup: string): Promise<boolean> {
+    try {
+      await this.client.put(`/resource/Customer/${customerId}`, {
+        customer_group: customerGroup
+      });
+      console.log(`Updated customer ${customerId} group to: ${customerGroup}`);
+      return true;
+    } catch (error) {
+      console.error(`Error updating customer group for ${customerId}:`, error);
+      return false;
     }
   }
 
@@ -179,14 +202,28 @@ export class ERPNextService {
   async findOrCreateCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
     // Najprv sa pokús nájsť existujúceho zákazníka
     if (customerData.email_id) {
-      const existingCustomerId = await this.findCustomerByEmail(customerData.email_id);
-      if (existingCustomerId) {
-        return existingCustomerId;
+      const normalizedEmail = customerData.email_id.trim().toLowerCase();
+      const existingCustomer = await this.findCustomerByEmail(normalizedEmail);
+      
+      if (existingCustomer) {
+        // Ak zákazník existuje ale má inú skupinu, aktualizuj ju
+        if (existingCustomer.needsGroupUpdate) {
+          const updated = await this.updateCustomerGroup(existingCustomer.customerId, "Internetový predaj");
+          if (updated) {
+            console.log(`Customer ${existingCustomer.customerId} updated to "Internetový predaj" group`);
+          }
+        }
+        return existingCustomer.customerId;
       }
     }
 
-    // Ak zákazník neexistuje, vytvor nového
-    return await this.createCustomer(customerData);
+    // Ak zákazník neexistuje, vytvor nového s normalizovaným emailom
+    const normalizedCustomerData = {
+      ...customerData,
+      email_id: customerData.email_id?.trim().toLowerCase()
+    };
+    
+    return await this.createCustomer(normalizedCustomerData);
   }
 
   // Create sales order in ERPNext

@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const erpNextCustomerData: Omit<ERPNextCustomer, 'name'> = {
           customer_name: orderData.customerInfo.name,
           customer_type: "Individual",
-          customer_group: "All Customer Groups", // Spať na pôvodnú hodnotu pre nové zákazníky
+          customer_group: "Internetový predaj",
           territory: "Slovakia",
           email_id: orderData.customerInfo.email,
           mobile_no: orderData.customerInfo.phone,

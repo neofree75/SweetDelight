@@ -4,9 +4,9 @@ import aboutImage from '@assets/generated_images/Cozy_bakery_interior_c998804b.p
 
 export default function AboutSection() {
   const openingHours = [
-    { day: 'Pondelok - Piatok', time: '7:00 - 19:00' },
-    { day: 'Sobota', time: '8:00 - 18:00' },
-    { day: 'Nedeľa', time: '9:00 - 16:00' }
+    { day: 'Pondelok', time: 'Zatvorené' },
+    { day: 'Utorok - Štvrtok', time: '14:00 - 20:00' },
+    { day: 'Piatok - Nedeľa', time: '14:00 - 20:30' }
   ];
 
   return (

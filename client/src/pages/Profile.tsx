@@ -20,7 +20,6 @@ interface ProfileData {
   
   // Kontaktné údaje  
   mobile?: string;
-  phone?: string;
   fax?: string;
   website?: string;
   
@@ -61,7 +60,6 @@ export default function Profile({ user }: ProfileProps) {
     firstName: '',
     lastName: '',
     mobile: '',
-    phone: '',
     addressLine1: '',
     addressLine2: '',
     city: '',
@@ -80,7 +78,6 @@ export default function Profile({ user }: ProfileProps) {
     firstName: '',
     lastName: '',
     mobile: '',
-    phone: '',
     addressLine1: '',
     addressLine2: '',
     city: '',
@@ -133,7 +130,6 @@ export default function Profile({ user }: ProfileProps) {
             firstName: nameParts[0] || '',
             lastName: nameParts.slice(1).join(' ') || '',
             mobile: '',
-            phone: '',
             addressLine1: '',
             addressLine2: '',
             city: '',
@@ -160,7 +156,6 @@ export default function Profile({ user }: ProfileProps) {
           firstName: nameParts[0] || '',
           lastName: nameParts.slice(1).join(' ') || '',
           mobile: '',
-          phone: '',
           addressLine1: '',
           addressLine2: '',
           city: '',
@@ -413,48 +408,25 @@ export default function Profile({ user }: ProfileProps) {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="mobile" className="text-sm font-medium flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        Mobilný telefón
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="mobile"
-                          type="tel"
-                          value={editData.mobile || ''}
-                          onChange={(e) => handleEditChange('mobile', e.target.value)}
-                          placeholder="+421 123 456 789"
-                          data-testid="input-mobile"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-mobile">
-                          {profileData.mobile || '-'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        Telefón
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={editData.phone || ''}
-                          onChange={(e) => handleEditChange('phone', e.target.value)}
-                          placeholder="+421 123 456 789"
-                          data-testid="input-phone"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-phone">
-                          {profileData.phone || '-'}
-                        </div>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile" className="text-sm font-medium flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      Mobilný telefón
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        id="mobile"
+                        type="tel"
+                        value={editData.mobile || ''}
+                        onChange={(e) => handleEditChange('mobile', e.target.value)}
+                        placeholder="+421 123 456 789"
+                        data-testid="input-mobile"
+                      />
+                    ) : (
+                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-mobile">
+                        {profileData.mobile || '-'}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">

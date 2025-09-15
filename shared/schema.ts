@@ -49,7 +49,7 @@ export const erpNextSalesOrderSchema = z.object({
   total: z.number(),
   grand_total: z.number(),
   currency: z.string().default("EUR"),
-  selling_price_list: z.string().default("Standard Selling"),
+  // selling_price_list: z.string().default("Standard Selling"), // Dočasne odstránené - price list neexistuje v ERPNext
 });
 
 // Frontend Product schema (simplified for UI)

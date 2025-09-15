@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingBag, CreditCard, Banknote } from 'lucide-react';
+import { ShoppingBag, CreditCard, Banknote, Loader2 } from 'lucide-react';
 
 interface CartItem {
   id: string;
@@ -17,11 +17,17 @@ interface CartItem {
   image: string;
 }
 
-interface BillingProps {
-  cartItems: CartItem[];
+interface User {
+  email: string;
+  name: string;
 }
 
-export default function Billing({ cartItems }: BillingProps) {
+interface BillingProps {
+  cartItems: CartItem[];
+  user?: User | null;
+}
+
+export default function Billing({ cartItems, user }: BillingProps) {
   const search = useSearch();
   const params = new URLSearchParams(search);
   
@@ -29,6 +35,7 @@ export default function Billing({ cartItems }: BillingProps) {
   const deliveryDate = params.get('date') || '';
   const deliveryTime = params.get('time') || '';
   const paymentMethod = params.get('payment') || 'card';
+  
   // Fakturačné údaje
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -46,6 +53,69 @@ export default function Billing({ cartItems }: BillingProps) {
   const [ico, setIco] = useState('');
   const [dic, setDic] = useState('');
   const [icDph, setIcDph] = useState('');
+
+  // Loading state pre načítavanie profilu
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+
+  // Načítanie profilu prihlásených používateľov
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!user) return;
+      
+      setIsLoadingProfile(true);
+      
+      try {
+        const response = await fetch(`/api/profile?email=${encodeURIComponent(user.email)}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const profileData = result.data;
+          
+          // Naplniť formulár údajmi z profilu
+          if (profileData.email) setEmail(profileData.email);
+          if (profileData.mobile) setMobile(profileData.mobile);
+          if (profileData.firstName) setFirstName(profileData.firstName);
+          if (profileData.lastName) setLastName(profileData.lastName);
+          
+          // Adresa (ak existuje)
+          if (profileData.addressLine1) {
+            // Ak addressLine1 obsahuje ulicu aj číslo, pokúsiť sa ich rozdeliť
+            const addressParts = profileData.addressLine1.split(' ');
+            const possibleNumber = addressParts[addressParts.length - 1];
+            
+            // Ak posledná časť obsahuje čísla, predpokladáme že je to číslo domu
+            if (/\d/.test(possibleNumber)) {
+              setStreet(addressParts.slice(0, -1).join(' '));
+              setStreetNumber(possibleNumber);
+            } else {
+              setStreet(profileData.addressLine1);
+            }
+          }
+          
+          if (profileData.city) setCity(profileData.city);
+          if (profileData.pincode) setZipCode(profileData.pincode);
+          
+          // Firemné údaje
+          if (profileData.taxId) setDic(profileData.taxId);
+          if (profileData.company) setCompanyName(profileData.company);
+          
+        } else {
+          console.log('Profil sa nepodarilo načítať, používateľ bude musieť vyplniť údaje manuálne');
+        }
+      } catch (error) {
+        console.error('Chyba pri načítavaní profilu:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const delivery: number = 0; // Osobný odber je zadarmo
@@ -106,7 +176,17 @@ export default function Billing({ cartItems }: BillingProps) {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-serif">Fakturačná adresa</CardTitle>
+                <CardTitle className="text-xl font-serif flex items-center gap-2">
+                  Fakturačná adresa
+                  {isLoadingProfile && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </CardTitle>
+                {user && (
+                  <p className="text-sm text-muted-foreground">
+                    Údaje sa automaticky načítali z vášho profilu. Môžete ich upraviť podľa potreby.
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Základné kontaktné údaje */}

@@ -53,7 +53,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: {
         <Checkout cartItems={cartItems} />
       </Route>
       <Route path="/pokladna">
-        <Billing cartItems={cartItems} />
+        <Billing cartItems={cartItems} user={user} />
       </Route>
       <Route path="/registracia" component={Registration} />
       <Route path="/prihlasenie">

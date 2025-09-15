@@ -149,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total: orderData.total,
           grand_total: orderData.total,
           currency: "EUR",
-          selling_price_list: "Standard Selling",
+          // selling_price_list: "Standard Selling", // Dočasne odstránené - price list neexistuje v ERPNext
         };
 
         // Create sales order in ERPNext

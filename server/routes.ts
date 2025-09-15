@@ -144,6 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             qty: item.quantity,
             rate: item.price,
             amount: item.price * item.quantity,
+            additional_notes: item.additional_notes || '',
           })),
           total: orderData.total,
           grand_total: orderData.total,

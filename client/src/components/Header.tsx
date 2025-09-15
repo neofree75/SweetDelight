@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, User } from 'lucide-react';
-import logo from '@assets/302114762_762815435043859_4975235959411522191_n_1757936717193.jpg';
+import logo from '@assets/logo_1757937077215.png';
 
 interface User {
   email: string;

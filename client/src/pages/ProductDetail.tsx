@@ -14,6 +14,16 @@ interface Product {
   image: string;
   category: string;
   inStock: boolean;
+  hasVariants?: boolean;
+  variants?: {
+    id: string;
+    name: string;
+    attributes: {
+      attribute: string;
+      value: string;
+    }[];
+    price?: number;
+  }[];
 }
 
 interface ProductDetailProps {
@@ -29,6 +39,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   const getMinQuantity = (category: string) => category === 'Zákusky' ? 10 : 1;
   
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
 
   // Fetch product detail from API
   const { data: product, isLoading, error } = useQuery({
@@ -57,8 +68,29 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   const handleAddToCart = () => {
     if (!product) return;
     
-    onAddToCart?.(product, quantity);
-    console.log(`Added ${quantity}x ${product.name} to cart`);
+    // Ak má produkt varianty a sú dostupné, ale nebol vybraný žiadny variant
+    if (product.hasVariants && product.variants && product.variants.length > 0 && !selectedVariant) {
+      alert('Prosím vyberte variant produktu pred pridaním do košíka.');
+      return;
+    }
+    
+    let productToAdd = product;
+    
+    // Ak bol vybraný variant, použij jeho cenu ak je dostupná
+    if (selectedVariant && product.variants) {
+      const variant = product.variants.find(v => v.id === selectedVariant);
+      if (variant && variant.price !== undefined) {
+        productToAdd = {
+          ...product,
+          id: variant.id,
+          name: `${product.name} - ${variant.name}`,
+          price: variant.price
+        };
+      }
+    }
+    
+    onAddToCart?.(productToAdd, quantity);
+    console.log(`Added ${quantity}x ${productToAdd.name} to cart`);
     // Automatically open cart after adding item
     onCartOpen?.();
   };
@@ -176,6 +208,77 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
               </p>
             </div>
 
+            {/* Product Variants */}
+            {product.hasVariants && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-serif">Dostupné varianty</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {product.variants && product.variants.length > 0 ? (
+                    <div className="grid gap-3">
+                      {product.variants.map((variant) => (
+                        <div
+                          key={variant.id}
+                          className={`border rounded-lg p-4 cursor-pointer transition-colors hover-elevate ${
+                            selectedVariant === variant.id 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border'
+                          }`}
+                          onClick={() => setSelectedVariant(variant.id)}
+                          data-testid={`variant-option-${variant.id}`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              id={`variant-${variant.id}`}
+                              name="variant"
+                              value={variant.id}
+                              checked={selectedVariant === variant.id}
+                              onChange={(e) => setSelectedVariant(e.target.value)}
+                              className="text-primary"
+                              data-testid={`radio-variant-${variant.id}`}
+                            />
+                            <div className="flex-1">
+                              <h4 className="font-medium text-foreground">{variant.name}</h4>
+                              {variant.attributes.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {variant.attributes.map((attr, index) => (
+                                    <Badge 
+                                      key={index} 
+                                      variant="secondary" 
+                                      className="text-xs"
+                                      data-testid={`attribute-${attr.attribute}-${variant.id}`}
+                                    >
+                                      {attr.attribute}: {attr.value}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                              {variant.price !== undefined && variant.price !== product.price && (
+                                <p className="text-sm text-primary font-medium mt-2">
+                                  €{variant.price.toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="text-sm">
+                        Varianty tohto produktu sú momentálne v príprave.
+                      </p>
+                      <p className="text-sm mt-1">
+                        Pre viac informácií nás kontaktujte.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Add to Cart Section */}
             {product.inStock ? (
               <Card>
@@ -236,7 +339,16 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                         className="text-2xl font-bold text-primary"
                         data-testid={`text-total-price-detail-${product.id}`}
                       >
-                        €{(product.price * quantity).toFixed(2)}
+                        €{(() => {
+                          let price = product.price;
+                          if (selectedVariant && product.variants) {
+                            const variant = product.variants.find(v => v.id === selectedVariant);
+                            if (variant && variant.price !== undefined) {
+                              price = variant.price;
+                            }
+                          }
+                          return (price * quantity).toFixed(2);
+                        })()}
                       </span>
                     </div>
                   </div>

@@ -142,6 +142,7 @@ export class ERPNextService {
   // Get variants for a specific item template
   async getItemVariants(templateName: string): Promise<ERPNextItemVariant[]> {
     try {
+      console.log(`Debug: Fetching variants for template: ${templateName}`);
       const response = await this.client.get('/resource/Item', {
         params: {
           fields: '["name","item_name","description","variant_of","attributes","valuation_rate","disabled"]',
@@ -150,7 +151,9 @@ export class ERPNextService {
         }
       });
 
-      return response.data.data || [];
+      const variants = response.data.data || [];
+      console.log(`Debug: Found ${variants.length} variants for ${templateName}:`, variants.map((v: any) => ({ name: v.name, item_name: v.item_name, attributes: v.attributes })));
+      return variants;
     } catch (error) {
       console.error(`Error fetching variants for ${templateName}:`, error);
       return [];
@@ -290,7 +293,9 @@ export class ERPNextService {
 
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
-      if (item.has_variants) {
+      console.log(`Debug: Checking variants for ${item.name}, has_variants: ${item.has_variants}`);
+      if (item.has_variants === true || item.has_variants === 1) {
+        console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);
         variants = itemVariants.map(variant => ({
           id: variant.name,
@@ -301,6 +306,7 @@ export class ERPNextService {
           })),
           price: variant.valuation_rate || 0
         }));
+        console.log(`Debug: Mapped ${variants.length} variants for ${item.name}`);
       }
 
       return {

@@ -16,7 +16,6 @@ import {
   type ChatMessage 
 } from "@shared/schema";
 import { z } from "zod";
-import { setTimeout } from "timers/promises";
 
 // Simple in-memory rate limiter for chat
 const chatRateLimit = new Map<string, { count: number; resetTime: number }>();
@@ -894,12 +893,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[chat] Processing message from ${clientIp}, session: ${sessionId}: ${chatData.message.substring(0, 50)}...`);
       }
 
+      let responseSent = false;
+      
       // Use OpenAI directly as primary chat service
       try {
         console.log(`[chat] Using OpenAI for session ${sessionId}`);
         
-        // Získaj dostupné produkty pre AI kontext
-        const products = await erpNextService.getProductsForFrontend();
+        // Získaj dostupné produkty pre AI kontext s timeoutom
+        let products: Array<{ id: string; name: string; price: number; category: string }> = [];
+        try {
+          const productPromise = erpNextService.getProductsForFrontend();
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('ERP timeout')), 5000);
+          });
+          products = await Promise.race([productPromise, timeoutPromise]);
+        } catch (erpError) {
+          console.log(`[chat] ERP products fetch failed for session ${sessionId}, continuing without product context`);
+        }
         
         // Získaj user info ak je prihlásený
         const userInfo = (req.session as any)?.user ? {
@@ -917,32 +927,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Ak AI detekuje objednávkový intent, presmeruj na objednávkový fallback systém
         if (aiResponse.needsOrderProcessing) {
           console.log(`[chat] AI detected order intent, switching to order processing for session ${sessionId}`);
-          const orderResponse = await generateFallbackResponse(chatData.message || '', sessionId);
+          
+          // Timeout pre fallback response tiež
+          try {
+            const fallbackPromise = generateFallbackResponse(chatData.message || '', sessionId);
+            const timeoutPromise = new Promise<string>((_, reject) => {
+              setTimeout(() => reject(new Error('Fallback timeout')), 8000);
+            });
+            const orderResponse = await Promise.race([fallbackPromise, timeoutPromise]);
+            
+            if (!responseSent) {
+              responseSent = true;
+              return res.json({
+                message: orderResponse,
+                source: 'ai_order_fallback',
+                intent: aiResponse.extractedIntent
+              });
+            }
+          } catch (fallbackError) {
+            console.error(`[chat] Fallback response failed for session ${sessionId}:`, fallbackError);
+            if (!responseSent) {
+              responseSent = true;
+              return res.json({
+                message: '📋 Pre objednávky kontaktujte +421 917 795 731 alebo navštívte náš obchod na stránke.',
+                source: 'fallback_timeout',
+                intent: 'order'
+              });
+            }
+          }
+        }
+        
+        console.log(`[chat] OpenAI response generated for session ${sessionId}`);
+        if (!responseSent) {
+          responseSent = true;
           return res.json({
-            message: orderResponse,
-            source: 'ai_order_fallback',
+            message: aiResponse.message,
+            source: 'openai',
             intent: aiResponse.extractedIntent
           });
         }
         
-        console.log(`[chat] OpenAI response generated for session ${sessionId}`);
-        return res.json({
-          message: aiResponse.message,
-          source: 'openai',
-          intent: aiResponse.extractedIntent
-        });
-        
       } catch (openaiError) {
         console.error(`[chat] OpenAI request failed:`, openaiError);
         
-        // Ako posledná možnosť použij základný fallback systém
-        const fallbackResponse = await generateFallbackResponse(chatData.message || '', sessionId);
-        console.log(`[chat] Using basic fallback response for session ${sessionId}`);
-        
-        return res.json({
-          message: fallbackResponse,
-          source: 'fallback'
-        });
+        if (!responseSent) {
+          // Ako posledná možnosť použij základný fallback systém s timeoutom
+          try {
+            const fallbackPromise = generateFallbackResponse(chatData.message || '', sessionId);
+            const timeoutPromise = new Promise<string>((_, reject) => {
+              setTimeout(() => reject(new Error('Final fallback timeout')), 5000);
+            });
+            const fallbackResponse = await Promise.race([fallbackPromise, timeoutPromise]);
+            
+            console.log(`[chat] Using basic fallback response for session ${sessionId}`);
+            responseSent = true;
+            return res.json({
+              message: fallbackResponse,
+              source: 'fallback'
+            });
+          } catch (finalError) {
+            console.error(`[chat] Final fallback failed for session ${sessionId}:`, finalError);
+            responseSent = true;
+            return res.json({
+              message: '👋 Ďakujem za správu! Som Linda z cukrárne Marsela Bakery. Pre objednávky: +421 917 795 731',
+              source: 'emergency_fallback'
+            });
+          }
+        }
       }
       
     } catch (error) {

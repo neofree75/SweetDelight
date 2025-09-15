@@ -112,7 +112,7 @@ export default function AboutSection() {
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    title="Poloha cukrárne Sladká Chvíľa - Dvorníky 364"
+                    title="Poloha cukrárne Marsela Bakery - Dvorníky 364"
                   />
                 </div>
               </CardContent>

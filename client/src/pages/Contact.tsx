@@ -219,7 +219,7 @@ export default function Contact() {
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    title="Poloha cukrárne Sladká Chvíľa"
+                    title="Poloha cukrárne Marsela Bakery"
                   />
                 </div>
               </CardContent>

@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Logo & Description */}
           <div className="md:col-span-2">
-            <h3 className="text-2xl font-serif font-bold mb-4">Sladká Chvíľa</h3>
+            <h3 className="text-2xl font-serif font-bold mb-4">Marsela Bakery</h3>
             <p className="text-background/80 leading-relaxed mb-6 max-w-md">
               Tradičná slovenská cukráreň s modernými francouzskymi technikani. 
               Pečieme s láskou každý deň od roku 2015.
@@ -111,7 +111,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-background/20 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-background/60 text-sm">
-            © {currentYear} Sladká Chvíľa. Všetky práva vyhradené.
+            © {currentYear} Marsela Bakery. Všetky práva vyhradené.
           </p>
           
           <div className="flex space-x-6 mt-4 md:mt-0">

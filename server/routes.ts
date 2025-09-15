@@ -136,7 +136,7 @@ async function generateFallbackResponse(message: string, sessionId: string = 'de
   
   // Základné odpovede
   if (lowerMessage.includes('ahoj') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-    return '👋 Ahoj! Som Linda, vaša AI asistentka pre cukráreň Sladká Chvíľa.\n\n✨ **Môžem vám pomôcť s:**\n• 📋 Vytvorením objednávky priamo v chate\n• 📍 Informáciami o produktoch a cenách\n• 🕒 Otváracími hodinami a kontaktmi\n\n💬 **Napíšte "objednať"** ak chcete urobiť objednávku, alebo sa pýtajte na čokoľvek!';
+    return '👋 Ahoj! Som Linda, vaša AI asistentka pre cukráreň Marsela Bakery.\n\n✨ **Môžem vám pomôcť s:**\n• 📋 Vytvorením objednávky priamo v chate\n• 📍 Informáciami o produktoch a cenách\n• 🕒 Otváracími hodinami a kontaktmi\n\n💬 **Napíšte "objednať"** ak chcete urobiť objednávku, alebo sa pýtajte na čokoľvek!';
   }
   
   if (lowerMessage.includes('zákusok') || lowerMessage.includes('zákusky') || lowerMessage.includes('tort') || lowerMessage.includes('cake')) {
@@ -160,7 +160,7 @@ async function generateFallbackResponse(message: string, sessionId: string = 'de
   }
   
   // Obecná odpoveď
-  return '👋 Ďakujem za správu! Som Linda z cukrárne Sladká Chvíľa.\n\n✨ **Napíšte "objednať"** pre vytvorenie objednávky priamo tu!\n\nAlebo sa pýtajte na produkty, ceny, otváracie hodiny...\n\n📞 Kontakt: +421 917 795 731';
+  return '👋 Ďakujem za správu! Som Linda z cukrárne Marsela Bakery.\n\n✨ **Napíšte "objednať"** pre vytvorenie objednávky priamo tu!\n\nAlebo sa pýtajte na produkty, ceny, otváracie hodiny...\n\n📞 Kontakt: +421 917 795 731';
 }
 
 // Spracovanie viacstupňového procesu objednávania
@@ -884,133 +884,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get webhook URL from environment
-      const webhookUrl = process.env.N8N_CHAT_WEBHOOK;
-      if (!webhookUrl) {
-        console.error("N8N_CHAT_WEBHOOK environment variable not set");
-        return res.status(500).json({ 
-          error: "Chat služba nie je momentálne dostupná" 
-        });
-      }
-
-      // Enrich payload with session information
-      const enrichedPayload = {
-        ...chatData,
-        sessionId: chatData.sessionId || req.session.id,
-        metadata: {
-          ...chatData.metadata,
-          timestamp: new Date().toISOString(),
-          userAgent: req.headers['user-agent'],
-          // Add user info if logged in
-          ...(req.session && (req.session as any).user ? {
-            user: {
-              email: (req.session as any).user.email,
-              name: (req.session as any).user.name
-            }
-          } : {})
-        }
-      };
+      // Get session ID
+      const sessionId = chatData.sessionId || req.session.id;
 
       // Ak nie je správa, môže byť inicializačný request
       if (!chatData.message) {
-        console.log(`[chat] Initialization request from ${clientIp}, session: ${enrichedPayload.sessionId}`);
+        console.log(`[chat] Initialization request from ${clientIp}, session: ${sessionId}`);
       } else {
-        console.log(`[chat] Processing message from ${clientIp}, session: ${enrichedPayload.sessionId}: ${chatData.message.substring(0, 50)}...`);
+        console.log(`[chat] Processing message from ${clientIp}, session: ${sessionId}: ${chatData.message.substring(0, 50)}...`);
       }
 
-      // Forward to n8n webhook with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(8000); // 8 second timeout
-      
+      // Use OpenAI directly as primary chat service
       try {
-        const response = await Promise.race([
-          fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'SladkaChvila-Chat/1.0'
-            },
-            body: JSON.stringify(enrichedPayload),
-            signal: controller.signal
-          }),
-          timeoutId.then(() => Promise.reject(new Error('Timeout')))
-        ]);
+        console.log(`[chat] Using OpenAI for session ${sessionId}`);
         
-        clearTimeout(timeoutId as any);
+        // Získaj dostupné produkty pre AI kontext
+        const products = await erpNextService.getProductsForFrontend();
         
-        if (!response.ok) {
-          throw new Error(`N8N responded with status ${response.status}`);
-        }
+        // Získaj user info ak je prihlásený
+        const userInfo = (req.session as any)?.user ? {
+          name: (req.session as any).user.name,
+          email: (req.session as any).user.email
+        } : undefined;
         
-        const responseData = await response.json();
+        const aiResponse = await openaiService.processChatMessage(
+          chatData.message || '',
+          sessionId,
+          userInfo,
+          products
+        );
         
-        console.log(`[chat] N8N response received for session ${enrichedPayload.sessionId}`);
-        
-        res.json(responseData);
-        
-      } catch (fetchError) {
-        clearTimeout(timeoutId as any);
-        controller.abort();
-        
-        if (fetchError instanceof Error && fetchError.message === 'Timeout') {
-          console.error(`[chat] N8N request timeout for session ${enrichedPayload.sessionId}`);
-          return res.status(504).json({ 
-            error: "Chat služba neodpovedá. Skúste znova neskôr." 
-          });
-        }
-        
-        console.error(`[chat] N8N request failed:`, fetchError);
-        
-        // Skúsi použiť OpenAI namiesto N8N fallback systému
-        try {
-          console.log(`[chat] Trying OpenAI for session ${enrichedPayload.sessionId}`);
-          
-          // Získaj dostupné produkty pre AI kontext
-          const products = await erpNextService.getProductsForFrontend();
-          
-          // Získaj user info ak je prihlásený
-          const userInfo = (req.session as any)?.user ? {
-            name: (req.session as any).user.name,
-            email: (req.session as any).user.email
-          } : undefined;
-          
-          const aiResponse = await openaiService.processChatMessage(
-            chatData.message || '',
-            enrichedPayload.sessionId,
-            userInfo,
-            products
-          );
-          
-          // Ak AI detekuje objednávkový intent, presmeruj na objednávkový fallback systém
-          if (aiResponse.needsOrderProcessing) {
-            console.log(`[chat] AI detected order intent, switching to order processing for session ${enrichedPayload.sessionId}`);
-            const orderResponse = await generateFallbackResponse(chatData.message || '', enrichedPayload.sessionId);
-            return res.json({
-              message: orderResponse,
-              source: 'ai_order_fallback',
-              intent: aiResponse.extractedIntent
-            });
-          }
-          
-          console.log(`[chat] OpenAI response generated for session ${enrichedPayload.sessionId}`);
+        // Ak AI detekuje objednávkový intent, presmeruj na objednávkový fallback systém
+        if (aiResponse.needsOrderProcessing) {
+          console.log(`[chat] AI detected order intent, switching to order processing for session ${sessionId}`);
+          const orderResponse = await generateFallbackResponse(chatData.message || '', sessionId);
           return res.json({
-            message: aiResponse.message,
-            source: 'openai',
+            message: orderResponse,
+            source: 'ai_order_fallback',
             intent: aiResponse.extractedIntent
           });
-          
-        } catch (openaiError) {
-          console.error(`[chat] OpenAI request also failed:`, openaiError);
-          
-          // Ako posledná možnosť použij pôvodný fallback systém
-          const fallbackResponse = await generateFallbackResponse(chatData.message || '', enrichedPayload.sessionId);
-          console.log(`[chat] Using basic fallback response for session ${enrichedPayload.sessionId}`);
-          
-          return res.json({
-            message: fallbackResponse,
-            source: 'fallback'
-          });
         }
+        
+        console.log(`[chat] OpenAI response generated for session ${sessionId}`);
+        return res.json({
+          message: aiResponse.message,
+          source: 'openai',
+          intent: aiResponse.extractedIntent
+        });
+        
+      } catch (openaiError) {
+        console.error(`[chat] OpenAI request failed:`, openaiError);
+        
+        // Ako posledná možnosť použij základný fallback systém
+        const fallbackResponse = await generateFallbackResponse(chatData.message || '', sessionId);
+        console.log(`[chat] Using basic fallback response for session ${sessionId}`);
+        
+        return res.json({
+          message: fallbackResponse,
+          source: 'fallback'
+        });
       }
       
     } catch (error) {

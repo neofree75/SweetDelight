@@ -224,20 +224,52 @@ export class ERPNextService {
     try {
       const response = await this.client.post('/method/external_reset.api.register.register_user', userData);
       
+      let registrationSuccess = false;
       if (response.data.message && response.data.message.success) {
-        return {
-          success: true,
-          message: 'Registrácia bola úspešná'
-        };
+        registrationSuccess = true;
       } else if (response.data.message && response.data.message.error) {
         return {
           success: false,
           message: response.data.message.error
         };
       } else {
+        registrationSuccess = true;
+      }
+
+      // Po úspešnej registrácii aktualizuj Customer záznam s mobilným číslom
+      if (registrationSuccess && userData.mobile_no) {
+        console.log('Updating Customer record with mobile number after registration...');
+        
+        try {
+          // Počkaj krátko, aby sa Customer záznam stihol vytvoriť
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const updateResult = await this.updateUserProfile(userData.email, {
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            email: userData.email,
+            mobile: userData.mobile_no
+          });
+          
+          if (!updateResult.success) {
+            console.warn('Failed to update mobile number after registration:', updateResult.message);
+          } else {
+            console.log('Mobile number successfully updated after registration');
+          }
+        } catch (updateError) {
+          console.warn('Error updating mobile number after registration:', updateError);
+        }
+      }
+
+      if (registrationSuccess) {
         return {
           success: true,
           message: 'Registrácia bola úspešná'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Chyba pri registrácii'
         };
       }
     } catch (error) {
@@ -387,8 +419,6 @@ export class ERPNextService {
       
       if (response.data.data && response.data.data.length > 0) {
         const customer = response.data.data[0];
-        console.log('ERPNext customer data:', JSON.stringify(customer, null, 2));
-        console.log('Mobile field value:', customer.mobile_no, '(type:', typeof customer.mobile_no, ')');
         
         // Parse name parts from customer_name
         const nameParts = (customer.customer_name || '').split(' ');

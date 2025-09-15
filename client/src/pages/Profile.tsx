@@ -16,7 +16,6 @@ interface ProfileData {
   email: string;
   salutation?: string;
   gender?: string;
-  dateOfBirth?: string;
   language?: string;
   
   // Kontaktné údaje  
@@ -71,7 +70,7 @@ export default function Profile({ user }: ProfileProps) {
     country: '',
     salutation: '',
     gender: '',
-    dateOfBirth: '',
+
     website: '',
     taxId: ''
   });
@@ -90,7 +89,7 @@ export default function Profile({ user }: ProfileProps) {
     country: '',
     salutation: '',
     gender: '',
-    dateOfBirth: '',
+
     website: '',
     taxId: ''
   });
@@ -143,7 +142,7 @@ export default function Profile({ user }: ProfileProps) {
             country: '',
             salutation: '',
             gender: '',
-            dateOfBirth: '',
+        
             website: '',
             taxId: ''
           };
@@ -170,7 +169,7 @@ export default function Profile({ user }: ProfileProps) {
           country: '',
           salutation: '',
           gender: '',
-          dateOfBirth: '',
+      
           website: '',
           taxId: ''
         };
@@ -365,45 +364,23 @@ export default function Profile({ user }: ProfileProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="gender" className="text-sm font-medium">
-                        Pohlavie
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="gender"
-                          value={editData.gender || ''}
-                          onChange={(e) => handleEditChange('gender', e.target.value)}
-                          placeholder="Muž/Žena"
-                          data-testid="input-gender"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-gender">
-                          {profileData.gender || '-'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="dateOfBirth" className="text-sm font-medium flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Dátum narodenia
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="dateOfBirth"
-                          type="date"
-                          value={editData.dateOfBirth || ''}
-                          onChange={(e) => handleEditChange('dateOfBirth', e.target.value)}
-                          data-testid="input-dateOfBirth"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-dateOfBirth">
-                          {profileData.dateOfBirth || '-'}
-                        </div>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender" className="text-sm font-medium">
+                      Pohlavie
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        id="gender"
+                        value={editData.gender || ''}
+                        onChange={(e) => handleEditChange('gender', e.target.value)}
+                        placeholder="Muž/Žena"
+                        data-testid="input-gender"
+                      />
+                    ) : (
+                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-gender">
+                        {profileData.gender || '-'}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

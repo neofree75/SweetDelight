@@ -390,10 +390,11 @@ export class ERPNextService {
     try {
       console.log('Getting user profile for:', email);
       
-      // Get basic customer data from ERPNext (only commonly available fields)
+      // Get basic customer data from ERPNext with primary address
       const customerFields = [
         "name", "customer_name", "email_id", 
-        "customer_group", "territory", "creation", "modified", "customer_type"
+        "customer_group", "territory", "creation", "modified", "customer_type",
+        "customer_primary_address"
       ];
       
       const customerResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(customerFields)}`);
@@ -436,6 +437,34 @@ export class ERPNextService {
           lastName = nameParts.slice(1).join(' ') || '';
         }
 
+        // Get primary address from customer
+        let primaryAddress = null;
+        if (customer.customer_primary_address) {
+          try {
+            // Fetch the specific primary address
+            const addressResponse = await this.client.get(`/resource/Address/${customer.customer_primary_address}`);
+            if (addressResponse.data.data) {
+              primaryAddress = addressResponse.data.data;
+              console.log('Primary address found:', primaryAddress.name);
+            }
+          } catch (addressError) {
+            console.warn('Error fetching primary address:', addressError);
+          }
+        }
+        
+        // Fallback: if no primary address, try to find first address for this customer
+        if (!primaryAddress) {
+          try {
+            const addressListResponse = await this.client.get(`/resource/Address?filters=[["link_doctype","=","Customer"],["link_name","=","${customer.name}"]]&fields=["name","address_line1","address_line2","city","state","pincode","country"]&limit_page_length=1`);
+            if (addressListResponse.data.data && addressListResponse.data.data.length > 0) {
+              primaryAddress = addressListResponse.data.data[0];
+              console.log('Fallback address found:', primaryAddress.name);
+            }
+          } catch (fallbackError) {
+            console.warn('Error fetching fallback address:', fallbackError);
+          }
+        }
+
         return {
           success: true,
           data: {
@@ -450,6 +479,14 @@ export class ERPNextService {
             mobile: contactData?.mobile_no || '',
             phone: contactData?.phone || '',
             
+            // Adresné údaje (z primárnej adresy)
+            addressLine1: primaryAddress?.address_line1 || '',
+            addressLine2: primaryAddress?.address_line2 || '',
+            city: primaryAddress?.city || '',
+            state: primaryAddress?.state || '',
+            pincode: primaryAddress?.pincode || '',
+            country: primaryAddress?.country || '',
+            
             // Biznis informácie
             customerGroup: customer.customer_group || '',
             territory: customer.territory || '',
@@ -460,7 +497,8 @@ export class ERPNextService {
             modified: customer.modified || '',
             
             // Interiálne IDs pre aktualizácie
-            contactId: contactData?.name || ''
+            contactId: contactData?.name || '',
+            addressId: primaryAddress?.name || ''
           },
           message: 'Profil načítaný úspešne'
         };

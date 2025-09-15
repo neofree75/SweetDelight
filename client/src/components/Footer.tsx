@@ -80,20 +80,29 @@ export default function Footer() {
               <div className="flex items-center space-x-3">
                 <MapPin className="h-4 w-4 text-background/60" />
                 <span className="text-background/80 text-sm">
-                  Hlavná 123, Bratislava
+                  Dvorníky 364<br />
+                  Dvorníky, Slovakia
                 </span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-4 w-4 text-background/60" />
-                <span className="text-background/80 text-sm">
-                  +421 2 1234 5678
-                </span>
+                <a 
+                  href="tel:+421917795731" 
+                  className="text-background/80 hover:text-background text-sm transition-colors"
+                  data-testid="footer-phone"
+                >
+                  +421 917 795 731
+                </a>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 text-background/60" />
-                <span className="text-background/80 text-sm">
-                  info@sladkachvila.sk
-                </span>
+                <a 
+                  href="mailto:marcelabakery@gmail.com" 
+                  className="text-background/80 hover:text-background text-sm transition-colors"
+                  data-testid="footer-email"
+                >
+                  marcelabakery@gmail.com
+                </a>
               </div>
             </div>
           </div>

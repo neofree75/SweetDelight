@@ -40,6 +40,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint - get products without cache
+  app.get("/api/debug/products", async (req, res) => {
+    try {
+      // Získaj produkty priamo z ERPNext bez cache
+      const items = await erpNextService.getItems();
+      console.log(`Debug: Fetched ${items.length} items from ERPNext:`, items.map(i => ({ name: i.name, item_name: i.item_name, item_group: i.item_group, disabled: i.disabled })));
+      
+      res.json({
+        total: items.length,
+        items: items,
+        categories: Array.from(new Set(items.map(i => i.item_group))).sort()
+      });
+    } catch (error) {
+      console.error("Error fetching debug products:", error);
+      res.status(500).json({ error: "Failed to fetch debug products" });
+    }
+  });
+
+  // Debug endpoint - refresh products cache
+  app.post("/api/debug/refresh-cache", async (req, res) => {
+    try {
+      // Vynuluj cache
+      await erpNextService.clearProductCache();
+      console.log("Debug: Product cache cleared");
+      
+      // Načítaj nové produkty
+      const products = await erpNextService.getProductsForFrontend();
+      console.log(`Debug: Refreshed cache with ${products.length} products`);
+      
+      res.json({
+        message: "Cache refreshed successfully",
+        productCount: products.length,
+        categories: Array.from(new Set(products.map(p => p.category))).sort()
+      });
+    } catch (error) {
+      console.error("Error refreshing cache:", error);
+      res.status(500).json({ error: "Failed to refresh cache" });
+    }
+  });
+
   // Get specific product by ID
   app.get("/api/products/:id", async (req, res) => {
     try {

@@ -13,6 +13,26 @@ export const erpNextItemSchema = z.object({
   disabled: z.boolean().default(false),
   image: z.string().optional(),
   valuation_rate: z.number().optional(), // Cena produktu v ERPNext
+  has_variants: z.boolean().default(false), // Či má produkt varianty
+  variant_of: z.string().optional(), // Ak je variant, z akého template produktu
+  attributes: z.array(z.object({
+    attribute: z.string(),
+    attribute_value: z.string().optional()
+  })).optional(), // Atribúty produktu/variantu
+});
+
+// ERPNext Item Variant schema for individual variants
+export const erpNextItemVariantSchema = z.object({
+  name: z.string(),
+  item_name: z.string(), 
+  description: z.string().optional(),
+  variant_of: z.string(),
+  attributes: z.array(z.object({
+    attribute: z.string(),
+    attribute_value: z.string()
+  })),
+  valuation_rate: z.number().optional(),
+  disabled: z.boolean().default(false),
 });
 
 // ERPNext Price List Rate schema
@@ -61,6 +81,16 @@ export const productSchema = z.object({
   image: z.string(),
   category: z.string(),
   inStock: z.boolean(),
+  hasVariants: z.boolean().default(false), // Či má produkt varianty
+  variants: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    attributes: z.array(z.object({
+      attribute: z.string(),
+      value: z.string()
+    })),
+    price: z.number().optional()
+  })).optional(), // Dostupné varianty produktu
 });
 
 // Frontend Customer schema (for checkout form)
@@ -97,6 +127,7 @@ export const orderSchema = z.object({
 
 // Type exports
 export type ERPNextItem = z.infer<typeof erpNextItemSchema>;
+export type ERPNextItemVariant = z.infer<typeof erpNextItemVariantSchema>;
 export type ERPNextPrice = z.infer<typeof erpNextPriceSchema>;
 export type ERPNextCustomer = z.infer<typeof erpNextCustomerSchema>;
 export type ERPNextSalesOrder = z.infer<typeof erpNextSalesOrderSchema>;

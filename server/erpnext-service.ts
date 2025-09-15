@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { 
   ERPNextItem, 
+  ERPNextItemVariant, 
   ERPNextPrice, 
   ERPNextCustomer, 
   ERPNextSalesOrder,
@@ -125,7 +126,7 @@ export class ERPNextService {
     try {
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate"]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","attributes"]',
           filters: '[["disabled","=","0"]]',
           limit_page_length: 100
         }
@@ -134,6 +135,24 @@ export class ERPNextService {
       return response.data.data || [];
     } catch (error) {
       console.error('Error fetching items from ERPNext:', error);
+      return [];
+    }
+  }
+
+  // Get variants for a specific item template
+  async getItemVariants(templateName: string): Promise<ERPNextItemVariant[]> {
+    try {
+      const response = await this.client.get('/resource/Item', {
+        params: {
+          fields: '["name","item_name","description","variant_of","attributes","valuation_rate","disabled"]',
+          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"]]`,
+          limit_page_length: 50
+        }
+      });
+
+      return response.data.data || [];
+    } catch (error) {
+      console.error(`Error fetching variants for ${templateName}:`, error);
       return [];
     }
   }
@@ -260,13 +279,28 @@ export class ERPNextService {
 
 
     // Transform items to products
-    const products = items.map(item => {
+    const products = await Promise.all(items.map(async item => {
       // Oprav image URL - pridaj ERPNext base URL pre obrázky
       let imageUrl = '/placeholder-product.jpg';
       if (item.image && item.image.startsWith('/files/')) {
         imageUrl = `${this.baseUrl}${item.image}`;
       } else if (item.image) {
         imageUrl = item.image;
+      }
+
+      // Ak má produkt varianty, načítaj ich
+      let variants = undefined;
+      if (item.has_variants) {
+        const itemVariants = await this.getItemVariants(item.name);
+        variants = itemVariants.map(variant => ({
+          id: variant.name,
+          name: variant.item_name,
+          attributes: (variant.attributes || []).map(attr => ({
+            attribute: attr.attribute,
+            value: attr.attribute_value || ''
+          })),
+          price: variant.valuation_rate || 0
+        }));
       }
 
       return {
@@ -276,9 +310,11 @@ export class ERPNextService {
         price: item.valuation_rate || 0,
         image: imageUrl,
         category: item.item_group,
-        inStock: !item.disabled
+        inStock: !item.disabled,
+        hasVariants: item.has_variants || false,
+        variants: variants
       };
-    });
+    }));
 
     // Ulož do cache
     this.productCache = {

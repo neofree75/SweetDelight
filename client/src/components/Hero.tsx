@@ -19,11 +19,11 @@ export default function Hero() {
           Sladká Chvíľa
         </h1>
         <p className="text-xl md:text-2xl font-accent mb-4">
-          Handcrafted with Love
+          Ručne vyrábané s láskou
         </p>
         <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto opacity-90">
-          Discover our artisan pastries, fresh cakes, and traditional Slovak desserts. 
-          Made daily with premium ingredients and time-honored recipes.
+          Objavte naše remeselné pečivo, čerstvé koláče a tradičné slovenské dezerty. 
+          Denne pripravované z prvotriednych surovín a podľa overených receptov.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">

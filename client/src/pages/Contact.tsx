@@ -37,9 +37,9 @@ export default function Contact() {
   };
 
   const openingHours = [
-    { day: 'Pondelok - Piatok', time: '7:00 - 19:00' },
-    { day: 'Sobota', time: '8:00 - 18:00' },
-    { day: 'Nedeľa', time: '9:00 - 16:00' }
+    { day: 'Pondelok', time: 'Zatvorené' },
+    { day: 'Utorok - Štvrtok', time: '14:00 - 20:00' },
+    { day: 'Piatok - Nedeľa', time: '14:00 - 20:30' }
   ];
 
   return (
@@ -160,8 +160,8 @@ export default function Contact() {
                   <div>
                     <h4 className="font-semibold text-foreground">Adresa</h4>
                     <p className="text-muted-foreground">
-                      Hlavná 123<br />
-                      811 01 Bratislava, Slovensko
+                      Dvorníky 364<br />
+                      Dvorníky, Slovakia
                     </p>
                   </div>
                 </div>
@@ -170,7 +170,7 @@ export default function Contact() {
                   <Phone className="h-5 w-5 text-primary" />
                   <div>
                     <h4 className="font-semibold text-foreground">Telefón</h4>
-                    <p className="text-muted-foreground">+421 2 1234 5678</p>
+                    <a href="tel:+421917795731" className="text-muted-foreground hover:text-primary transition-colors" data-testid="link-contact-phone">+421 917 795 731</a>
                   </div>
                 </div>
 
@@ -178,7 +178,7 @@ export default function Contact() {
                   <Mail className="h-5 w-5 text-primary" />
                   <div>
                     <h4 className="font-semibold text-foreground">Email</h4>
-                    <p className="text-muted-foreground">info@sladkachvila.sk</p>
+                    <a href="mailto:marcelabakery@gmail.com" className="text-muted-foreground hover:text-primary transition-colors" data-testid="link-contact-email">marcelabakery@gmail.com</a>
                   </div>
                 </div>
               </CardContent>
@@ -212,7 +212,7 @@ export default function Contact() {
               <CardContent>
                 <div className="aspect-video rounded-lg overflow-hidden border border-border">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2662.2842555493987!2d17.10671731583478!3d48.14816997922141!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476c895c0d297a13%3A0xaa7da971ba2ed8c0!2sBratislava%2C%20Slovakia!5e0!3m2!1sen!2s!4v1647875400000!5m2!1sen!2s"
+                    src="https://www.google.com/maps?q=Dvorn%C3%ADky%20364,%20Dvorn%C3%ADky,%20Slovakia&z=16&output=embed"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}

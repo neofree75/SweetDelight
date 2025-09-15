@@ -44,6 +44,7 @@ export const erpNextSalesOrderSchema = z.object({
     qty: z.number(),
     rate: z.number(),
     amount: z.number(),
+    additional_notes: z.string().optional(),
   })),
   total: z.number(),
   grand_total: z.number(),
@@ -80,6 +81,7 @@ export const cartItemSchema = z.object({
   price: z.number(),
   quantity: z.number().min(1),
   image: z.string(),
+  additional_notes: z.string().optional(),
 });
 
 // Frontend Order schema

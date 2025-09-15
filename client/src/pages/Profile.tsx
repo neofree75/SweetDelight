@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Edit, Save, X, MapPin, Building, Calendar, Globe, CreditCard } from 'lucide-react';
+import { User, Mail, Phone, Edit, Save, X, MapPin, Building, Calendar, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProfileData {
@@ -21,7 +21,6 @@ interface ProfileData {
   // Kontaktné údaje  
   mobile?: string;
   fax?: string;
-  website?: string;
   
   // Adresa
   addressLine1?: string;
@@ -32,7 +31,6 @@ interface ProfileData {
   country?: string;
   
   // Biznis informácie
-  customerGroup?: string;
   territory?: string;
   company?: string;
   customerType?: string;
@@ -69,7 +67,6 @@ export default function Profile({ user }: ProfileProps) {
     salutation: '',
     gender: '',
 
-    website: '',
     taxId: ''
   });
 
@@ -87,7 +84,6 @@ export default function Profile({ user }: ProfileProps) {
     salutation: '',
     gender: '',
 
-    website: '',
     taxId: ''
   });
 
@@ -139,7 +135,6 @@ export default function Profile({ user }: ProfileProps) {
             salutation: '',
             gender: '',
         
-            website: '',
             taxId: ''
           };
           setProfileData(fallbackData);
@@ -165,7 +160,6 @@ export default function Profile({ user }: ProfileProps) {
           salutation: '',
           gender: '',
       
-          website: '',
           taxId: ''
         };
         setProfileData(fallbackData);
@@ -429,26 +423,6 @@ export default function Profile({ user }: ProfileProps) {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="website" className="text-sm font-medium flex items-center gap-2">
-                      <Globe className="h-4 w-4" />
-                      Webstránka
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="website"
-                        type="url"
-                        value={editData.website || ''}
-                        onChange={(e) => handleEditChange('website', e.target.value)}
-                        placeholder="https://www.example.com"
-                        data-testid="input-website"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-website">
-                        {profileData.website || '-'}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -565,23 +539,12 @@ export default function Profile({ user }: ProfileProps) {
                   Biznis informácie
                 </h3>
                 <div className="grid gap-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="customerGroup" className="text-sm font-medium">
-                        Skupina zákazníka
-                      </Label>
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-customerGroup">
-                        {profileData.customerGroup || '-'}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="customerType" className="text-sm font-medium">
-                        Typ zákazníka
-                      </Label>
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-customerType">
-                        {profileData.customerType || '-'}
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="customerType" className="text-sm font-medium">
+                      Typ zákazníka
+                    </Label>
+                    <div className="p-3 bg-muted/50 rounded-md" data-testid="text-customerType">
+                      {profileData.customerType || '-'}
                     </div>
                   </div>
 

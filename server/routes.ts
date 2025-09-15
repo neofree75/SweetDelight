@@ -41,41 +41,322 @@ function checkRateLimit(ip: string): { allowed: boolean; resetTime?: number } {
   return { allowed: true };
 }
 
-// Fallback odpovede pre chat
-function generateFallbackResponse(message: string): string {
+// Chat session state management
+interface ChatOrderState {
+  step: 'initial' | 'product_selection' | 'quantity' | 'customer_info' | 'confirmation' | 'completed';
+  selectedProducts: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity?: number;
+  }>;
+  customerInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+  total?: number;
+}
+
+const chatSessions: Map<string, ChatOrderState> = new Map();
+
+// Fallback odpovede pre chat s objednávkovou funkcionalitou
+async function generateFallbackResponse(message: string, sessionId: string = 'default'): Promise<string> {
   const lowerMessage = message.toLowerCase();
   
-  // Odpovede podľa klúčových slov
+  // Získaj alebo vytvor session state
+  let orderState = chatSessions.get(sessionId);
+  if (!orderState) {
+    orderState = {
+      step: 'initial',
+      selectedProducts: []
+    };
+    chatSessions.set(sessionId, orderState);
+  }
+
+  // Pokračovanie existujúcej objednávky
+  if (orderState.step !== 'initial') {
+    return await handleOrderProcess(message, sessionId, orderState);
+  }
+
+  // Detekcia intencie objednávania
+  if (lowerMessage.includes('objedná') || lowerMessage.includes('objednat') || 
+      lowerMessage.includes('kúpiť') || lowerMessage.includes('chcem') ||
+      lowerMessage.includes('order') || lowerMessage.includes('buy')) {
+    
+    orderState.step = 'product_selection';
+    chatSessions.set(sessionId, orderState);
+    
+    try {
+      // Načítaj dostupné produkty z ERPNext
+      const products = await erpNextService.getProductsForFrontend();
+      
+      let productList = '📋 **Dostupné produkty na objednávku:**\n\n';
+      
+      // Zákusky (s minimálnym množstvom 10)
+      const zakusky = products.filter(p => p.category === 'Zákusky');
+      if (zakusky.length > 0) {
+        productList += '🧁 **Zákusky (min. 10 ks):**\n';
+        zakusky.forEach(p => {
+          productList += `• ${p.name} - ${p.price.toFixed(2)}€/ks\n`;
+        });
+        productList += '\n';
+      }
+      
+      // Torty  
+      const torty = products.filter(p => p.category === 'Torty');
+      if (torty.length > 0) {
+        productList += '🎂 **Torty:**\n';
+        torty.forEach(p => {
+          productList += `• ${p.name} - ${p.price.toFixed(2)}€\n`;
+        });
+        productList += '\n';
+      }
+      
+      // Ostatné produkty
+      const ostatne = products.filter(p => !['Zákusky', 'Torty'].includes(p.category));
+      if (ostatne.length > 0) {
+        productList += '🍰 **Ostatné produkty:**\n';
+        ostatne.forEach(p => {
+          productList += `• ${p.name} - ${p.price.toFixed(2)}€\n`;
+        });
+        productList += '\n';
+      }
+      
+      productList += '💬 **Napíšte názov produktu ktorý chcete objednať**, alebo napíšte "zruš" pre ukončenie objednávky.';
+      
+      return productList;
+      
+    } catch (error) {
+      console.error('Error fetching products for chat:', error);
+      return 'Prepáčte, momentálne nemôžem načítať zoznam produktov. Skúste neskôr alebo nás kontaktujte na +421 917 795 731.';
+    }
+  }
+  
+  // Základné odpovede
   if (lowerMessage.includes('ahoj') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-    return 'Ahoj! Som Linda, vaša AI asistentka pre cukráreň Sladká Chvíľa. Ako vám môžem pomôcť?';
+    return '👋 Ahoj! Som Linda, vaša AI asistentka pre cukráreň Sladká Chvíľa.\n\n✨ **Môžem vám pomôcť s:**\n• 📋 Vytvorením objednávky priamo v chate\n• 📍 Informáciami o produktoch a cenách\n• 🕒 Otváracími hodinami a kontaktmi\n\n💬 **Napíšte "objednať"** ak chcete urobiť objednávku, alebo sa pýtajte na čokoľvek!';
   }
   
   if (lowerMessage.includes('zákusok') || lowerMessage.includes('zákusky') || lowerMessage.includes('tort') || lowerMessage.includes('cake')) {
-    return 'Máme široký výber zákuskov a tortôt! Náš sortiment nájdete v obchode na stránke. Pre objednávky alebo otázky nás kontaktujte na +421 917 795 731.';
+    return '🧁 Máme široký výber zákuskov a tortôt!\n\n📋 **Pre objednávku napíšte "objednať"** - pomôžem vám vybrať a objednám priamo tu v chate!\n\nAlebo navštívte náš obchod na stránke. Pre otázky: +421 917 795 731';
   }
   
   if (lowerMessage.includes('cena') || lowerMessage.includes('koľko') || lowerMessage.includes('price')) {
-    return 'Ceny nášich produktov nájdete priamo v obchode na stránke. Pre aktuálne ceny a cenové ponuky nás kontaktujte na +421 917 795 731 alebo marcelabakery@gmail.com.';
-  }
-  
-  if (lowerMessage.includes('objedná') || lowerMessage.includes('objednat') || lowerMessage.includes('order')) {
-    return 'Objednávky môžete urobiť priamo cez náš obchod na stránke alebo nás kontaktovať na telefóne +421 917 795 731. Rádi vám pomôžeme s výberom!';
+    return '💰 Ceny našich produktov nájdete v obchode na stránke.\n\n📋 **Napíšte "objednať"** - ukážem vám všetky produkty s cenami a pomôžem s objednávkou!\n\nPre cenové ponuky: +421 917 795 731 alebo marcelabakery@gmail.com';
   }
   
   if (lowerMessage.includes('otváracie') || lowerMessage.includes('hodiny') || lowerMessage.includes('open') || lowerMessage.includes('hours')) {
-    return 'Naše otváracie hodiny sú Pondelok-Piatok 8:00-17:00, Sobota 9:00-15:00. Nájdete nás v Dvorníkoch 364. Pre viac informácií kontaktujte +421 917 795 731.';
+    return '🕒 **Otváracie hodiny:**\n• Pondelok-Piatok: 8:00-17:00\n• Sobota: 9:00-15:00\n• Nedeľa: zatvorené\n\n📍 Dvorníky 364\n☎ +421 917 795 731';
   }
   
   if (lowerMessage.includes('adresa') || lowerMessage.includes('kde') || lowerMessage.includes('address') || lowerMessage.includes('location')) {
-    return 'Nájdete nás na adrese Dvorníky 364, Slovenská republika. Kontaktovať nás môžete na +421 917 795 731 alebo marcelabakery@gmail.com.';
+    return '📍 **Naša adresa:**\nDvorníky 364, Slovenská republika\n\n☎ +421 917 795 731\n✉ marcelabakery@gmail.com\n\n💬 Napíšte "objednať" pre objednávku priamo tu!';
   }
   
   if (lowerMessage.includes('kontakt') || lowerMessage.includes('telefón') || lowerMessage.includes('email')) {
-    return 'Môžete nás kontaktovať na:\n☎ +421 917 795 731\n✉ marcelabakery@gmail.com\n📍 Dvorníky 364, Slovenská republika';
+    return '📞 **Kontaktné údaje:**\n☎ +421 917 795 731\n✉ marcelabakery@gmail.com\n📍 Dvorníky 364, Slovenská republika\n\n💬 Napíšte "objednať" pre objednávku priamo v chate!';
   }
   
   // Obecná odpoveď
-  return 'Ďakujem za vašu správu! Som Linda, AI asistentka pre cukráreň Sladká Chvíľa. Pre konkrétne informácie o našich produktoch a službách nás prosím kontaktujte na +421 917 795 731 alebo marcelabakery@gmail.com. Rádi vám pomôžeme!';
+  return '👋 Ďakujem za správu! Som Linda z cukrárne Sladká Chvíľa.\n\n✨ **Napíšte "objednať"** pre vytvorenie objednávky priamo tu!\n\nAlebo sa pýtajte na produkty, ceny, otváracie hodiny...\n\n📞 Kontakt: +421 917 795 731';
+}
+
+// Spracovanie viacstupňového procesu objednávania
+async function handleOrderProcess(message: string, sessionId: string, orderState: ChatOrderState): Promise<string> {
+  const lowerMessage = message.toLowerCase().trim();
+  
+  // Možnosť zrušiť objednávku kedykoľvek
+  if (lowerMessage === 'zruš' || lowerMessage === 'zrušiť' || lowerMessage === 'cancel') {
+    chatSessions.delete(sessionId);
+    return '❌ Objednávka zrušená. Napíšte "objednať" ak chcete začať znova, alebo sa pýtajte na čokoľvek iné!';
+  }
+  
+  try {
+    switch (orderState.step) {
+      case 'product_selection':
+        return await handleProductSelection(message, sessionId, orderState);
+      
+      case 'quantity':
+        return await handleQuantitySelection(message, sessionId, orderState);
+      
+      case 'customer_info':
+        return await handleCustomerInfo(message, sessionId, orderState);
+      
+      case 'confirmation':
+        return await handleOrderConfirmation(message, sessionId, orderState);
+      
+      default:
+        chatSessions.delete(sessionId);
+        return 'Chyba pri spracovaní objednávky. Napíšte "objednať" pre nový začiatok.';
+    }
+  } catch (error) {
+    console.error('Error in handleOrderProcess:', error);
+    chatSessions.delete(sessionId);
+    return 'Nastala chyba pri spracovaní objednávky. Skúste znova napísať "objednať".';
+  }
+}
+
+// Výber produktu
+async function handleProductSelection(message: string, sessionId: string, orderState: ChatOrderState): Promise<string> {
+  const products = await erpNextService.getProductsForFrontend();
+  
+  // Nájdi produkt podľa názvu (fuzzy matching)
+  const searchTerm = message.toLowerCase().trim();
+  const foundProduct = products.find(p => 
+    p.name.toLowerCase().includes(searchTerm) ||
+    searchTerm.includes(p.name.toLowerCase().substring(0, 5))
+  );
+  
+  if (!foundProduct) {
+    return `❓ Produkt "${message}" som nenašla. \n\n📋 **Dostupné produkty:**\n${products.map(p => `• ${p.name}`).join('\n')}\n\n💬 Skúste napísať presný názov alebo napíšte "zruš".`;
+  }
+  
+  // Pridaj produkt do objednávky
+  orderState.selectedProducts = [{
+    id: foundProduct.id,
+    name: foundProduct.name,  
+    price: foundProduct.price
+  }];
+  
+  orderState.step = 'quantity';
+  chatSessions.set(sessionId, orderState);
+  
+  const isZakusok = foundProduct.category === 'Zákusky';
+  const minQuantity = isZakusok ? 10 : 1;
+  
+  return `✅ **Vybratý produkt:** ${foundProduct.name}\n💰 **Cena:** ${foundProduct.price.toFixed(2)}€${isZakusok ? '/ks' : ''}\n\n${isZakusok ? '🧁 **Pre zákusky je minimálne množstvo 10 kusov.**\n' : ''}💬 **Koľko kusov chcete?** (min. ${minQuantity})`;
+}
+
+// Výber množstva
+async function handleQuantitySelection(message: string, sessionId: string, orderState: ChatOrderState): Promise<string> {
+  const quantity = parseInt(message.trim());
+  const product = orderState.selectedProducts[0];
+  
+  if (isNaN(quantity) || quantity < 1) {
+    return '❓ Prosím zadajte platné číslo (napr. 10, 20). Koľko kusov chcete?';
+  }
+  
+  // Kontrola minimálneho množstva pre zákusky
+  const products = await erpNextService.getProductsForFrontend();
+  const productInfo = products.find(p => p.id === product.id);
+  const isZakusok = productInfo?.category === 'Zákusky';
+  
+  if (isZakusok && quantity < 10) {
+    return '🧁 **Pre zákusky je minimálne množstvo 10 kusov.** Koľko kusov chcete? (min. 10)';
+  }
+  
+  // Nastav množstvo a vypočítaj celkovú sumu
+  product.quantity = quantity;
+  const total = product.price * quantity;
+  orderState.total = total;
+  orderState.step = 'customer_info';
+  orderState.customerInfo = {};
+  
+  chatSessions.set(sessionId, orderState);
+  
+  return `✅ **${quantity}x ${product.name}**\n💰 **Celková suma: ${total.toFixed(2)}€**\n\n📝 **Teraz potrebujem vaše údaje na objednávku:**\n\n👤 **Ako sa voláte?** (meno a priezvisko)`;
+}
+
+// Zbieranie údajov o zákazníkovi  
+async function handleCustomerInfo(message: string, sessionId: string, orderState: ChatOrderState): Promise<string> {
+  if (!orderState.customerInfo) orderState.customerInfo = {};
+  
+  const info = orderState.customerInfo;
+  const trimmedMessage = message.trim();
+  
+  if (!info.name) {
+    if (trimmedMessage.length < 2) {
+      return '👤 Prosím zadajte vaše celé meno (meno a priezvisko):';
+    }
+    info.name = trimmedMessage;
+    chatSessions.set(sessionId, orderState);
+    return `✅ **Meno:** ${info.name}\n\n📧 **Teraz váš email:**`;
+  }
+  
+  if (!info.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedMessage)) {
+      return '📧 Prosím zadajte platný email (napr. jan.novak@example.com):';
+    }
+    info.email = trimmedMessage;
+    chatSessions.set(sessionId, orderState);
+    return `✅ **Email:** ${info.email}\n\n📱 **Teraz váše telefónne číslo:** (napr. +421 901 234 567)`;
+  }
+  
+  if (!info.phone) {
+    const phoneRegex = /^[\+]?[0-9\s\-\(\)]{9,}$/;
+    if (!phoneRegex.test(trimmedMessage)) {
+      return '📱 Prosím zadajte platné telefónne číslo (napr. +421 901 234 567 alebo 0901234567):';
+    }
+    info.phone = trimmedMessage;
+    orderState.step = 'confirmation';
+    chatSessions.set(sessionId, orderState);
+    
+    const product = orderState.selectedProducts[0];
+    return `✅ **Telefón:** ${info.phone}\n\n📋 **SÚHRN OBJEDNÁVKY:**\n\n👤 **Zákazník:** ${info.name}\n📧 **Email:** ${info.email}\n📱 **Telefón:** ${info.phone}\n\n🛒 **Produkt:** ${product.quantity}x ${product.name}\n💰 **Celková suma:** ${orderState.total?.toFixed(2)}€\n\n✅ **Napíšte "potvrdiť"** pre odoslanie objednávky do ERPNext\n❌ **Alebo "zruš"** pre zrušenie`;
+  }
+  
+  return 'Chyba pri spracovaní údajov. Skúste znova.';
+}
+
+// Potvrdenie objednávky
+async function handleOrderConfirmation(message: string, sessionId: string, orderState: ChatOrderState): Promise<string> {
+  const lowerMessage = message.toLowerCase().trim();
+  
+  if (lowerMessage !== 'potvrdiť' && lowerMessage !== 'potvrdit' && lowerMessage !== 'ano' && lowerMessage !== 'áno') {
+    return '❓ Napíšte "potvrdiť" pre odoslanie objednávky alebo "zruš" pre zrušenie.';
+  }
+  
+  try {
+    // Priprav údaje pre ERPNext API
+    const product = orderState.selectedProducts[0];
+    const customer = orderState.customerInfo!;
+    
+    const orderData = {
+      customerInfo: {
+        name: customer.name!,
+        email: customer.email!,
+        phone: customer.phone!,
+        deliveryMethod: 'pickup' as const // Default pickup
+      },
+      items: [{
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: product.quantity!,
+        image: '', // Chat orders don't need images
+        additional_notes: `Objednané cez chat AI asistentku Linda`
+      }],
+      total: orderState.total!
+    };
+    
+    // Vytvor objednávku v ERPNext cez existujúci API
+    const response = await fetch(`http://localhost:5000/api/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(orderData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    // Vyčisti session
+    orderState.step = 'completed';
+    chatSessions.delete(sessionId);
+    
+    return `🎉 **OBJEDNÁVKA ÚSPEŠNE VYTVORENÁ!**\n\n✅ **Číslo objednávky:** ${result.erpNextOrderId}\n✅ **ID zákazníka:** ${result.customerId}\n\n📦 **Detaily:**\n• ${product.quantity}x ${product.name}\n• Celková suma: ${orderState.total?.toFixed(2)}€\n\n📞 **Kontaktujeme vás na ${customer.phone}** pre potvrdenie a dohodnutie vyzdvihnutia.\n\n✉ **Potvrdenie bolo odoslané na ${customer.email}**\n\n🏪 **Odber:** Dvorníky 364, počas otváracích hodín\n\n💬 Ďakujeme za objednávku! Napíšte "objednať" ak chcete objednať ešte niečo iné.`;
+    
+  } catch (error) {
+    console.error('Error creating order via chat:', error);
+    chatSessions.delete(sessionId);
+    return `❌ **Chyba pri vytváraní objednávky:** ${error instanceof Error ? error.message : 'Neznáma chyba'}\n\n📞 Prosím kontaktujte nás priamo na +421 917 795 731 alebo skúste znova napísať "objednať".`;
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -680,7 +961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`[chat] N8N request failed:`, fetchError);
         
         // Fallback odpoveď ak N8N nefunguje
-        const fallbackResponse = generateFallbackResponse(chatData.message || '');
+        const fallbackResponse = await generateFallbackResponse(chatData.message || '', enrichedPayload.sessionId);
         console.log(`[chat] Using fallback response for session ${enrichedPayload.sessionId}`);
         
         return res.json({

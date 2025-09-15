@@ -7,12 +7,39 @@ import {
   insertCustomerSchema, 
   insertOrderSchema,
   cartItemSchema,
+  chatMessageSchema,
   type CartItem,
   type Product,
   type ERPNextCustomer,
-  type ERPNextSalesOrder 
+  type ERPNextSalesOrder,
+  type ChatMessage 
 } from "@shared/schema";
 import { z } from "zod";
+import { setTimeout } from "timers/promises";
+
+// Simple in-memory rate limiter for chat
+const chatRateLimit = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(ip: string): { allowed: boolean; resetTime?: number } {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxRequests = 10; // max 10 requests per minute
+  
+  const record = chatRateLimit.get(ip);
+  
+  if (!record || now > record.resetTime) {
+    // New window or expired
+    chatRateLimit.set(ip, { count: 1, resetTime: now + windowMs });
+    return { allowed: true };
+  }
+  
+  if (record.count >= maxRequests) {
+    return { allowed: false, resetTime: record.resetTime };
+  }
+  
+  record.count++;
+  return { allowed: true };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
@@ -510,6 +537,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         message: "Chyba pri odhlásení" 
+      });
+    }
+  });
+
+  // Chat proxy endpoint
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      
+      // Rate limiting check
+      const rateLimitResult = checkRateLimit(clientIp);
+      if (!rateLimitResult.allowed) {
+        return res.status(429).json({ 
+          error: "Priveľa požiadaviek. Skúste znova neskôr.",
+          resetTime: rateLimitResult.resetTime 
+        });
+      }
+
+      // Validate request body
+      const chatData = chatMessageSchema.parse(req.body);
+      
+      // Check message length (additional safety)
+      if (chatData.message.length > 1000) {
+        return res.status(400).json({ 
+          error: "Správa je príliš dlhá. Maximum 1000 znakov." 
+        });
+      }
+
+      // Get webhook URL from environment
+      const webhookUrl = process.env.N8N_CHAT_WEBHOOK;
+      if (!webhookUrl) {
+        console.error("N8N_CHAT_WEBHOOK environment variable not set");
+        return res.status(500).json({ 
+          error: "Chat služba nie je momentálne dostupná" 
+        });
+      }
+
+      // Enrich payload with session information
+      const enrichedPayload = {
+        ...chatData,
+        sessionId: chatData.sessionId || req.session.id,
+        metadata: {
+          ...chatData.metadata,
+          timestamp: new Date().toISOString(),
+          userAgent: req.headers['user-agent'],
+          // Add user info if logged in
+          ...(req.session && (req.session as any).user ? {
+            user: {
+              email: (req.session as any).user.email,
+              name: (req.session as any).user.name
+            }
+          } : {})
+        }
+      };
+
+      console.log(`[chat] Processing message from ${clientIp}, session: ${enrichedPayload.sessionId}`);
+
+      // Forward to n8n webhook with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(8000); // 8 second timeout
+      
+      try {
+        const response = await Promise.race([
+          fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'SladkaChvila-Chat/1.0'
+            },
+            body: JSON.stringify(enrichedPayload),
+            signal: controller.signal
+          }),
+          timeoutId.then(() => Promise.reject(new Error('Timeout')))
+        ]);
+        
+        clearTimeout(timeoutId as any);
+        
+        if (!response.ok) {
+          throw new Error(`N8N responded with status ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        
+        console.log(`[chat] N8N response received for session ${enrichedPayload.sessionId}`);
+        
+        res.json(responseData);
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId as any);
+        controller.abort();
+        
+        if (fetchError instanceof Error && fetchError.message === 'Timeout') {
+          console.error(`[chat] N8N request timeout for session ${enrichedPayload.sessionId}`);
+          return res.status(504).json({ 
+            error: "Chat služba neodpovedá. Skúste znova neskôr." 
+          });
+        }
+        
+        console.error(`[chat] N8N request failed:`, fetchError);
+        return res.status(502).json({ 
+          error: "Problém s pripojením k chat službe" 
+        });
+      }
+      
+    } catch (error) {
+      console.error("Chat proxy error:", error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Neplatné údaje správy", 
+          details: error.errors 
+        });
+      }
+      
+      res.status(500).json({ 
+        error: "Chyba pri spracovaní chat správy" 
       });
     }
   });

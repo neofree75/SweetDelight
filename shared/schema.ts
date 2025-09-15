@@ -72,6 +72,16 @@ export const erpNextSalesOrderSchema = z.object({
   // selling_price_list: z.string().default("Standard Selling"), // Dočasne odstránené - price list neexistuje v ERPNext
 });
 
+// Chat message schema pre n8n chat
+export const chatMessageSchema = z.object({
+  message: z.string().min(1, "Správa nemôže byť prázdna"),
+  sessionId: z.string().optional(),
+  chatInput: z.string().optional(),
+  metadata: z.record(z.unknown()).optional()
+});
+
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+
 // Frontend Product schema (simplified for UI)
 export const productSchema = z.object({
   id: z.string(),

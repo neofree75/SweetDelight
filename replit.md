@@ -1,6 +1,6 @@
 # Overview
 
-This is a modern Slovak pastry shop e-commerce website called "Sladká Chvíľa" (Sweet Moment). The application is built as a full-stack TypeScript solution that integrates with ERPNext ERP system for product management, inventory, and order processing. The frontend provides a beautiful artisan bakery experience with product browsing, cart functionality, and order placement, while the backend handles ERPNext integration and session management.
+This is a modern Slovak pastry shop e-commerce website called "Marsela Bakery". The application is built as a full-stack TypeScript solution that integrates with ERPNext ERP system for product management, inventory, and order processing. The frontend provides a beautiful artisan bakery experience with product browsing, cart functionality, and order placement, while the backend handles ERPNext integration and session management.
 
 # User Preferences
 

@@ -16,7 +16,7 @@ export default function Hero() {
       {/* Content */}
       <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto">
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold mb-6">
-          Sladká Chvíľa
+          Marsela Bakery
         </h1>
         <p className="text-xl md:text-2xl font-accent mb-4">
           Ručne vyrábané s láskou

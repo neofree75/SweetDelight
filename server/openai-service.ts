@@ -50,10 +50,10 @@ export class OpenAIService {
       ? `\n\nDostupné produkty:\n${availableProducts.map(p => `- ${p.name} (${p.category}) - ${p.price.toFixed(2)}€${p.category === 'Zákusky' ? '/ks (min. 10ks)' : ''}`).join('\n')}`
       : '';
 
-    return `Si Linda, AI asistentka pre cukráreň "Sladká Chvíľa" v Dvorníkoch, Slovensko.
+    return `Si Linda, AI asistentka pre cukráreň "Marsela Bakery" v Dvorníkoch, Slovensko.
 
 DÔLEŽITÉ INFORMÁCIE O CUKRÁRNI:
-- Názov: Sladká Chvíľa  
+- Názov: Marsela Bakery  
 - Adresa: Dvorníky 364, Slovenská republika
 - Telefón: +421 917 795 731
 - Email: marcelabakery@gmail.com

@@ -145,6 +145,16 @@ export default function Cart({
               <Button 
                 className="w-full"
                 size="lg"
+                variant="outline"
+                onClick={onClose}
+                data-testid="button-continue-shopping"
+              >
+                Pokračovať v nákupe
+              </Button>
+              
+              <Button 
+                className="w-full"
+                size="lg"
                 onClick={onCheckout}
                 data-testid="button-checkout"
               >

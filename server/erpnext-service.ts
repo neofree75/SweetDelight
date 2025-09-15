@@ -404,26 +404,56 @@ export class ERPNextService {
     }
   }
 
-  // Get user profile data from ERPNext
+  // Get user profile data from ERPNext (Customer + primary Contact)
   async getUserProfile(email: string): Promise<{ success: boolean; data?: any; message: string }> {
     try {
       console.log('Getting user profile for:', email);
       
       // Get basic customer data from ERPNext (only commonly available fields)
-      const fields = [
-        "name", "customer_name", "email_id", "mobile_no", 
+      const customerFields = [
+        "name", "customer_name", "email_id", 
         "customer_group", "territory", "creation", "modified", "customer_type"
       ];
       
-      const response = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(fields)}`);
+      const customerResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(customerFields)}`);
       
-      if (response.data.data && response.data.data.length > 0) {
-        const customer = response.data.data[0];
+      if (customerResponse.data.data && customerResponse.data.data.length > 0) {
+        const customer = customerResponse.data.data[0];
         
-        // Parse name parts from customer_name
-        const nameParts = (customer.customer_name || '').split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        // Get primary contact data for mobile number and other contact details
+        const contactFields = [
+          "name", "first_name", "last_name", "email_id", "mobile_no", 
+          "phone", "is_primary_contact"
+        ];
+        
+        const contactResponse = await this.client.get(`/resource/Contact?filters=[["email_id","=","${email}"],["is_primary_contact","=","1"]]&fields=${JSON.stringify(contactFields)}`);
+        
+        let contactData = null;
+        if (contactResponse.data.data && contactResponse.data.data.length > 0) {
+          contactData = contactResponse.data.data[0];
+          console.log('Primary contact found:', contactData.name);
+        } else {
+          // Fallback: try to find any contact with this email
+          const fallbackContactResponse = await this.client.get(`/resource/Contact?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(contactFields)}&limit_page_length=1`);
+          if (fallbackContactResponse.data.data && fallbackContactResponse.data.data.length > 0) {
+            contactData = fallbackContactResponse.data.data[0];
+            console.log('Fallback contact found:', contactData.name);
+          }
+        }
+
+        // Use contact data for names if available, otherwise parse from customer_name
+        let firstName = '';
+        let lastName = '';
+        
+        if (contactData && contactData.first_name) {
+          firstName = contactData.first_name;
+          lastName = contactData.last_name || '';
+        } else {
+          // Fallback: parse from customer_name
+          const nameParts = (customer.customer_name || '').split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
+        }
 
         return {
           success: true,
@@ -435,8 +465,9 @@ export class ERPNextService {
             lastName: lastName,
             email: customer.email_id || email,
             
-            // Kontaktné údaje  
-            mobile: customer.mobile_no || '',
+            // Kontaktné údaje (z Contact záznamu)
+            mobile: contactData?.mobile_no || '',
+            phone: contactData?.phone || '',
             
             // Biznis informácie
             customerGroup: customer.customer_group || '',
@@ -445,7 +476,10 @@ export class ERPNextService {
             
             // Systémové údaje
             created: customer.creation || '',
-            modified: customer.modified || ''
+            modified: customer.modified || '',
+            
+            // Interiálne IDs pre aktualizácie
+            contactId: contactData?.name || ''
           },
           message: 'Profil načítaný úspešne'
         };
@@ -480,44 +514,105 @@ export class ERPNextService {
     }
   }
 
-  // Update user profile data in ERPNext
+  // Update user profile data in ERPNext (Customer + primary Contact)
   async updateUserProfile(email: string, profileData: { firstName: string; lastName: string; email: string; mobile?: string }): Promise<{ success: boolean; message: string }> {
     try {
       console.log('Updating user profile for:', email);
       
       // First, find the customer by email
-      const searchResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=["name"]`);
+      const customerResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=["name"]`);
       
-      if (!searchResponse.data.data || searchResponse.data.data.length === 0) {
+      if (!customerResponse.data.data || customerResponse.data.data.length === 0) {
         return {
           success: false,
           message: 'Používateľ nebol nájdený'
         };
       }
 
-      const customerName = searchResponse.data.data[0].name;
+      const customerName = customerResponse.data.data[0].name;
       
-      // Update customer data
-      const updateData = {
-        first_name: profileData.firstName,
-        last_name: profileData.lastName,
-        email_id: profileData.email,
-        mobile_no: profileData.mobile || '',
-        customer_name: `${profileData.firstName} ${profileData.lastName}`
+      // Update customer basic data (name)
+      const customerUpdateData = {
+        customer_name: `${profileData.firstName} ${profileData.lastName}`,
+        email_id: profileData.email
       };
 
-      const updateResponse = await this.client.put(`/resource/Customer/${customerName}`, updateData);
+      const customerUpdateResponse = await this.client.put(`/resource/Customer/${customerName}`, customerUpdateData);
       
-      if (updateResponse.status === 200) {
-        return {
-          success: true,
-          message: 'Profil bol úspešne aktualizovaný'
-        };
-      } else {
+      if (customerUpdateResponse.status !== 200) {
         return {
           success: false,
-          message: 'Chyba pri aktualizácii profilu'
+          message: 'Chyba pri aktualizácii základných údajov'
         };
+      }
+
+      // Find and update primary contact
+      const contactResponse = await this.client.get(`/resource/Contact?filters=[["email_id","=","${email}"],["is_primary_contact","=","1"]]&fields=["name"]`);
+      
+      let contactName = null;
+      if (contactResponse.data.data && contactResponse.data.data.length > 0) {
+        contactName = contactResponse.data.data[0].name;
+        console.log('Found primary contact:', contactName);
+      } else {
+        // Fallback: find any contact with this email
+        const fallbackResponse = await this.client.get(`/resource/Contact?filters=[["email_id","=","${email}"]]&fields=["name"]&limit_page_length=1`);
+        if (fallbackResponse.data.data && fallbackResponse.data.data.length > 0) {
+          contactName = fallbackResponse.data.data[0].name;
+          console.log('Found fallback contact:', contactName);
+        }
+      }
+
+      if (contactName) {
+        // Update contact data (names, mobile, email)
+        const contactUpdateData = {
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          email_id: profileData.email,
+          mobile_no: profileData.mobile || ''
+        };
+
+        const contactUpdateResponse = await this.client.put(`/resource/Contact/${contactName}`, contactUpdateData);
+        
+        if (contactUpdateResponse.status === 200) {
+          return {
+            success: true,
+            message: 'Profil bol úspešne aktualizovaný'
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Chyba pri aktualizácii kontaktných údajov'
+          };
+        }
+      } else {
+        // Create new primary contact if none exists
+        const contactCreateData = {
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          email_id: profileData.email,
+          mobile_no: profileData.mobile || '',
+          is_primary_contact: 1,
+          links: [
+            {
+              link_doctype: 'Customer',
+              link_name: customerName
+            }
+          ]
+        };
+
+        const contactCreateResponse = await this.client.post('/resource/Contact', contactCreateData);
+        
+        if (contactCreateResponse.status === 200) {
+          return {
+            success: true,
+            message: 'Profil bol úspešne aktualizovaný (vytvorený nový kontakt)'
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Chyba pri vytváraní nového kontaktu'
+          };
+        }
       }
     } catch (error) {
       console.error('Error updating user profile in ERPNext:', error);

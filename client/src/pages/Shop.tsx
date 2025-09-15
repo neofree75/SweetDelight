@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProductGrid from '@/components/ProductGrid';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, Loader2 } from 'lucide-react';
+import { Search, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 interface Product {
@@ -40,6 +40,7 @@ function useProducts() {
 }
 
 const categories = ['Všetky', 'Pečivo', 'Zákusky', 'Torty'];
+const PRODUCTS_PER_PAGE = 20;
 
 interface ShopProps {
   cartItems: CartItem[];
@@ -50,9 +51,15 @@ interface ShopProps {
 export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Všetky');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch products from ERPNext
   const { data: allProducts = [], isLoading, error } = useProducts();
+
+  // Reset stránku pri zmene filtrov
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory]);
 
   // Filter products by search term and category
   const filteredProducts = allProducts.filter(product => {
@@ -62,6 +69,13 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
     
     return matchesSearch && matchesCategory;
   });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+  const endIndex = startIndex + PRODUCTS_PER_PAGE;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+  const shouldShowPagination = filteredProducts.length > PRODUCTS_PER_PAGE;
 
   const handleAddToCart = (product: Product, quantity: number) => {
     onAddToCart(product, quantity);
@@ -142,12 +156,55 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
 
         {/* Products Grid */}
         {!isLoading && !error && (
-          <ProductGrid
-            products={filteredProducts}
-            title={`${filteredProducts.length} produktov${selectedCategory !== 'Všetky' ? ` v kategórii ${selectedCategory}` : ''}`}
-            onAddToCart={handleAddToCart}
-            onViewDetails={handleViewDetails}
-          />
+          <>
+            <ProductGrid
+              products={paginatedProducts}
+              title={`${filteredProducts.length} produktov${selectedCategory !== 'Všetky' ? ` v kategórii ${selectedCategory}` : ''}${shouldShowPagination ? ` - stránka ${currentPage} z ${totalPages}` : ''}`}
+              onAddToCart={handleAddToCart}
+              onViewDetails={handleViewDetails}
+            />
+            
+            {/* Pagination */}
+            {shouldShowPagination && (
+              <div className="flex justify-center items-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  data-testid="button-prev-page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Predchádzajúca
+                </Button>
+                
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      data-testid={`button-page-${page}`}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  data-testid="button-next-page"
+                >
+                  Nasledujúca
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

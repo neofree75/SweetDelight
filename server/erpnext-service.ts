@@ -551,7 +551,7 @@ export class ERPNextService {
         // Update mobile number via Contact Phone child doctype
         if (profileData.mobile) {
           const phoneRows = existingContact.phone_nos || [];
-          let primaryPhoneRow = phoneRows.find(row => row.is_primary_mobile_no === 1);
+          let primaryPhoneRow = phoneRows.find((row: any) => row.is_primary_mobile_no === 1);
           
           if (primaryPhoneRow) {
             // Update existing primary mobile row
@@ -565,7 +565,7 @@ export class ERPNextService {
             await this.client.put(`/resource/Contact Phone/${primaryPhoneRow.name}`, phoneUpdateData);
             
             // Set other phone rows as non-primary
-            for (let phoneRow of phoneRows) {
+            for (const phoneRow of phoneRows) {
               if (phoneRow.name !== primaryPhoneRow.name && phoneRow.is_primary_mobile_no === 1) {
                 await this.client.put(`/resource/Contact Phone/${phoneRow.name}`, {
                   phone: phoneRow.phone,
@@ -593,7 +593,7 @@ export class ERPNextService {
         
         // Update email via Contact Email child doctype
         const emailRows = existingContact.email_ids || [];
-        let primaryEmailRow = emailRows.find(row => row.is_primary === 1);
+        let primaryEmailRow = emailRows.find((row: any) => row.is_primary === 1);
         
         if (primaryEmailRow) {
           // Update existing primary email row
@@ -606,7 +606,7 @@ export class ERPNextService {
           await this.client.put(`/resource/Contact Email/${primaryEmailRow.name}`, emailUpdateData);
           
           // Set other email rows as non-primary
-          for (let emailRow of emailRows) {
+          for (const emailRow of emailRows) {
             if (emailRow.name !== primaryEmailRow.name && emailRow.is_primary === 1) {
               await this.client.put(`/resource/Contact Email/${emailRow.name}`, {
                 email_id: emailRow.email_id,

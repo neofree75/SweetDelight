@@ -27,7 +27,7 @@ export const erpNextPriceSchema = z.object({
 export const erpNextCustomerSchema = z.object({
   customer_name: z.string(),
   customer_type: z.string().default("Individual"),
-  customer_group: z.string().default("All Customer Groups"),
+  customer_group: z.string().default("Internetový predaj"),
   territory: z.string().default("Slovakia"),
   email_id: z.string().email().optional(),
   mobile_no: z.string().optional(),

@@ -57,6 +57,9 @@ export default function Billing({ cartItems, user }: BillingProps) {
   // Loading state pre načítavanie profilu
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
+  // Poznámky k jednotlivým položkám
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+
   // Načítanie profilu prihlásených používateľov
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -117,11 +120,25 @@ export default function Billing({ cartItems, user }: BillingProps) {
     loadUserProfile();
   }, [user]);
 
+  // Funkcia pre aktualizáciu poznámok k položkám
+  const updateItemNote = (itemId: string, note: string) => {
+    setItemNotes(prev => ({
+      ...prev,
+      [itemId]: note
+    }));
+  };
+
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const delivery: number = 0; // Osobný odber je zadarmo
   const total = subtotal + delivery;
 
   const handleFinalOrder = () => {
+    // Pridať poznámky k položkám
+    const cartItemsWithNotes = cartItems.map(item => ({
+      ...item,
+      additional_notes: itemNotes[item.id] || ''
+    }));
+
     const orderData = {
       billingInfo: {
         email,
@@ -136,7 +153,7 @@ export default function Billing({ cartItems, user }: BillingProps) {
         isBusiness,
         ...(isBusiness && { companyName, ico, dic, icDph })
       },
-      cartItems,
+      cartItems: cartItemsWithNotes,
       deliveryDate,
       deliveryTime,
       paymentMethod,
@@ -386,16 +403,31 @@ export default function Billing({ cartItems, user }: BillingProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Produkty */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-muted-foreground ml-2">× {item.quantity}</span>
+                    <div key={item.id} className="space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <div className="flex-1">
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-muted-foreground ml-2">× {item.quantity}</span>
+                        </div>
+                        <span className="font-medium" data-testid={`text-order-item-total-${item.id}`}>
+                          €{(item.price * item.quantity).toFixed(2)}
+                        </span>
                       </div>
-                      <span className="font-medium" data-testid={`text-order-item-total-${item.id}`}>
-                        €{(item.price * item.quantity).toFixed(2)}
-                      </span>
+                      <div>
+                        <Label htmlFor={`note-${item.id}`} className="text-xs text-muted-foreground">
+                          Poznámka k položke (voliteľné)
+                        </Label>
+                        <Textarea
+                          id={`note-${item.id}`}
+                          value={itemNotes[item.id] || ''}
+                          onChange={(e) => updateItemNote(item.id, e.target.value)}
+                          placeholder="Poznámka k tejto položke..."
+                          className="min-h-[60px] text-xs"
+                          data-testid={`textarea-item-note-${item.id}`}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>

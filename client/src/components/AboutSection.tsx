@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, MapPin, Phone, Mail } from 'lucide-react';
-import aboutImage from '@assets/generated_images/Cozy_bakery_interior_c998804b.png';
+import aboutImage from '@assets/generated_images/Elegant_pastry_shop_interior_new.png';
 
 export default function AboutSection() {
   const openingHours = [

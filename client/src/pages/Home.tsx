@@ -1,12 +1,9 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Hero from '@/components/Hero';
 import ProductGrid from '@/components/ProductGrid';
 import AboutSection from '@/components/AboutSection';
 import Cart from '@/components/Cart';
-import eclairImage from '@assets/generated_images/Chocolate_éclair_product_e07f4a3d.png';
-import croissantImage from '@assets/generated_images/Golden_butter_croissant_3113f28f.png';
-import macaronsImage from '@assets/generated_images/Pastel_colored_macarons_d19a6f3c.png';
-import tartImage from '@assets/generated_images/Strawberry_fruit_tart_25e81086.png';
 
 interface Product {
   id: string;
@@ -26,49 +23,29 @@ interface CartItem {
   image: string;
 }
 
-// TODO: Remove mock functionality - replace with real data from ERPNext
-const featuredProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Čokoládový Éclair',
-    description: 'Klasický francúzsky éclair s vanilkovou plnkou a čokoládovou polevou',
-    price: 3.50,
-    image: eclairImage,
-    category: 'Zákusky',
-    inStock: true
-  },
-  {
-    id: '2',
-    name: 'Maslový Croissant',
-    description: 'Čerstvý, chrumkavý croissant z maslovej chudobnej receptúry',
-    price: 2.20,
-    image: croissantImage,
-    category: 'Pečivo',
-    inStock: true
-  },
-  {
-    id: '3',
-    name: 'Francúzske Makaróny',
-    description: 'Sada 6 kusov makarónov v rôznych príchatiach',
-    price: 8.90,
-    image: macaronsImage,
-    category: 'Zákusky',
-    inStock: true
-  },
-  {
-    id: '4',
-    name: 'Jahodový Tartaletka',
-    description: 'Chrumkavý korpus s vanilkovým krémom a čerstvými jahodami',
-    price: 4.20,
-    image: tartImage,
-    category: 'Torty',
-    inStock: false
-  }
-];
+// Hook na načítanie produktov z ERPNext
+function useFeaturedProducts() {
+  return useQuery({
+    queryKey: ['/api/products', 'featured'],
+    queryFn: async (): Promise<Product[]> => {
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+      const allProducts = await response.json();
+      // Zobraz iba prvé 4 produkty pre featured sekciu
+      return allProducts.slice(0, 4);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minút
+  });
+}
 
 export default function Home() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  // Načítaj obľúbené produkty z ERPNext
+  const { data: featuredProducts = [], isLoading, error } = useFeaturedProducts();
 
   const handleAddToCart = (product: Product, quantity: number) => {
     setCartItems(prevItems => {
@@ -120,12 +97,31 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <Hero />
       
-      <ProductGrid
-        products={featuredProducts}
-        title="Naše obľúbené produkty"
-        onAddToCart={handleAddToCart}
-        onViewDetails={handleViewDetails}
-      />
+      {/* Zobraz loading alebo error state */}
+      {isLoading ? (
+        <section className="py-12 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center">
+              <p className="text-muted-foreground text-lg">Načítavajú sa produkty...</p>
+            </div>
+          </div>
+        </section>
+      ) : error ? (
+        <section className="py-12 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center">
+              <p className="text-muted-foreground text-lg">Nepodarilo sa načítať produkty</p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <ProductGrid
+          products={featuredProducts}
+          title="Naše obľúbené produkty"
+          onAddToCart={handleAddToCart}
+          onViewDetails={handleViewDetails}
+        />
+      )}
       
       <AboutSection />
       

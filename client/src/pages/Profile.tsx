@@ -33,7 +33,6 @@ interface ProfileData {
   // Biznis informácie
   territory?: string;
   company?: string;
-  customerType?: string;
   taxId?: string;
   
   // Systémové údaje
@@ -539,15 +538,6 @@ export default function Profile({ user }: ProfileProps) {
                   Biznis informácie
                 </h3>
                 <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="customerType" className="text-sm font-medium">
-                      Typ zákazníka
-                    </Label>
-                    <div className="p-3 bg-muted/50 rounded-md" data-testid="text-customerType">
-                      {profileData.customerType || '-'}
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="taxId" className="text-sm font-medium flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />

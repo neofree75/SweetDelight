@@ -41,6 +41,43 @@ function checkRateLimit(ip: string): { allowed: boolean; resetTime?: number } {
   return { allowed: true };
 }
 
+// Fallback odpovede pre chat
+function generateFallbackResponse(message: string): string {
+  const lowerMessage = message.toLowerCase();
+  
+  // Odpovede podľa klúčových slov
+  if (lowerMessage.includes('ahoj') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+    return 'Ahoj! Som Linda, vaša AI asistentka pre cukráreň Sladká Chvíľa. Ako vám môžem pomôcť?';
+  }
+  
+  if (lowerMessage.includes('zákusok') || lowerMessage.includes('zákusky') || lowerMessage.includes('tort') || lowerMessage.includes('cake')) {
+    return 'Máme široký výber zákuskov a tortôt! Náš sortiment nájdete v obchode na stránke. Pre objednávky alebo otázky nás kontaktujte na +421 917 795 731.';
+  }
+  
+  if (lowerMessage.includes('cena') || lowerMessage.includes('koľko') || lowerMessage.includes('price')) {
+    return 'Ceny nášich produktov nájdete priamo v obchode na stránke. Pre aktuálne ceny a cenové ponuky nás kontaktujte na +421 917 795 731 alebo marcelabakery@gmail.com.';
+  }
+  
+  if (lowerMessage.includes('objedná') || lowerMessage.includes('objednat') || lowerMessage.includes('order')) {
+    return 'Objednávky môžete urobiť priamo cez náš obchod na stránke alebo nás kontaktovať na telefóne +421 917 795 731. Rádi vám pomôžeme s výberom!';
+  }
+  
+  if (lowerMessage.includes('otváracie') || lowerMessage.includes('hodiny') || lowerMessage.includes('open') || lowerMessage.includes('hours')) {
+    return 'Naše otváracie hodiny sú Pondelok-Piatok 8:00-17:00, Sobota 9:00-15:00. Nájdete nás v Dvorníkoch 364. Pre viac informácií kontaktujte +421 917 795 731.';
+  }
+  
+  if (lowerMessage.includes('adresa') || lowerMessage.includes('kde') || lowerMessage.includes('address') || lowerMessage.includes('location')) {
+    return 'Nájdete nás na adrese Dvorníky 364, Slovenská republika. Kontaktovať nás môžete na +421 917 795 731 alebo marcelabakery@gmail.com.';
+  }
+  
+  if (lowerMessage.includes('kontakt') || lowerMessage.includes('telefón') || lowerMessage.includes('email')) {
+    return 'Môžete nás kontaktovať na:\n☎ +421 917 795 731\n✉ marcelabakery@gmail.com\n📍 Dvorníky 364, Slovenská republika';
+  }
+  
+  // Obecná odpoveď
+  return 'Ďakujem za vašu správu! Som Linda, AI asistentka pre cukráreň Sladká Chvíľa. Pre konkrétne informácie o našich produktoch a službách nás prosím kontaktujte na +421 917 795 731 alebo marcelabakery@gmail.com. Rádi vám pomôžeme!';
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
@@ -641,8 +678,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         console.error(`[chat] N8N request failed:`, fetchError);
-        return res.status(502).json({ 
-          error: "Problém s pripojením k chat službe" 
+        
+        // Fallback odpoveď ak N8N nefunguje
+        const fallbackResponse = generateFallbackResponse(chatData.message || '');
+        console.log(`[chat] Using fallback response for session ${enrichedPayload.sessionId}`);
+        
+        return res.json({
+          message: fallbackResponse,
+          source: 'fallback'
         });
       }
       

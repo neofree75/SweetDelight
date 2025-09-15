@@ -236,29 +236,10 @@ export class ERPNextService {
         registrationSuccess = true;
       }
 
-      // Po úspešnej registrácii aktualizuj Customer záznam s mobilným číslom
+      // Poznámka: Customer a Contact záznamy sa vytvoria automaticky až po email verification
+      // a zmene hesla v ERPNext. Mobile number sa pridá pri prvom prihlásení ak je potrebné.
       if (registrationSuccess && userData.mobile_no) {
-        console.log('Updating Customer record with mobile number after registration...');
-        
-        try {
-          // Počkaj krátko, aby sa Customer záznam stihol vytvoriť
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const updateResult = await this.updateUserProfile(userData.email, {
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            email: userData.email,
-            mobile: userData.mobile_no
-          });
-          
-          if (!updateResult.success) {
-            console.warn('Failed to update mobile number after registration:', updateResult.message);
-          } else {
-            console.log('Mobile number successfully updated after registration');
-          }
-        } catch (updateError) {
-          console.warn('Error updating mobile number after registration:', updateError);
-        }
+        console.log('User registered successfully. Customer record will be created after email verification.');
       }
 
       if (registrationSuccess) {

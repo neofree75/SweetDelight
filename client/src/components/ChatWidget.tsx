@@ -2,6 +2,44 @@ import { useEffect } from 'react';
 
 export function ChatWidget() {
   useEffect(() => {
+    // Pridaj custom CSS pre n8n chat widget
+    const addChatStyles = () => {
+      const existingStyle = document.getElementById('n8n-chat-custom-styles');
+      if (existingStyle) return;
+      
+      const style = document.createElement('style');
+      style.id = 'n8n-chat-custom-styles';
+      style.textContent = `
+        /* N8N Chat custom styles */
+        [data-n8n-chat] .chat-widget-trigger {
+          width: 70px !important;
+          height: 70px !important;
+          border-radius: 35px !important;
+        }
+        
+        [data-n8n-chat] .chat-widget-trigger svg {
+          width: 32px !important;
+          height: 32px !important;
+        }
+        
+        /* Chat window styling */
+        [data-n8n-chat] .chat-window {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+        
+        [data-n8n-chat] .chat-input {
+          font-family: inherit !important;
+        }
+        
+        /* Ensure chat is above other elements */
+        [data-n8n-chat] {
+          z-index: 9999 !important;
+        }
+      `;
+      
+      document.head.appendChild(style);
+    };
+    
     // Načítaj n8n chat script dynamicky
     const loadChatScript = () => {
       // Skontroluj či už script nie je načítaný
@@ -95,7 +133,8 @@ export function ChatWidget() {
       document.head.appendChild(script);
     };
 
-    // Načítaj script po mount komponenty
+    // Pridaj štýly a načítaj script po mount komponenty
+    addChatStyles();
     loadChatScript();
 
     // Cleanup pri unmount
@@ -109,10 +148,15 @@ export function ChatWidget() {
         }
       }
       
-      // Odstráň script z DOM
+      // Odstráň script a štúly z DOM
       const script = document.getElementById('n8n-chat-script');
       if (script) {
         script.remove();
+      }
+      
+      const styles = document.getElementById('n8n-chat-custom-styles');
+      if (styles) {
+        styles.remove();
       }
     };
   }, []);

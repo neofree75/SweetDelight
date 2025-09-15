@@ -74,10 +74,13 @@ export const erpNextSalesOrderSchema = z.object({
 
 // Chat message schema pre n8n chat
 export const chatMessageSchema = z.object({
-  message: z.string().min(1, "Správa nemôže byť prázdna"),
+  message: z.string().optional(), // Povoliť prázdnu správu pre inicializačné požiadavky
   sessionId: z.string().optional(),
   chatInput: z.string().optional(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.unknown()).optional(),
+  // Pridať podporu pre iné n8n chat polia
+  action: z.string().optional(),
+  workflowId: z.string().optional()
 });
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

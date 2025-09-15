@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, User } from 'lucide-react';
+import logo from '@assets/302114762_762815435043859_4975235959411522191_n_1757936717193.jpg';
 
 interface User {
   email: string;
@@ -33,13 +34,20 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
           <Link href="/" data-testid="link-home">
-            <div className="flex items-center space-x-2">
-              <h1 className="text-2xl md:text-3xl font-serif font-bold text-primary">
-                Sladká Chvíľa
-              </h1>
-              <span className="font-accent text-lg text-muted-foreground hidden sm:block">
-                artisan pastry
-              </span>
+            <div className="flex items-center">
+              <img 
+                src={logo} 
+                alt="Marsela Bakery Logo" 
+                className="h-12 w-12 md:h-16 md:w-16 object-contain"
+              />
+              <div className="ml-3 hidden sm:block">
+                <h1 className="text-xl md:text-2xl font-serif font-bold text-primary">
+                  Marsela Bakery
+                </h1>
+                <span className="font-accent text-sm text-muted-foreground">
+                  artisan pastry
+                </span>
+              </div>
             </div>
           </Link>
 

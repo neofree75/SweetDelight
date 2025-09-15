@@ -3,6 +3,7 @@ import type { Session } from "express-session";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { erpNextService } from "./erpnext-service";
+import { openaiService } from "./openai-service";
 import { 
   insertCustomerSchema, 
   insertOrderSchema,
@@ -960,14 +961,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.error(`[chat] N8N request failed:`, fetchError);
         
-        // Fallback odpoveď ak N8N nefunguje
-        const fallbackResponse = await generateFallbackResponse(chatData.message || '', enrichedPayload.sessionId);
-        console.log(`[chat] Using fallback response for session ${enrichedPayload.sessionId}`);
-        
-        return res.json({
-          message: fallbackResponse,
-          source: 'fallback'
-        });
+        // Skúsi použiť OpenAI namiesto N8N fallback systému
+        try {
+          console.log(`[chat] Trying OpenAI for session ${enrichedPayload.sessionId}`);
+          
+          // Získaj dostupné produkty pre AI kontext
+          const products = await erpNextService.getProductsForFrontend();
+          
+          // Získaj user info ak je prihlásený
+          const userInfo = (req.session as any)?.user ? {
+            name: (req.session as any).user.name,
+            email: (req.session as any).user.email
+          } : undefined;
+          
+          const aiResponse = await openaiService.processChatMessage(
+            chatData.message || '',
+            enrichedPayload.sessionId,
+            userInfo,
+            products
+          );
+          
+          // Ak AI detekuje objednávkový intent, presmeruj na objednávkový fallback systém
+          if (aiResponse.needsOrderProcessing) {
+            console.log(`[chat] AI detected order intent, switching to order processing for session ${enrichedPayload.sessionId}`);
+            const orderResponse = await generateFallbackResponse(chatData.message || '', enrichedPayload.sessionId);
+            return res.json({
+              message: orderResponse,
+              source: 'ai_order_fallback',
+              intent: aiResponse.extractedIntent
+            });
+          }
+          
+          console.log(`[chat] OpenAI response generated for session ${enrichedPayload.sessionId}`);
+          return res.json({
+            message: aiResponse.message,
+            source: 'openai',
+            intent: aiResponse.extractedIntent
+          });
+          
+        } catch (openaiError) {
+          console.error(`[chat] OpenAI request also failed:`, openaiError);
+          
+          // Ako posledná možnosť použij pôvodný fallback systém
+          const fallbackResponse = await generateFallbackResponse(chatData.message || '', enrichedPayload.sessionId);
+          console.log(`[chat] Using basic fallback response for session ${enrichedPayload.sessionId}`);
+          
+          return res.json({
+            message: fallbackResponse,
+            source: 'fallback'
+          });
+        }
       }
       
     } catch (error) {

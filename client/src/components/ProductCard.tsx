@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,22 +22,34 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onAddToCart, onViewDetails }: ProductCardProps) {
+  const [, setLocation] = useLocation();
   // Minimálny počet pre zákusky je 10 ks, inak 1
   const getMinQuantity = () => product.category === 'Zákusky' ? 10 : 1;
   const [quantity, setQuantity] = useState(getMinQuantity());
 
-  const handleAddToCart = () => {
-    onAddToCart?.(product, quantity);
-    console.log(`Added ${quantity}x ${product.name} to cart`);
-  };
 
-  const handleViewDetails = () => {
+  const handleViewDetails = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onViewDetails?.(product);
     console.log(`Viewing details for ${product.name}`);
   };
 
+  const handleCardClick = () => {
+    setLocation(`/produkt/${product.id}`);
+  };
+
+  const handleAddToCartClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click when clicking add to cart
+    onAddToCart?.(product, quantity);
+    console.log(`Added ${quantity}x ${product.name} to cart`);
+  };
+
+  const handleQuantityChange = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click when changing quantity
+  };
+
   return (
-    <Card className="group hover-elevate cursor-pointer overflow-hidden">
+    <Card className="group hover-elevate cursor-pointer overflow-hidden" onClick={handleCardClick}>
       <div className="aspect-square overflow-hidden">
         <img
           src={product.image}
@@ -97,7 +110,10 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setQuantity(Math.max(getMinQuantity(), quantity - 1))}
+                onClick={(e) => {
+                  handleQuantityChange(e);
+                  setQuantity(Math.max(getMinQuantity(), quantity - 1));
+                }}
                 className="h-8 w-8"
                 disabled={quantity <= getMinQuantity()}
                 data-testid={`button-decrease-${product.id}`}
@@ -115,7 +131,10 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setQuantity(quantity + 1)}
+                onClick={(e) => {
+                  handleQuantityChange(e);
+                  setQuantity(quantity + 1);
+                }}
                 className="h-8 w-8"
                 data-testid={`button-increase-${product.id}`}
               >
@@ -126,7 +145,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
             {/* Add to Cart Button */}
             <Button 
               className="w-full"
-              onClick={handleAddToCart}
+              onClick={handleAddToCartClick}
               data-testid={`button-add-to-cart-${product.id}`}
             >
               Pridať do košíka

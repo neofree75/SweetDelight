@@ -387,6 +387,9 @@ export class ERPNextService {
       
       if (response.data.data && response.data.data.length > 0) {
         const customer = response.data.data[0];
+        console.log('ERPNext customer data:', JSON.stringify(customer, null, 2));
+        console.log('Mobile field value:', customer.mobile_no, '(type:', typeof customer.mobile_no, ')');
+        
         // Parse name parts from customer_name
         const nameParts = (customer.customer_name || '').split(' ');
         const firstName = nameParts[0] || '';

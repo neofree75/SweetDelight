@@ -270,7 +270,7 @@ export class ERPNextService {
         params: {
           filters: JSON.stringify([['customer', '=', customerId]]),
           fields: JSON.stringify([
-            'name', 'status', 'customer', 'customer_name', 
+            'name', 'status', 'workflow_state', 'customer', 'customer_name', 
             'transaction_date', 'delivery_date', 'total', 'grand_total', 
             'currency', 'items'
           ]),

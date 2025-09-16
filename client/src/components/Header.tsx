@@ -80,7 +80,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
                       data-testid="button-profile"
                     >
                       <User className="h-4 w-4" />
-                      Môj profil
+                      Môj účet
                     </Button>
                   </Link>
                   <Button
@@ -183,7 +183,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
                         data-testid="mobile-button-profile"
                       >
                         <User className="h-4 w-4" />
-                        Môj profil
+                        Môj účet
                       </Button>
                     </Link>
                     <Button

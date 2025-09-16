@@ -1046,23 +1046,23 @@ export class ERPNextService {
           values: []
         };
 
-        // Pre textové atribúty načítaj hodnoty
+        // Pre textové atribúty načítaj hodnoty priamo z Item Attribute endpointu
         if (!erpAttr.numeric_values) {
           try {
-            const valuesResponse = await this.client.get('/resource/Item Attribute Value', {
-              params: {
-                filters: JSON.stringify([['parent', '=', erpAttr.name]]),
-                fields: JSON.stringify(['attribute_value', 'abbreviation'])
-              }
-            });
-
-            const values = valuesResponse.data.data || [];
-            customAttr.values = values.map((val: any) => ({
-              attribute_value: val.attribute_value,
-              abbreviation: val.abbreviation
-            }));
+            const detailResponse = await this.client.get(`/resource/Item Attribute/${erpAttr.name}`);
+            const attributeDetail = detailResponse.data.data;
             
-            console.log(`Atribút ${erpAttr.attribute_name} má ${customAttr.values?.length || 0} hodnôt`);
+            if (attributeDetail && attributeDetail.item_attribute_values) {
+              customAttr.values = attributeDetail.item_attribute_values.map((val: any) => ({
+                attribute_value: val.attribute_value,
+                abbreviation: val.abbr || val.abbreviation
+              }));
+              
+              console.log(`Atribút ${erpAttr.attribute_name} má ${customAttr.values?.length || 0} hodnôt`);
+            } else {
+              console.log(`Atribút ${erpAttr.attribute_name} nemá definované hodnoty`);
+              customAttr.values = [];
+            }
           } catch (error) {
             console.error(`Chyba pri načítaní hodnôt atribútu ${erpAttr.attribute_name}:`, 
               axios.isAxiosError(error) ? `${error.response?.status} ${error.response?.statusText}` : error instanceof Error ? error.message : 'Neznáma chyba');

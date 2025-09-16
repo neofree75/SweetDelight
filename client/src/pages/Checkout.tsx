@@ -15,6 +15,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  additional_notes?: string;
 }
 
 interface CheckoutProps {
@@ -48,11 +49,19 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       return;
     }
 
-    // Pridať poznámky k položkám
-    const cartItemsWithNotes = cartItems.map(item => ({
-      ...item,
-      additional_notes: itemNotes[item.id] || ''
-    }));
+    // Pridať poznámky k položkám - zachovať existujúce additional_notes a pridať nové ak sú zadané
+    const cartItemsWithNotes = cartItems.map(item => {
+      const existingNotes = item.additional_notes || '';
+      const newNotes = itemNotes[item.id] || '';
+      const combinedNotes = existingNotes && newNotes 
+        ? `${existingNotes}, ${newNotes}` 
+        : existingNotes || newNotes;
+        
+      return {
+        ...item,
+        additional_notes: combinedNotes
+      };
+    });
 
     console.log('Proceeding to billing page with:', {
       items: cartItemsWithNotes,

@@ -10,6 +10,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  additional_notes?: string;
 }
 
 interface CartProps {
@@ -89,6 +90,11 @@ export default function Cart({
                       <p className="text-sm text-muted-foreground">
                         €{item.price.toFixed(2)} každý
                       </p>
+                      {item.additional_notes && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`text-notes-${item.id}`}>
+                          {item.additional_notes}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-2">

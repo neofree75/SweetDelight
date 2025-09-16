@@ -16,6 +16,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  additional_notes?: string;
 }
 
 interface User {
@@ -157,11 +158,19 @@ export default function Billing({ cartItems, user }: BillingProps) {
     setIsSubmitting(true);
     
     try {
-      // Pridať poznámky k položkám
-      const cartItemsWithNotes = cartItems.map(item => ({
-        ...item,
-        additional_notes: itemNotes[item.id] || ''
-      }));
+      // Pridať poznámky k položkám - zachovať existujúce additional_notes a pridať nové ak sú zadané
+      const cartItemsWithNotes = cartItems.map(item => {
+        const existingNotes = item.additional_notes || '';
+        const newNotes = itemNotes[item.id] || '';
+        const combinedNotes = existingNotes && newNotes 
+          ? `${existingNotes}, ${newNotes}` 
+          : existingNotes || newNotes;
+          
+        return {
+          ...item,
+          additional_notes: combinedNotes
+        };
+      });
 
       // Transformovať dáta do formátu očakávaného API
       const orderData = {

@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { erpNextService } from "./erpnext-service";
 import { openaiService } from "./openai-service";
+import { retellService } from "./retell-service";
 import { 
   insertCustomerSchema, 
   insertOrderSchema,
@@ -360,22 +361,6 @@ async function handleOrderConfirmation(message: string, sessionId: string, order
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Retell AI configuration endpoint
-  app.get("/api/retell-config", (req, res) => {
-    const publicKey = process.env.RETELL_PUBLIC_KEY;
-    const agentId = process.env.RETELL_AGENT_ID;
-
-    if (!publicKey || !agentId) {
-      return res.status(500).json({ 
-        error: "Retell AI configuration not found" 
-      });
-    }
-
-    res.json({
-      publicKey,
-      agentId
-    });
-  });
 
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
@@ -1079,6 +1064,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(500).json({ 
         error: "Chyba pri spracovaní chat správy" 
+      });
+    }
+  });
+
+  // Retell AI Chat endpoint - backend to backend communication
+  app.post("/api/retell-chat", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      
+      // Rate limiting check
+      const rateLimitResult = checkRateLimit(clientIp);
+      if (!rateLimitResult.allowed) {
+        return res.status(429).json({ 
+          error: "Priveľa požiadaviek. Skúste znova neskôr.",
+          resetTime: rateLimitResult.resetTime 
+        });
+      }
+
+      // Validate request body
+      const { message, sessionId } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ 
+          error: "Správa je povinná." 
+        });
+      }
+
+      if (message.length > 1000) {
+        return res.status(400).json({ 
+          error: "Správa je príliš dlhá. Maximum 1000 znakov." 
+        });
+      }
+
+      const finalSessionId = sessionId || req.session.id || 'default';
+      
+      console.log(`[retell-chat] Processing message from ${clientIp}, session: ${finalSessionId}: ${message.substring(0, 50)}...`);
+      
+      // Use Retell AI service for response
+      const response = await retellService.sendChatMessage(message, finalSessionId);
+      
+      console.log(`[retell-chat] Response generated for session ${finalSessionId}`);
+      
+      res.json({
+        response: response,
+        sessionId: finalSessionId
+      });
+      
+    } catch (error) {
+      console.error('[retell-chat] Error:', error);
+      res.status(500).json({ 
+        error: "Nastala chyba pri spracovaní správy.",
+        response: "Ospravedlňujem sa, momentálne nemôžem odpovedať. Kontaktujte nás prosím na +421 917 795 731."
       });
     }
   });

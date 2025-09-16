@@ -118,14 +118,14 @@ export default function Account({ user }: AccountProps) {
           </SidebarContent>
         </Sidebar>
         
-        <div className="flex flex-col flex-1 h-full">
+        <div className="flex flex-col flex-1 h-full min-h-0">
           <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <h1 className="text-lg font-playfair">Môj účet</h1>
             <div></div> {/* Spacer for center alignment */}
           </header>
           
-          <main className="flex-1 overflow-auto bg-background">
+          <main className="flex-1 overflow-auto bg-background min-h-0">
             {renderContent()}
           </main>
         </div>

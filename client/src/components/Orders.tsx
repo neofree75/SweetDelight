@@ -76,57 +76,15 @@ export function Orders() {
 
   const getStatusColor = (status: string) => {
     const s = (status ?? "").toLowerCase();
-    switch (s) {
-      case 'draft':
-      case 'návrh':
-        return 'secondary';
-      case 'submitted':
-      case 'odoslané':
-      case 'confirmed':
-      case 'potvrdené':
-      case 'to bill':
-      case 'to deliver':
-        return 'default';
-      case 'completed':
-      case 'dokončené':
-      case 'closed':
-        return 'default';
-      case 'cancelled':
-      case 'zrušené':
-      case 'on hold':
-      case 'stopped':
-        return 'destructive';
-      default:
-        return 'secondary';
+    // Všeobecné farebné kódovanie na základe bežných slovných indikátorov
+    if (s.includes('zruš') || s.includes('cancel') || s.includes('stopped') || s.includes('zastav')) {
+      return 'destructive';
     }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const s = (status ?? "").toLowerCase();
-    switch (s) {
-      case 'draft':
-        return 'Návrh';
-      case 'submitted':
-        return 'Odoslané';
-      case 'confirmed':
-        return 'Potvrdené';
-      case 'completed':
-        return 'Dokončené';
-      case 'cancelled':
-        return 'Zrušené';
-      case 'to bill':
-        return 'Na fakturáciu';
-      case 'to deliver':
-        return 'Na doručenie';
-      case 'closed':
-        return 'Uzavreté';
-      case 'on hold':
-        return 'Pozastavené';
-      case 'stopped':
-        return 'Zastavené';
-      default:
-        return status || 'Neznámy'; // Fallback na pôvodný status alebo 'Neznámy'
+    if (s.includes('draft') || s.includes('návrh') || s.includes('nový') || s.includes('new')) {
+      return 'secondary';
     }
+    // Všetko ostatné je aktívny stav
+    return 'default';
   };
 
   const formatDate = (dateString: string) => {
@@ -165,7 +123,7 @@ export function Orders() {
                   variant={getStatusColor(order.status)}
                   data-testid={`order-status-${order.id}`}
                 >
-                  {getStatusLabel(order.status)}
+                  {order.status}
                 </Badge>
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">

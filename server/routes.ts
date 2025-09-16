@@ -360,6 +360,23 @@ async function handleOrderConfirmation(message: string, sessionId: string, order
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Retell AI configuration endpoint
+  app.get("/api/retell-config", (req, res) => {
+    const publicKey = process.env.RETELL_PUBLIC_KEY;
+    const agentId = process.env.RETELL_AGENT_ID;
+
+    if (!publicKey || !agentId) {
+      return res.status(500).json({ 
+        error: "Retell AI configuration not found" 
+      });
+    }
+
+    res.json({
+      publicKey,
+      agentId
+    });
+  });
+
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
     try {

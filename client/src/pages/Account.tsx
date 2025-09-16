@@ -94,7 +94,7 @@ export default function Account({ user }: AccountProps) {
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-full w-full">
-        <Sidebar collapsible="icon">
+        <Sidebar variant="inset" collapsible="icon">
           <SidebarContent>
             <SidebarGroup className="pt-4">
               <SidebarGroupLabel>Môj účet</SidebarGroupLabel>

@@ -93,9 +93,9 @@ export default function Account({ user }: AccountProps) {
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex min-h-[calc(100vh-140px)] w-full">
+      <div className="flex h-full w-full">
         <Sidebar collapsible="icon">
-          <SidebarContent className="h-full">
+          <SidebarContent>
             <SidebarGroup className="pt-4">
               <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
               <SidebarGroupContent className="mt-4">
@@ -118,7 +118,7 @@ export default function Account({ user }: AccountProps) {
           </SidebarContent>
         </Sidebar>
         
-        <div className="flex flex-col flex-1 min-h-[calc(100vh-140px)]">
+        <div className="flex flex-col flex-1 h-full">
           <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <h1 className="text-lg font-playfair">Môj účet</h1>

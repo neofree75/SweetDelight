@@ -237,24 +237,18 @@ export default function Profile({ user }: ProfileProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background py-12">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-muted-foreground">Načítavam profil...</p>
-            </div>
-          </div>
+      <div className="p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Načítavam profil...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
-      <div className="container mx-auto px-4">
-        <div className="max-w-2xl mx-auto">
-          <Card className="shadow-lg">
+    <div className="p-6">
+      <Card className="shadow-lg max-w-4xl mx-auto">
             <CardHeader className="pb-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -619,8 +613,6 @@ export default function Profile({ user }: ProfileProps) {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
     </div>
   );
 }

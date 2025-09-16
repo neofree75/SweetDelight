@@ -20,6 +20,7 @@ import Registration from "@/pages/Registration";
 import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
 import Profile from "@/pages/Profile";
+import Account from "@/pages/Account";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -76,7 +77,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: {
       </Route>
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/moj-profil">
-        <Profile user={user} />
+        <Account user={user} />
       </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />

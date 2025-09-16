@@ -44,6 +44,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific product by ID
+  app.get("/api/products/:productId", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const product = await erpNextService.getProductById(productId);
+      
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      res.json(product);
+    } catch (error) {
+      console.error("Error fetching product:", error);
+      res.status(500).json({ error: "Failed to fetch product" });
+    }
+  });
+
   // Debug endpoint - get products without cache
   app.get("/api/debug/products", async (req, res) => {
     try {

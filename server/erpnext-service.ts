@@ -173,7 +173,7 @@ export class ERPNextService {
       const response = await this.client.get('/resource/Customer', {
         params: {
           fields: '["name","customer_name","email_id","customer_group"]',
-          filters: `[["email_id","=","${normalizedEmail}"]]`,
+          filters: JSON.stringify([["email_id", "=", normalizedEmail]]),
           limit_page_length: 1
         }
       });
@@ -263,6 +263,43 @@ export class ERPNextService {
     }
   }
 
+  // Načítaj objednávky pre špecifického zákazníka
+  async getOrdersByCustomer(customerId: string): Promise<any[]> {
+    try {
+      const response = await this.client.get('/resource/Sales%20Order', {
+        params: {
+          filters: JSON.stringify([['customer', '=', customerId]]),
+          fields: JSON.stringify([
+            'name', 'status', 'customer', 'customer_name', 
+            'transaction_date', 'delivery_date', 'total', 'grand_total', 
+            'currency', 'items'
+          ]),
+          order_by: 'creation desc',
+          limit_page_length: 100
+        }
+      });
+
+      // Načítaj podrobnosti objednávok vrátane položiek
+      const ordersWithItems = await Promise.all(
+        response.data.data.map(async (order: any) => {
+          try {
+            // Načítaj podrobnosti objednávky vrátane položiek
+            const orderDetails = await this.client.get(`/resource/Sales%20Order/${order.name}`);
+            return orderDetails.data.data;
+          } catch (error) {
+            console.error(`Error fetching order details for ${order.name}:`, error);
+            return order; // Vráť základné údaje ak sa nepodarí načítať podrobnosti
+          }
+        })
+      );
+
+      return ordersWithItems;
+    } catch (error) {
+      console.error('Error fetching orders from ERPNext:', error);
+      return [];
+    }
+  }
+
   // Clear product cache
   async clearProductCache(): Promise<void> {
     this.productCache = null;
@@ -297,7 +334,7 @@ export class ERPNextService {
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
       console.log(`Debug: Checking variants for ${item.name}, has_variants: ${item.has_variants}`);
-      if (item.has_variants === true || item.has_variants === 1) {
+      if (Boolean(item.has_variants)) {
         console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);
         variants = itemVariants.map(variant => ({

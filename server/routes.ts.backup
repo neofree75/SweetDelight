@@ -12,8 +12,7 @@ import {
   type Product,
   type ERPNextCustomer,
   type ERPNextSalesOrder,
-  type UserOrder,
-  type InsertOrder 
+  type UserOrder 
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -110,17 +109,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get custom cake attributes for torty na mieru
-  app.get("/api/custom-cake-attributes", async (req, res) => {
-    try {
-      const attributes = await erpNextService.getCustomCakeAttributes();
-      res.json(attributes);
-    } catch (error) {
-      console.error("Error fetching custom cake attributes:", error);
-      res.status(500).json({ error: "Failed to fetch custom cake attributes" });
-    }
-  });
-
   // Cart management
   app.get("/api/cart", async (req, res) => {
     try {
@@ -166,7 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Creating order with data:", JSON.stringify(req.body, null, 2));
       
       // Validácia vstupných údajov
-      const orderValidation = insertOrderSchema.safeParse(req.body);
+      const orderValidation = userOrderSchema.safeParse(req.body);
       if (!orderValidation.success) {
         console.error("Order validation failed:", orderValidation.error.errors);
         return res.status(400).json({ 
@@ -183,23 +171,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 1. Vytvor zákazníka v ERPNext
-      let customerId: string | null;
+      let customer: ERPNextCustomer;
       try {
         console.log("Creating customer:", orderData.customerInfo);
-        customerId = await erpNextService.findOrCreateCustomer({
+        customer = await erpNextService.createCustomer({
           customer_name: orderData.customerInfo.name,
           customer_type: "Individual",
-          customer_group: "Internetový predaj",
+          customer_group: "Individual",
           territory: "Slovakia",
           email_id: orderData.customerInfo.email,
-          mobile_no: orderData.customerInfo.phone
+          mobile_no: orderData.customerInfo.phone,
+          // Pridaj delivery metódu do zákazníka
+          custom_delivery_method: orderData.customerInfo.deliveryMethod || 'pickup'
         });
-        
-        if (!customerId) {
-          throw new Error("Failed to create customer in ERPNext");
-        }
-        
-        console.log("Customer created:", customerId);
+        console.log("Customer created:", customer);
       } catch (error) {
         console.error("Error creating customer:", error);
         return res.status(500).json({ 
@@ -210,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 2. Vytvor Sales Order v ERPNext
       try {
-        console.log("Creating sales order for customer:", customerId);
+        console.log("Creating sales order for customer:", customer.name);
         
         const salesOrderItems = orderData.items.map(item => ({
           item_code: item.id,
@@ -218,37 +203,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           qty: item.quantity,
           rate: item.price,
           amount: item.quantity * item.price,
-          stock_uom: "Nos",
-          parentfield: "items",
           description: item.additional_notes || item.name
         }));
 
-        const salesOrderId = await erpNextService.createSalesOrder({
-          customer: customerId,
-          company: process.env.ERPNEXT_COMPANY || "Glam cake s. r. o.",
-          delivery_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
-          transaction_date: new Date().toISOString().split('T')[0],
+        const salesOrder = await erpNextService.createSalesOrder({
+          customer: customer.name,
+          customer_name: orderData.customerInfo.name,
+          // Pridaj delivery informácie
+          delivery_method: orderData.customerInfo.deliveryMethod || 'pickup',
+          customer_address: orderData.customerInfo.address || "Dvorníky 364",
+          contact_email: orderData.customerInfo.email,
+          contact_mobile: orderData.customerInfo.phone,
           items: salesOrderItems,
           total: orderData.total,
-          grand_total: orderData.total,
-          currency: "EUR"
+          grand_total: orderData.total
         });
 
-        if (!salesOrderId) {
-          throw new Error("Failed to create sales order in ERPNext");
-        }
+        console.log("Sales order created:", salesOrder);
 
-        console.log("Sales order created:", salesOrderId);
-
-        // Clear cart after successful order
+        // 3. Vyčistiť košík po úspešnej objednávke
         const sessionId = req.sessionID;
         await storage.clearCart(sessionId);
 
-        // Return success response
-        res.status(201).json({
-          orderId: salesOrderId,
-          erpNextOrderId: salesOrderId,
-          customerId: customerId,
+        // 4. Vráť odpoveď
+        res.json({
+          success: true,
+          customerId: customer.name,
+          erpNextOrderId: salesOrder.name,
           message: "Order created successfully"
         });
 
@@ -281,16 +262,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userEmail = session.user.email;
       console.log("Fetching orders for user:", userEmail);
 
-      // Find customer by email first
-      const customer = await erpNextService.findCustomerByEmail(userEmail);
-      if (!customer) {
-        return res.json({ orders: [], customer: null });
-      }
-
       // Získaj objednávky z ERPNext pre tohto zákazníka
-      const orders = await erpNextService.getOrdersByCustomer(customer.customerId);
+      const orders = await erpNextService.getCustomerOrders(userEmail);
       
-      res.json({ orders, customer: { id: customer.customerId } });
+      res.json(orders);
     } catch (error) {
       console.error("Error fetching user orders:", error);
       res.status(500).json({ error: "Failed to fetch orders" });
@@ -311,8 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Fetching order details for:", orderId);
       
       // Získaj detaily objednávky z ERPNext
-      const orders = await erpNextService.getOrdersByCustomer("");
-      const order = orders.find(o => o.name === orderId);
+      const order = await erpNextService.getSalesOrder(orderId);
       
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
@@ -418,19 +392,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userEmail = session.user.email;
       console.log('[user-orders] Fetching orders for authenticated user:', userEmail);
 
-      // Find customer by email first
-      const customer = await erpNextService.findCustomerByEmail(userEmail);
-      if (!customer) {
-        return res.json({ orders: [], customer: null });
-      }
-
       // Získaj objednávky z ERPNext pre tohto zákazníka
-      const orders = await erpNextService.getOrdersByCustomer(customer.customerId);
+      const orders = await erpNextService.getCustomerOrders(userEmail);
       
-      res.json({ orders, customer: { id: customer.customerId } });
+      res.json(orders);
     } catch (error) {
       console.error("Error fetching user orders:", error);
       res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      res.json({ user: session.user });
+    } catch (error) {
+      console.error("Error getting user info:", error);
+      res.status(500).json({ error: "Failed to get user info" });
     }
   });
 

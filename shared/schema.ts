@@ -75,6 +75,19 @@ export const erpNextSalesOrderSchema = z.object({
   // selling_price_list: z.string().default("Standard Selling"), // Dočasne odstránené - price list neexistuje v ERPNext
 });
 
+// ERPNext Sales Invoice schema
+export const erpNextSalesInvoiceSchema = z.object({
+  name: z.string(), // Invoice ID (napr. SINV-2024-00001)
+  customer: z.string(), // Customer name
+  posting_date: z.string(), // Dátum vystavenia
+  due_date: z.string(), // Dátum splatnosti  
+  grand_total: z.number(), // Celková suma
+  outstanding_amount: z.number(), // Zostávajúca suma na úhradu
+  status: z.string(), // Draft, Submitted, Paid, atď
+  currency: z.string().default("EUR"),
+  sales_order: z.string().optional(), // Odkaz na objednávku ak existuje
+});
+
 
 // Frontend Product schema (simplified for UI)
 export const productSchema = z.object({
@@ -194,13 +207,27 @@ export const userOrderSchema = z.object({
   })),
 });
 
+// Frontend Invoice schema (simplified for UI)
+export const invoiceSchema = z.object({
+  id: z.string(),
+  orderNumber: z.string().optional(), // Číslo objednávky ak existuje
+  issueDate: z.string(), // Dátum vystavenia
+  dueDate: z.string(), // Dátum splatnosti
+  amount: z.number(), // Celková suma
+  outstandingAmount: z.number(), // Zostávajúca suma na úhradu
+  currency: z.string(),
+  status: z.string(), // Stav faktúry
+});
+
 export type UserOrder = z.infer<typeof userOrderSchema>;
 export type ERPNextItemAttribute = z.infer<typeof erpNextItemAttributeSchema>;
+export type ERPNextSalesInvoice = z.infer<typeof erpNextSalesInvoiceSchema>;
 
 export type Product = z.infer<typeof productSchema>;
 export type Customer = z.infer<typeof customerSchema>;
 export type CartItem = z.infer<typeof cartItemSchema>;
 export type Order = z.infer<typeof orderSchema>;
+export type Invoice = z.infer<typeof invoiceSchema>;
 export type CustomCakeAttribute = z.infer<typeof customCakeAttributeSchema>;
 export type CustomCakeAttributeValue = z.infer<typeof customCakeAttributeValueSchema>;
 export type CustomCakeOrder = z.infer<typeof customCakeOrderSchema>;

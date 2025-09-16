@@ -72,7 +72,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
               {user ? (
                 // User is logged in - show profile and logout
                 <>
-                  <Link href="/moj-profil">
+                  <Link href="/moj-ucet">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -174,7 +174,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
                 {user ? (
                   // User is logged in - show profile and logout
                   <div className="space-y-2">
-                    <Link href="/moj-profil">
+                    <Link href="/moj-ucet">
                       <Button
                         variant="ghost"
                         size="sm"

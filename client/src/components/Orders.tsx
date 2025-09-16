@@ -25,6 +25,8 @@ export function Orders() {
   
   const { data, isLoading, error } = useQuery<OrdersResponse>({
     queryKey: ['/api/user-orders'],
+    staleTime: 0, // Vždy považuj dáta za zastarané
+    refetchOnMount: true, // Vždy refreshuj keď sa komponent načíta
   });
 
   if (isLoading) {

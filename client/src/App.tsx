@@ -76,7 +76,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
         <Login onLogin={onLogin} />
       </Route>
       <Route path="/reset-password" component={ResetPassword} />
-      <Route path="/moj-profil">
+      <Route path="/moj-ucet">
         <Account user={user} />
       </Route>
       <Route path="/o-nas" component={About} />

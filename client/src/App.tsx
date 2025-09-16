@@ -101,6 +101,34 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [, setLocation] = useLocation();
 
+  // Check for existing session on app startup
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/profile', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Extract user info from profile data
+            const userData = {
+              email: data.data.email || '',
+              name: data.data.customerName || data.data.name || '',
+              id: data.data.customerId || ''
+            };
+            setUser(userData);
+            console.log('Session restored for user:', userData);
+          }
+        }
+      } catch (error) {
+        console.log('No existing session found:', error);
+      }
+    };
+
+    checkSession();
+  }, []);
+
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // Save cart items to localStorage whenever cartItems changes

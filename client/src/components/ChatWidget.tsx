@@ -13,20 +13,10 @@ export function ChatWidget() {
           height: '100vh',
           border: 'none',
           zIndex: 9999,
-          pointerEvents: 'none', // Allow clicks to pass through except on chat elements
+          pointerEvents: 'auto', // Enable clicks on chat elements
           background: 'transparent'
         }}
         title="Linda AI Asistentka"
-        onLoad={(e) => {
-          // Enable pointer events only on the iframe content area
-          if (e.currentTarget.contentDocument) {
-            const body = e.currentTarget.contentDocument.body;
-            if (body) {
-              body.style.pointerEvents = 'auto';
-              body.style.background = 'transparent';
-            }
-          }
-        }}
       />
     </>
   );

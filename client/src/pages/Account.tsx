@@ -110,6 +110,10 @@ export default function Account({ user }: AccountProps) {
                           if (item.id === 'objednavky') {
                             queryClient.invalidateQueries({ queryKey: ['/api/user-orders'] });
                           }
+                          // Invaliduj cache pre faktúry aby sa vždy načítali nanovo
+                          if (item.id === 'faktury') {
+                            queryClient.invalidateQueries({ queryKey: ['/api/user-invoices'] });
+                          }
                         }}
                         isActive={currentSection === item.id}
                         data-testid={`button-account-${item.id}`}

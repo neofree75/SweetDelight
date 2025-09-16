@@ -15,6 +15,7 @@ import {
 import { User, FileText, Receipt } from 'lucide-react';
 import Profile from './Profile';
 import { Orders } from '@/components/Orders';
+import { Invoices } from '@/components/Invoices';
 
 // Komponenty pre jednotlivé sekcie
 function OrdersSection() {
@@ -28,8 +29,7 @@ function OrdersSection() {
 function InvoicesSection() {
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-playfair mb-4">Faktúry</h2>
-      <p className="text-muted-foreground">Zoznam vašich faktúr sa načítava...</p>
+      <Invoices />
     </div>
   );
 }

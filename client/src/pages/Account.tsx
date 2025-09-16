@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { queryClient } from '@/lib/queryClient';
 import { 
   Sidebar,
   SidebarContent,
@@ -103,7 +104,13 @@ export default function Account({ user }: AccountProps) {
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
-                        onClick={() => setCurrentSection(item.id)}
+                        onClick={() => {
+                          setCurrentSection(item.id);
+                          // Invaliduj cache pre objednávky aby sa vždy načítali nanovo
+                          if (item.id === 'objednavky') {
+                            queryClient.invalidateQueries({ queryKey: ['/api/user-orders'] });
+                          }
+                        }}
                         isActive={currentSection === item.id}
                         data-testid={`button-account-${item.id}`}
                       >

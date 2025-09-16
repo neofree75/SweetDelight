@@ -75,21 +75,26 @@ export function Orders() {
   const showPagination = totalOrders > ITEMS_PER_PAGE;
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    const s = (status ?? "").toLowerCase();
+    switch (s) {
       case 'draft':
       case 'návrh':
         return 'secondary';
       case 'submitted':
       case 'odoslané':
-        return 'default';
       case 'confirmed':
       case 'potvrdené':
+      case 'to bill':
+      case 'to deliver':
         return 'default';
       case 'completed':
       case 'dokončené':
+      case 'closed':
         return 'default';
       case 'cancelled':
       case 'zrušené':
+      case 'on hold':
+      case 'stopped':
         return 'destructive';
       default:
         return 'secondary';
@@ -97,7 +102,8 @@ export function Orders() {
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status.toLowerCase()) {
+    const s = (status ?? "").toLowerCase();
+    switch (s) {
       case 'draft':
         return 'Návrh';
       case 'submitted':
@@ -114,8 +120,12 @@ export function Orders() {
         return 'Na doručenie';
       case 'closed':
         return 'Uzavreté';
+      case 'on hold':
+        return 'Pozastavené';
+      case 'stopped':
+        return 'Zastavené';
       default:
-        return status; // Fallback na pôvodný status
+        return status || 'Neznámy'; // Fallback na pôvodný status alebo 'Neznámy'
     }
   };
 

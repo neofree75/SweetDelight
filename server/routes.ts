@@ -538,8 +538,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           delivery_date: deliveryDate.toISOString().split('T')[0],
           transaction_date: transactionDate,
           items: orderData.items.map(item => {
-            // Pre torty na mieru (ktoré majú additional_notes s atribútmi) použij kód TORTCUS001
-            const isCustomCake = item.additional_notes && item.additional_notes.length > 0;
+            // Pre torty na mieru (ktoré majú ID začínajúce s "custom-cake-") použij kód TORTCUS001
+            const isCustomCake = item.id.startsWith('custom-cake-');
             const itemCode = isCustomCake ? 'TORTCUS001' : item.id;
             
             console.log(`Processing item: ${item.id}, additional_notes: "${item.additional_notes}"`);

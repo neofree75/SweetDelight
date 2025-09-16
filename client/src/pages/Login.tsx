@@ -55,21 +55,24 @@ export default function Login({ onLogin }: LoginProps) {
         })
       });
 
-      // Check if response is ok and content type
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server error: ${response.status} - ${errorText}`);
-      }
-
       const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const htmlText = await response.text();
-        throw new Error('Server returned HTML instead of JSON');
+      let result;
+
+      // Pokus sa parsovať JSON response
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          result = await response.json();
+        } else {
+          // Ak nie je JSON, načítaj ako text pre debug
+          const htmlText = await response.text();
+          throw new Error('Server returned non-JSON response');
+        }
+      } catch (parseError) {
+        throw new Error(`Failed to parse server response: ${parseError}`);
       }
 
-      const result = await response.json();
-
-      if (result.success && result.user) {
+      // Skontroluj či bola operácia úspešná
+      if (response.ok && result.success && result.user) {
         toast({
           title: "Prihlásenie úspešné",
           description: `Vitajte, ${result.user.name}!`,
@@ -85,9 +88,22 @@ export default function Login({ onLogin }: LoginProps) {
           setLocation('/');
         }, 1500);
       } else {
+        // Spracuj API chyby (401, 403, atď.)
+        let errorMessage = "Neplatné prihlasovacie údaje";
+        
+        if (result && result.message) {
+          errorMessage = result.message;
+        } else if (response.status === 401) {
+          errorMessage = "Neplatné prihlasovacie údaje";
+        } else if (response.status === 403) {
+          errorMessage = "Prístup zamietnutý";
+        } else if (response.status >= 500) {
+          errorMessage = "Chyba servera. Skúste to neskôr.";
+        }
+
         toast({
           title: "Prihlásenie neúspešné",
-          description: result.message || "Neplatné prihlasovacie údaje",
+          description: errorMessage,
           variant: "destructive",
           action: <AlertCircle className="h-4 w-4" />
         });

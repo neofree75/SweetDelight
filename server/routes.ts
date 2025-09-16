@@ -537,13 +537,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           company: process.env.ERPNEXT_COMPANY!,
           delivery_date: deliveryDate.toISOString().split('T')[0],
           transaction_date: transactionDate,
-          items: orderData.items.map(item => ({
-            item_code: item.id,
-            qty: item.quantity,
-            rate: item.price,
-            amount: item.price * item.quantity,
-            additional_notes: item.additional_notes || '',
-          })),
+          items: orderData.items.map(item => {
+            // Pre torty na mieru (ktoré majú additional_notes s atribútmi) použij kód TORTCUS001
+            const isCustomCake = item.additional_notes && item.additional_notes.length > 0;
+            const itemCode = isCustomCake ? 'TORTCUS001' : item.id;
+            
+            return {
+              item_code: itemCode,
+              qty: item.quantity,
+              rate: item.price,
+              amount: item.price * item.quantity,
+              description: item.additional_notes || '', // Poznámky k položke v ERPNext
+            };
+          }),
           total: orderData.total,
           grand_total: orderData.total,
           currency: "EUR",

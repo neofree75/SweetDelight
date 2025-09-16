@@ -143,7 +143,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background flex flex-col">
           <Header 
             cartItemCount={cartItemCount} 
             onCartClick={handleCartClick}
@@ -151,7 +151,7 @@ function App() {
             onLogout={handleLogout}
           />
           
-          <main>
+          <main className="flex-1">
             <Router 
               cartItems={cartItems}
               user={user}

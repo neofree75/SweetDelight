@@ -859,6 +859,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // N8N Chat adapter endpoint
+  app.post('/api/n8n-chat', async (req, res) => {
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const body = req.body;
+    
+    // Extract action and data from n8n chat format
+    const action = req.query.action as string || 'sendMessage';
+    const chatInput = body.chatInput || body.message || '';
+    const sessionId = body.sessionId || `n8n-${Date.now()}`;
+    
+    console.log(`[n8n-chat] ${action} from ${clientIp}, session: ${sessionId}: ${chatInput.substring(0, 50)}...`);
+    
+    try {
+      if (action === 'loadPreviousSession') {
+        // Return empty session for now - could implement session storage later
+        return res.json({
+          sessionId,
+          messages: []
+        });
+      }
+      
+      if (action === 'sendMessage') {
+        // Rate limiting check
+        const rateLimitResult = checkRateLimit(clientIp);
+        if (!rateLimitResult.allowed) {
+          return res.json({
+            output: 'Priveľa požiadaviek. Skúste znova neskôr.',
+            sessionId: sessionId
+          });
+        }
+        
+        // Use existing OpenAI service
+        const result = await openaiService.processChatMessage(chatInput, sessionId);
+        
+        // Format response for n8n chat
+        const response = {
+          output: result.message,
+          sessionId: sessionId
+        };
+        
+        console.log(`[n8n-chat] Response generated for session ${sessionId}`);
+        return res.json(response);
+      }
+      
+      return res.status(400).json({ error: 'Unknown action' });
+    } catch (error) {
+      console.error(`[n8n-chat] Error for session ${sessionId}:`, error);
+      return res.json({
+        output: 'Prepáčte, nastala chyba. Kontaktujte nás na +421 917 795 731 alebo marcelabakery@gmail.com',
+        sessionId: sessionId
+      });
+    }
+  });
+
   // Chat proxy endpoint
   app.post("/api/chat", async (req, res) => {
     try {

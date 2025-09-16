@@ -1,359 +1,217 @@
-import { useState, useRef, useEffect } from 'react';
-
-interface ChatMessage {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
-}
+import { useEffect } from 'react';
+import '@n8n/chat/style.css';
+import { createChat } from '@n8n/chat';
 
 export function ChatWidget() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      text: 'Ahoj! Moje meno je Linda a som AI asistentka. Viem rezervovať zákusky a torty. Ako vám môžem pomôcť?',
-      isUser: false,
-      timestamp: new Date()
-    }
-  ]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Create chat with custom styling to match existing design
+    const chatInstance = createChat({
+      webhookUrl: '/api/n8n-chat',
+      target: '#n8n-chat-container',
+      mode: 'window',
+      chatInputKey: 'chatInput',
+      chatSessionKey: 'sessionId', 
+      loadPreviousSession: false,
+      showWelcomeScreen: false,
+      defaultLanguage: 'en',
+      initialMessages: [
+        'Ahoj! Moje meno je Linda a som AI asistentka.',
+        'Viem rezervovať zákusky a torty. Ako vám môžem pomôcť?'
+      ],
+      i18n: {
+        en: {
+          title: 'Linda AI Asistentka',
+          subtitle: 'Online - tu pre vás 24/7',
+          footer: '',
+          getStarted: 'Nová konverzácia',
+          inputPlaceholder: 'Napíšte svoju správu...',
+          closeButtonTooltip: 'Zavrieť chat'
+        }
+      },
+      enableStreaming: false
+    });
 
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  const sendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
-    
-    const userMessage: ChatMessage = {
-      id: Date.now().toString() + '-user',
-      text: inputValue,
-      isUser: true,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: inputValue,
-          sessionId: 'chat-widget-' + Date.now(),
-          metadata: {
-            source: 'chat-widget',
-            timestamp: new Date().toISOString()
-          }
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Chyba pri komunikácii so serverom');
+    return () => {
+      // Cleanup if needed
+      const chatContainer = document.getElementById('n8n-chat-container');
+      if (chatContainer) {
+        chatContainer.innerHTML = '';
       }
-      
-      const data = await response.json();
-      
-      const botMessage: ChatMessage = {
-        id: Date.now().toString() + '-bot',
-        text: data.message || 'Ďakujem za vašu správu. Kontaktujte nás na telefóne +421 917 795 731 alebo emaile marcelabakery@gmail.com pre viac informácií.',
-        isUser: false,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, botMessage]);
-    } catch (error) {
-      console.error('Chat error:', error);
-      const errorMessage: ChatMessage = {
-        id: Date.now().toString() + '-error',
-        text: 'Prepáčte, došlo k chybe. Môžete nás kontaktovať priamo na +421 917 795 731 alebo marcelabakery@gmail.com',
-        isUser: false,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+    };
+  }, []);
 
   return (
     <>
-      {/* Chat Button */}
+      {/* N8N Chat container */}
       <div 
-        style={{
+        id="n8n-chat-container" 
+        data-testid="chat-widget"
+        style={{ 
           position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          width: '70px',
-          height: '70px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: '35px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          zIndex: 9999,
-          transition: 'all 0.2s ease',
-          border: '3px solid rgba(255,255,255,0.2)',
-          transform: isOpen ? 'scale(0.9)' : 'scale(1)'
+          bottom: 0,
+          right: 0,
+          zIndex: 9999 
         }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.transform = isOpen ? 'scale(0.9)' : 'scale(1.05)';
-          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.transform = isOpen ? 'scale(0.9)' : 'scale(1)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        }}
-        onClick={() => setIsOpen(!isOpen)}
-        title="Linda AI asistentka"
-        data-testid="chat-toggle-button"
-      >
-        <svg 
-          width="32" 
-          height="32" 
-          viewBox="0 0 24 24" 
-          fill="white"
-          style={{
-            transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease'
-          }}
-        >
-          {isOpen ? (
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          ) : (
-            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-          )}
-        </svg>
-        
-        {!isOpen && (
-          <div style={{
-            position: 'absolute',
-            bottom: '-8px',
-            right: '-8px',
-            background: '#4ade80',
-            borderRadius: '50%',
-            width: '20px',
-            height: '20px',
-            border: '2px solid white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <div style={{
-              width: '8px',
-              height: '8px',
-              background: 'white',
-              borderRadius: '50%',
-              animation: 'pulse 2s infinite'
-            }} />
-          </div>
-        )}
-      </div>
+      />
       
-      {/* Chat Window */}
-      {isOpen && (
-        <div 
-          style={{
-            position: 'fixed',
-            bottom: '100px',
-            right: '20px',
-            width: '350px',
-            height: '500px',
-            background: 'white',
-            borderRadius: '16px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-            zIndex: 9998,
-            display: 'flex',
-            flexDirection: 'column',
-            border: '1px solid #e5e7eb',
-            overflow: 'hidden'
-          }}
-          data-testid="chat-window"
-        >
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '16px',
-            fontSize: '16px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div>
-              <div>Linda AI Asistentka</div>
-              <div style={{ fontSize: '12px', opacity: 0.8 }}>Online</div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '20px',
-                width: '30px',
-                height: '30px',
-                borderRadius: '15px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background 0.2s ease'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-              data-testid="chat-close-button"
-            >
-              ×
-            </button>
-          </div>
-          
-          {/* Messages */}
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px',
-            background: '#f9fafb'
-          }}>
-            {messages.map((message) => (
-              <div 
-                key={message.id}
-                style={{
-                  marginBottom: '16px',
-                  display: 'flex',
-                  justifyContent: message.isUser ? 'flex-end' : 'flex-start'
-                }}
-              >
-                <div style={{
-                  maxWidth: '80%',
-                  padding: '12px 16px',
-                  borderRadius: '18px',
-                  background: message.isUser 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                    : 'white',
-                  color: message.isUser ? 'white' : '#374151',
-                  fontSize: '14px',
-                  lineHeight: '1.4',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  border: message.isUser ? 'none' : '1px solid #e5e7eb'
-                }}>
-                  {message.text}
-                </div>
-              </div>
-            ))}
-            
-            {isLoading && (
-              <div style={{
-                marginBottom: '16px',
-                display: 'flex',
-                justifyContent: 'flex-start'
-              }}>
-                <div style={{
-                  padding: '12px 16px',
-                  borderRadius: '18px',
-                  background: 'white',
-                  color: '#6b7280',
-                  fontSize: '14px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  border: '1px solid #e5e7eb'
-                }}>
-                  Linda píše...
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-          
-          {/* Input */}
-          <div style={{
-            padding: '16px',
-            borderTop: '1px solid #e5e7eb',
-            background: 'white'
-          }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Napíšte svoju správu..."
-                disabled={isLoading}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '24px',
-                  fontSize: '14px',
-                  outline: 'none',
-                  background: isLoading ? '#f3f4f6' : 'white'
-                }}
-                data-testid="chat-input"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!inputValue.trim() || isLoading}
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '24px',
-                  border: 'none',
-                  background: inputValue.trim() && !isLoading
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                    : '#d1d5db',
-                  color: 'white',
-                  cursor: inputValue.trim() && !isLoading ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s ease'
-                }}
-                data-testid="chat-send-button"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* CSS Keyframes */}
+      {/* Custom CSS to match existing design */}
       <style>{`
+        :root {
+          /* Primary colors - matching the existing gradient */
+          --chat--color-primary: #667eea;
+          --chat--color-primary-shade-50: #5a67d8;
+          --chat--color-primary-shade-100: #4c51bf;
+          --chat--color-secondary: #764ba2;
+          --chat--color-secondary-shade-50: #6b46c1;
+          
+          /* Base colors */
+          --chat--color-white: #ffffff;
+          --chat--color-light: #f9fafb;
+          --chat--color-light-shade-50: #f3f4f6;
+          --chat--color-light-shade-100: #e5e7eb;
+          --chat--color-medium: #d1d5db;
+          --chat--color-dark: #374151;
+          --chat--color-disabled: #9ca3af;
+          --chat--color-typing: #6b7280;
+
+          /* Spacing and layout */
+          --chat--spacing: 1rem;
+          --chat--border-radius: 16px;
+          --chat--transition-duration: 0.2s;
+
+          /* Window dimensions */
+          --chat--window--width: 350px;
+          --chat--window--height: 500px;
+
+          /* Header styling */
+          --chat--header-height: auto;
+          --chat--header--padding: 16px;
+          --chat--header--background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          --chat--header--color: #ffffff;
+          --chat--header--border-top: none;
+          --chat--header--border-bottom: none;
+          --chat--heading--font-size: 16px;
+          --chat--subtitle--font-size: 12px;
+          --chat--subtitle--line-height: 1.4;
+
+          /* Input styling */
+          --chat--textarea--height: 48px;
+
+          /* Message styling */
+          --chat--message--font-size: 14px;
+          --chat--message--padding: 12px 16px;
+          --chat--message--border-radius: 18px;
+          --chat--message-line-height: 1.4;
+          --chat--message--bot--background: #ffffff;
+          --chat--message--bot--color: #374151;
+          --chat--message--bot--border: 1px solid #e5e7eb;
+          --chat--message--user--background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          --chat--message--user--color: #ffffff;
+          --chat--message--user--border: none;
+          --chat--message--pre--background: rgba(0, 0, 0, 0.05);
+
+          /* Toggle button styling */
+          --chat--toggle--background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          --chat--toggle--hover--background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+          --chat--toggle--active--background: linear-gradient(135deg, #4c51bf 0%, #553c9a 100%);
+          --chat--toggle--color: #ffffff;
+          --chat--toggle--size: 70px;
+        }
+
+        /* Custom overrides for exact design match */
+        #n8n-chat-container .chat-window {
+          box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+          border: 1px solid #e5e7eb !important;
+          bottom: 100px !important;
+          right: 20px !important;
+        }
+
+        #n8n-chat-container .chat-toggle {
+          bottom: 20px !important;
+          right: 20px !important;
+          border: 3px solid rgba(255,255,255,0.2) !important;
+          transition: all 0.2s ease !important;
+        }
+
+        #n8n-chat-container .chat-toggle:hover {
+          transform: scale(1.05) !important;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.3) !important;
+        }
+
+        #n8n-chat-container .chat-toggle.open {
+          transform: scale(0.9) !important;
+        }
+
+        #n8n-chat-container .chat-messages {
+          background: #f9fafb !important;
+          padding: 16px !important;
+        }
+
+        #n8n-chat-container .chat-input-container {
+          padding: 16px !important;
+          border-top: 1px solid #e5e7eb !important;
+          background: white !important;
+        }
+
+        #n8n-chat-container .chat-input {
+          border-radius: 24px !important;
+          border: 1px solid #d1d5db !important;
+          padding: 12px 16px !important;
+        }
+
+        #n8n-chat-container .chat-send-button {
+          border-radius: 24px !important;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+          width: 48px !important;
+          height: 48px !important;
+          margin-left: 8px !important;
+        }
+
+        #n8n-chat-container .chat-send-button:disabled {
+          background: #d1d5db !important;
+        }
+
+        /* Message bubbles spacing */
+        #n8n-chat-container .chat-message {
+          margin-bottom: 16px !important;
+        }
+
+        /* Typing indicator */
+        #n8n-chat-container .chat-typing {
+          color: #6b7280 !important;
+          font-style: normal !important;
+        }
+
+        /* Green dot animation for online status */
         @keyframes pulse {
           0% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(1.2); }
           100% { opacity: 1; transform: scale(1); }
+        }
+
+        #n8n-chat-container .chat-toggle:not(.open)::after {
+          content: '';
+          position: absolute;
+          bottom: -8px;
+          right: -8px;
+          background: #4ade80;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          border: 2px solid white;
+          animation: pulse 2s infinite;
+        }
+
+        #n8n-chat-container .chat-toggle:not(.open)::before {
+          content: '';
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          width: 8px;
+          height: 8px;
+          background: white;
+          border-radius: 50%;
+          z-index: 1;
         }
       `}</style>
     </>

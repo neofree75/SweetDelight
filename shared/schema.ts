@@ -64,6 +64,9 @@ export const erpNextSalesOrderSchema = z.object({
     qty: z.number(),
     rate: z.number(),
     amount: z.number(),
+    stock_uom: z.string().default("Nos"), // Jednotka
+    parentfield: z.string().default("items"), // Povinné pole pre API
+    item_name: z.string(), // Názov položky
     description: z.string().optional(), // Poznámky k položke v ERPNext
   })),
   total: z.number(),

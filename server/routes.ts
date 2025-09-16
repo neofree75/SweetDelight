@@ -542,11 +542,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const isCustomCake = item.additional_notes && item.additional_notes.length > 0;
             const itemCode = isCustomCake ? 'TORTCUS001' : item.id;
             
+            console.log(`Processing item: ${item.id}, additional_notes: "${item.additional_notes}"`);
+            
             return {
               item_code: itemCode,
               qty: item.quantity,
               rate: item.price,
               amount: item.price * item.quantity,
+              stock_uom: "Nos", // Jednotka - Numbers/Pieces
+              parentfield: "items", // Povinné pole pre API
+              item_name: item.name, // Názov položky
               description: item.additional_notes || '', // Poznámky k položke v ERPNext
             };
           }),
@@ -555,6 +560,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currency: "EUR",
           // selling_price_list: "Standard Selling", // Dočasne odstránené - price list neexistuje v ERPNext
         };
+
+        console.log('Sales Order Data being sent to ERPNext:', JSON.stringify(salesOrderData, null, 2));
 
         // Create sales order in ERPNext
         const salesOrderId = await erpNextService.createSalesOrder(salesOrderData);

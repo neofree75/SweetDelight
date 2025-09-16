@@ -1,33 +1,40 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Receipt, FileText, Calendar, Download } from "lucide-react";
+import { Receipt, FileText, Calendar, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Placeholder dáta pre demo účely
+// Placeholder dáta pre demo účely - rozšírené pre testovanie stránkovania
 const mockInvoices = [
-  {
-    id: "INV-2024-001",
-    orderNumber: "SO-001",
-    issueDate: "2024-03-15",
-    dueDate: "2024-03-30",
-    amount: 45.60,
-    currency: "EUR",
-    status: "Zaplatené",
-    downloadUrl: "#"
-  },
-  {
-    id: "INV-2024-002", 
-    orderNumber: "SO-002",
-    issueDate: "2024-03-10",
-    dueDate: "2024-03-25",
-    amount: 32.80,
-    currency: "EUR",
-    status: "Čaká na platbu",
-    downloadUrl: "#"
-  }
+  { id: "INV-2024-001", orderNumber: "SO-001", issueDate: "2024-03-15", dueDate: "2024-03-30", amount: 45.60, currency: "EUR", status: "Zaplatené", downloadUrl: "#" },
+  { id: "INV-2024-002", orderNumber: "SO-002", issueDate: "2024-03-10", dueDate: "2024-03-25", amount: 32.80, currency: "EUR", status: "Čaká na platbu", downloadUrl: "#" },
+  { id: "INV-2024-003", orderNumber: "SO-003", issueDate: "2024-03-08", dueDate: "2024-03-23", amount: 28.50, currency: "EUR", status: "Zaplatené", downloadUrl: "#" },
+  { id: "INV-2024-004", orderNumber: "SO-004", issueDate: "2024-03-05", dueDate: "2024-03-20", amount: 67.90, currency: "EUR", status: "Po splatnosti", downloadUrl: "#" },
+  { id: "INV-2024-005", orderNumber: "SO-005", issueDate: "2024-03-02", dueDate: "2024-03-17", amount: 42.30, currency: "EUR", status: "Čaká na platbu", downloadUrl: "#" },
+  { id: "INV-2024-006", orderNumber: "SO-006", issueDate: "2024-02-28", dueDate: "2024-03-15", amount: 55.20, currency: "EUR", status: "Zaplatené", downloadUrl: "#" },
+  { id: "INV-2024-007", orderNumber: "SO-007", issueDate: "2024-02-25", dueDate: "2024-03-12", amount: 38.70, currency: "EUR", status: "Zaplatené", downloadUrl: "#" },
+  { id: "INV-2024-008", orderNumber: "SO-008", issueDate: "2024-02-20", dueDate: "2024-03-07", amount: 73.40, currency: "EUR", status: "Čaká na platbu", downloadUrl: "#" },
+  { id: "INV-2024-009", orderNumber: "SO-009", issueDate: "2024-02-15", dueDate: "2024-03-02", amount: 29.90, currency: "EUR", status: "Po splatnosti", downloadUrl: "#" },
+  { id: "INV-2024-010", orderNumber: "SO-010", issueDate: "2024-02-12", dueDate: "2024-02-27", amount: 61.80, currency: "EUR", status: "Zaplatené", downloadUrl: "#" },
+  { id: "INV-2024-011", orderNumber: "SO-011", issueDate: "2024-02-08", dueDate: "2024-02-23", amount: 44.20, currency: "EUR", status: "Zaplatené", downloadUrl: "#" },
+  { id: "INV-2024-012", orderNumber: "SO-012", issueDate: "2024-02-05", dueDate: "2024-02-20", amount: 52.60, currency: "EUR", status: "Čaká na platbu", downloadUrl: "#" },
+  { id: "INV-2024-013", orderNumber: "SO-013", issueDate: "2024-02-01", dueDate: "2024-02-16", amount: 37.40, currency: "EUR", status: "Po splatnosti", downloadUrl: "#" }
 ];
 
+const ITEMS_PER_PAGE = 10;
+
 export function Invoices() {
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Pagination calculations
+  const totalInvoices = mockInvoices.length;
+  const totalPages = Math.ceil(totalInvoices / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedInvoices = mockInvoices.slice(startIndex, endIndex);
+  
+  // Show pagination only if more than ITEMS_PER_PAGE invoices
+  const showPagination = totalInvoices > ITEMS_PER_PAGE;
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'zaplatené':
@@ -64,7 +71,7 @@ export function Invoices() {
       <div className="flex items-center gap-2 mb-6">
         <Receipt className="h-5 w-5 text-primary" />
         <h2 className="text-xl font-semibold text-foreground">
-          Moje faktúry ({mockInvoices.length})
+          Moje faktúry ({totalInvoices})
         </h2>
       </div>
 
@@ -88,7 +95,7 @@ export function Invoices() {
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-foreground">Ukážka faktúr:</h3>
         
-        {mockInvoices.map((invoice) => (
+        {paginatedInvoices.map((invoice) => (
           <Card key={invoice.id} className="hover-elevate opacity-75" data-testid={`invoice-${invoice.id}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -155,6 +162,54 @@ export function Invoices() {
           </ul>
         </CardContent>
       </Card>
+      
+      {/* Pagination */}
+      {showPagination && (
+        <div className="flex items-center justify-between mt-8" data-testid="pagination-controls">
+          <div className="text-sm text-muted-foreground">
+            Zobrazujem {startIndex + 1}-{Math.min(endIndex, totalInvoices)} z {totalInvoices} faktúr
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Predošlá
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <Button
+                  key={page}
+                  variant={page === currentPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  data-testid={`button-page-${page}`}
+                  className="min-w-[40px]"
+                >
+                  {page}
+                </Button>
+              ))}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              data-testid="button-next-page"
+            >
+              Ďalšia
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

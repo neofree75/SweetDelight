@@ -64,7 +64,7 @@ export const erpNextSalesOrderSchema = z.object({
     qty: z.number(),
     rate: z.number(),
     amount: z.number(),
-    additional_notes: z.string().optional(),
+    description: z.string().optional(), // Poznámky k položke v ERPNext
   })),
   total: z.number(),
   grand_total: z.number(),

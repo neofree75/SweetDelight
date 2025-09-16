@@ -96,6 +96,29 @@ export function Orders() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'draft':
+        return 'Návrh';
+      case 'submitted':
+        return 'Odoslané';
+      case 'confirmed':
+        return 'Potvrdené';
+      case 'completed':
+        return 'Dokončené';
+      case 'cancelled':
+        return 'Zrušené';
+      case 'to bill':
+        return 'Na fakturáciu';
+      case 'to deliver':
+        return 'Na doručenie';
+      case 'closed':
+        return 'Uzavreté';
+      default:
+        return status; // Fallback na pôvodný status
+    }
+  };
+
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd.MM.yyyy', { locale: sk });
@@ -132,7 +155,7 @@ export function Orders() {
                   variant={getStatusColor(order.status)}
                   data-testid={`order-status-${order.id}`}
                 >
-                  {order.status}
+                  {getStatusLabel(order.status)}
                 </Badge>
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">

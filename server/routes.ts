@@ -451,7 +451,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Mapuj ERPNext dáta na frontend formát
       const orders = erpNextOrders.map(order => {
-        console.log(`[DEBUG] Order ${order.name} has status: '${order.status}' (type: ${typeof order.status})`);
         return {
           id: order.name,
           status: order.status,

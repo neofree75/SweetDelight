@@ -229,16 +229,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         console.log("Creating sales order for customer:", customerId);
         
-        const salesOrderItems = orderData.items.map(item => ({
-          item_code: item.id,
-          item_name: item.name,
-          qty: item.quantity,
-          rate: item.price,
-          amount: item.quantity * item.price,
-          stock_uom: "Nos",
-          parentfield: "items",
-          description: item.additional_notes || item.name
-        }));
+        const salesOrderItems = orderData.items.map(item => {
+          // Pre torty na mieru použij generický kód položky
+          const isCustomCake = item.id.startsWith('custom-cake-');
+          
+          return {
+            item_code: isCustomCake ? "TORTCUS001" : item.id,
+            item_name: item.name,
+            qty: item.quantity,
+            rate: item.price,
+            amount: item.quantity * item.price,
+            stock_uom: "Nos",
+            parentfield: "items",
+            description: item.additional_notes || item.name
+          };
+        });
 
         const salesOrderId = await erpNextService.createSalesOrder({
           customer: customerId,

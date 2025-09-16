@@ -35,11 +35,12 @@ interface User {
   name: string;
 }
 
-function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: { 
+function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user }: { 
   cartItems: CartItem[]; 
   onAddToCart: (product: any, quantity: number) => void;
   onCartOpen: () => void;
   onLogin: (userData: User) => void;
+  onClearCart: () => void;
   user: User | null;
 }) {
   return (
@@ -68,7 +69,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: {
         <Checkout cartItems={cartItems} />
       </Route>
       <Route path="/pokladna">
-        <Billing cartItems={cartItems} user={user} />
+        <Billing cartItems={cartItems} user={user} onClearCart={onClearCart} />
       </Route>
       <Route path="/registracia" component={Registration} />
       <Route path="/prihlasenie">
@@ -133,6 +134,10 @@ function App() {
     setLocation('/checkout');
   };
 
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
+
   const handleLogin = (userData: User) => {
     setUser(userData);
     console.log('User logged in:', userData);
@@ -172,6 +177,7 @@ function App() {
             <Router 
               cartItems={cartItems}
               user={user}
+              onClearCart={handleClearCart}
               onAddToCart={(product, quantity) => {
                 setCartItems(prevItems => {
                   const existingItem = prevItems.find(item => item.id === product.id);

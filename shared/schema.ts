@@ -84,8 +84,7 @@ export const erpNextSalesInvoiceSchema = z.object({
   grand_total: z.number(), // Celková suma
   outstanding_amount: z.number(), // Zostávajúca suma na úhradu
   status: z.string(), // Draft, Submitted, Paid, atď
-  currency: z.string().default("EUR"),
-  sales_order: z.string().optional(), // Odkaz na objednávku ak existuje
+  currency: z.string().default("EUR")
 });
 
 

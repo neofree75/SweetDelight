@@ -8,11 +8,13 @@ import {
   insertOrderSchema,
   cartItemSchema,
   userOrderSchema,
+  invoiceSchema,
   type CartItem,
   type Product,
   type ERPNextCustomer,
   type ERPNextSalesOrder,
   type UserOrder,
+  type Invoice,
   type InsertOrder 
 } from "@shared/schema";
 import { z } from "zod";
@@ -476,6 +478,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user orders:", error);
       res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
+  // Get user invoices
+  app.get("/api/user-invoices", async (req, res) => {
+    try {
+      // Skontroluj či je užívateľ prihlásený
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const userEmail = session.user.email;
+      console.log(`[user-invoices] Fetching invoices for authenticated user: ${userEmail}`);
+
+      // Find customer by email first
+      const customer = await erpNextService.findCustomerByEmail(userEmail);
+      if (!customer) {
+        console.log(`[user-invoices] No customer found for email: ${userEmail}`);
+        return res.json({ invoices: [] });
+      }
+
+      // Získaj faktúry z ERPNext pre tohto zákazníka
+      const erpInvoices = await erpNextService.getSalesInvoicesForCustomer(customer.customerId);
+      
+      // Transformuj ERPNext faktúry na frontend formát
+      const invoices: Invoice[] = erpInvoices.map(erpInvoice => ({
+        id: erpInvoice.name,
+        orderNumber: erpInvoice.sales_order || undefined,
+        issueDate: erpInvoice.posting_date,
+        dueDate: erpInvoice.due_date,
+        amount: erpInvoice.grand_total,
+        outstandingAmount: erpInvoice.outstanding_amount,
+        currency: erpInvoice.currency,
+        status: erpInvoice.status
+      }));
+      
+      console.log(`[user-invoices] Returning ${invoices.length} invoices for user ${userEmail}`);
+      res.json({ invoices });
+    } catch (error) {
+      console.error("Error fetching user invoices:", error);
+      res.status(500).json({ error: "Failed to fetch invoices" });
     }
   });
 

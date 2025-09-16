@@ -450,25 +450,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const erpNextOrders = await erpNextService.getOrdersByCustomer(customer.customerId);
       
       // Mapuj ERPNext dáta na frontend formát
-      const orders = erpNextOrders.map(order => ({
-        id: order.name,
-        status: order.status,
-        customer: order.customer,
-        customerName: order.customer_name,
-        transactionDate: order.transaction_date,
-        deliveryDate: order.delivery_date,
-        total: order.total || 0,
-        grandTotal: order.grand_total || 0,
-        currency: order.currency || 'EUR',
-        items: (order.items || []).map((item: any) => ({
-          itemCode: item.item_code,
-          itemName: item.item_name,
-          qty: item.qty || 0,
-          rate: item.rate || 0,
-          amount: item.amount || 0,
-          description: item.description
-        }))
-      }));
+      const orders = erpNextOrders.map(order => {
+        console.log(`[DEBUG] Order ${order.name} has status: '${order.status}' (type: ${typeof order.status})`);
+        return {
+          id: order.name,
+          status: order.status,
+          customer: order.customer,
+          customerName: order.customer_name,
+          transactionDate: order.transaction_date,
+          deliveryDate: order.delivery_date,
+          total: order.total || 0,
+          grandTotal: order.grand_total || 0,
+          currency: order.currency || 'EUR',
+          items: (order.items || []).map((item: any) => ({
+            itemCode: item.item_code,
+            itemName: item.item_name,
+            qty: item.qty || 0,
+            rate: item.rate || 0,
+            amount: item.amount || 0,
+            description: item.description
+          }))
+        };
+      });
       
       res.json({ orders, customer: { id: customer.customerId } });
     } catch (error) {

@@ -136,6 +136,14 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                         <p className="text-sm text-muted-foreground">
                           {item.quantity} × €{item.price.toFixed(2)}
                         </p>
+                        {item.additional_notes && (
+                          <div className="mt-2 p-2 bg-muted rounded-md">
+                            <p className="text-xs text-muted-foreground mb-1">Konfigurácia produktu:</p>
+                            <p className="text-xs" data-testid={`text-existing-notes-${item.id}`}>
+                              {item.additional_notes}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold" data-testid={`text-item-total-${item.id}`}>

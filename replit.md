@@ -56,20 +56,6 @@ Preferred communication style: Simple, everyday language.
 - **ESBuild**: Fast bundling for production builds
 - **Replit Integration**: Development environment optimizations and error overlays
 
-### Retell AI Integration (Chat Assistant)
-- **Purpose**: AI-powered chat assistant "Linda" for customer support and order assistance
-- **Architecture**: Custom Frontend → Backend → Retell AI API → Frontend communication
-- **Authentication**: API key-based authentication via RETELL_API_KEY and RETELL_AGENT_ID
-- **Required Environment Variables**:
-  - `RETELL_API_KEY`: Retell AI API access key
-  - `RETELL_AGENT_ID`: Agent ID for chat sessions
-- **Features**: 
-  - Fixed bottom-right chat widget with Slovak localization
-  - Real-time AI responses about bakery products, pricing, and ordering
-  - Intelligent fallback system with Slovak bakery-specific responses
-  - Session-based conversation management with context preservation
-  - Rate limiting and input validation for security
-- **Implementation**: Custom ChatWidget component with backend service integration
 
 ### Database (Configured but Optional)
 - **Neon Database**: PostgreSQL service (configured via Drizzle but currently unused)

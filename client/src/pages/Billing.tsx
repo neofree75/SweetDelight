@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearch } from 'wouter';
+import { useSearch, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ interface BillingProps {
 export default function Billing({ cartItems, user }: BillingProps) {
   const search = useSearch();
   const params = new URLSearchParams(search);
+  const [, setLocation] = useLocation();
   
   // Získaj údaje z URL parametrov
   const deliveryDate = params.get('date') || '';
@@ -224,9 +225,9 @@ export default function Billing({ cartItems, user }: BillingProps) {
       setNotes('');
       setItemNotes({});
       
-      // Redirect to homepage after successful order
+      // Redirect to homepage after successful order (guest checkout)
       setTimeout(() => {
-        window.location.href = '/';
+        setLocation('/');
       }, 2000);
       
     } catch (error) {

@@ -443,6 +443,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get custom cake attributes for torta na mieru
+  app.get("/api/custom-cake-attributes", async (req, res) => {
+    try {
+      const attributes = await erpNextService.getCustomCakeAttributes();
+      res.json(attributes);
+    } catch (error) {
+      console.error("Error fetching custom cake attributes:", error);
+      res.status(500).json({ error: "Chyba pri načítavaní atribútov tortov na mieru" });
+    }
+  });
+
   // Cart management endpoints
   app.get("/api/cart", async (req, res) => {
     try {

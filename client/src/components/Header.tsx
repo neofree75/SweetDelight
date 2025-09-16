@@ -24,6 +24,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
   const navItems = [
     { path: '/', label: 'Domov' },
     { path: '/obchod', label: 'Obchod' },
+    { path: '/torta-na-mieru', label: 'Torta na mieru' },
     { path: '/o-nas', label: 'O nás' },
     { path: '/kontakt', label: 'Kontakt' },
   ];

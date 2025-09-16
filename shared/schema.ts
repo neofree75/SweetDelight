@@ -138,17 +138,58 @@ export const orderSchema = z.object({
   sessionId: z.string().optional(), // Pre správne zmazanie košíka
 });
 
+// ERPNext Item Attribute schema - matches ERPNext Item Attribute doctype
+export const erpNextItemAttributeSchema = z.object({
+  name: z.string(), // ERPNext document name (ID)
+  attribute_name: z.string(),
+  numeric_values: z.boolean().default(false),
+  from_range: z.number().optional(),
+  to_range: z.number().optional(),
+  increment: z.number().optional(),
+  cust_atribut_torta_na_mieru: z.boolean().default(false), // Vlastné pole pre torty na mieru
+});
+
+// Schema pre hodnoty atribútov tortov na mieru
+export const customCakeAttributeValueSchema = z.object({
+  attribute_value: z.string(),
+  abbreviation: z.string().optional(),
+});
+
+// Schema pre atribúty tortov na mieru (frontend)
+export const customCakeAttributeSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  isNumeric: z.boolean().default(false),
+  fromRange: z.number().optional(),
+  toRange: z.number().optional(),
+  increment: z.number().optional(),
+  values: z.array(customCakeAttributeValueSchema).optional(), // Pre textové atribúty
+});
+
+// Schema pre custom cake objednávku
+export const customCakeOrderSchema = z.object({
+  cakeType: z.string().optional(), // Základný typ torty
+  selectedAttributes: z.record(z.string()), // key-value páry vybraných atribútov
+  specialInstructions: z.string().optional(),
+  customerInfo: customerSchema,
+  price: z.number(),
+});
+
 // Type exports
 export type ERPNextItem = z.infer<typeof erpNextItemSchema>;
 export type ERPNextItemVariant = z.infer<typeof erpNextItemVariantSchema>;
 export type ERPNextPrice = z.infer<typeof erpNextPriceSchema>;
 export type ERPNextCustomer = z.infer<typeof erpNextCustomerSchema>;
 export type ERPNextSalesOrder = z.infer<typeof erpNextSalesOrderSchema>;
+export type ERPNextItemAttribute = z.infer<typeof erpNextItemAttributeSchema>;
 
 export type Product = z.infer<typeof productSchema>;
 export type Customer = z.infer<typeof customerSchema>;
 export type CartItem = z.infer<typeof cartItemSchema>;
 export type Order = z.infer<typeof orderSchema>;
+export type CustomCakeAttribute = z.infer<typeof customCakeAttributeSchema>;
+export type CustomCakeAttributeValue = z.infer<typeof customCakeAttributeValueSchema>;
+export type CustomCakeOrder = z.infer<typeof customCakeOrderSchema>;
 
 // Insert schemas for form validation
 export const insertCustomerSchema = customerSchema;

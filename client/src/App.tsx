@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -86,12 +86,30 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: {
 }
 
 function App() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  // Initialize cart items from localStorage on page load
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const savedCart = localStorage.getItem('cartItems');
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch (error) {
+      console.error('Error loading cart from localStorage:', error);
+      return [];
+    }
+  });
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [, setLocation] = useLocation();
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Save cart items to localStorage whenever cartItems changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+    }
+  }, [cartItems]);
 
   const handleCartClick = () => {
     setIsCartOpen(true);

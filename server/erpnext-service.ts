@@ -5,7 +5,10 @@ import {
   ERPNextPrice, 
   ERPNextCustomer, 
   ERPNextSalesOrder,
-  Product 
+  ERPNextItemAttribute,
+  Product,
+  CustomCakeAttribute,
+  CustomCakeAttributeValue
 } from '@shared/schema';
 
 export class ERPNextService {
@@ -1002,6 +1005,84 @@ export class ERPNextService {
     } catch (error) {
       console.error('ERPNext health check failed:', error);
       return false;
+    }
+  }
+
+  // Načítanie atribútov pre torty na mieru z ERPNext
+  async getCustomCakeAttributes(): Promise<CustomCakeAttribute[]> {
+    try {
+      console.log('Načítavam atribúty pre torty na mieru z ERPNext...');
+      
+      // Načítanie Item Attributes s filtrom cust_atribut_torta_na_mieru = 1
+      const response = await this.client.get('/resource/Item Attribute', {
+        params: {
+          filters: JSON.stringify([['cust_atribut_torta_na_mieru', '=', 1]]),
+          fields: JSON.stringify([
+            'name',
+            'attribute_name', 
+            'numeric_values',
+            'from_range',
+            'to_range',
+            'increment',
+            'cust_atribut_torta_na_mieru'
+          ])
+        }
+      });
+
+      const erpAttributes: ERPNextItemAttribute[] = response.data.data || [];
+      console.log(`Nájdené ${erpAttributes.length} atribúty pre torty na mieru`);
+
+      // Pre každý atribút načítaj jeho hodnoty
+      const customCakeAttributes: CustomCakeAttribute[] = [];
+      
+      for (const erpAttr of erpAttributes) {
+        const customAttr: CustomCakeAttribute = {
+          id: erpAttr.name,
+          name: erpAttr.attribute_name,
+          isNumeric: erpAttr.numeric_values || false,
+          fromRange: erpAttr.from_range,
+          toRange: erpAttr.to_range,
+          increment: erpAttr.increment,
+          values: []
+        };
+
+        // Pre textové atribúty načítaj hodnoty
+        if (!erpAttr.numeric_values) {
+          try {
+            const valuesResponse = await this.client.get('/resource/Item Attribute Value', {
+              params: {
+                filters: JSON.stringify([['parent', '=', erpAttr.name]]),
+                fields: JSON.stringify(['attribute_value', 'abbreviation'])
+              }
+            });
+
+            const values = valuesResponse.data.data || [];
+            customAttr.values = values.map((val: any) => ({
+              attribute_value: val.attribute_value,
+              abbreviation: val.abbreviation
+            }));
+            
+            console.log(`Atribút ${erpAttr.attribute_name} má ${customAttr.values?.length || 0} hodnôt`);
+          } catch (error) {
+            console.error(`Chyba pri načítaní hodnôt atribútu ${erpAttr.attribute_name}:`, 
+              axios.isAxiosError(error) ? `${error.response?.status} ${error.response?.statusText}` : error instanceof Error ? error.message : 'Neznáma chyba');
+            customAttr.values = [];
+          }
+        }
+
+        customCakeAttributes.push(customAttr);
+      }
+
+      console.log('Úspešne načítané atribúty pre torty na mieru:', customCakeAttributes.length);
+      return customCakeAttributes;
+      
+    } catch (error) {
+      console.error('Chyba pri načítaní atribútov pre torty na mieru:', 
+        axios.isAxiosError(error) ? `${error.response?.status} ${error.response?.statusText}` : error instanceof Error ? error.message : 'Neznáma chyba');
+      if (axios.isAxiosError(error)) {
+        console.error('ERPNext API chyba:', error.response?.data);
+      }
+      throw new Error('Nepodarilo sa načítať atribúty pre torty na mieru');
     }
   }
 }

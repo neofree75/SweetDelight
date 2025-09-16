@@ -11,6 +11,7 @@ import Cart from "@/components/Cart";
 import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
 import ProductDetail from "@/pages/ProductDetail";
+import CustomCakeOrder from "@/pages/CustomCakeOrder";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Checkout from "@/pages/Checkout";
@@ -53,6 +54,12 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, user }: {
       </Route>
       <Route path="/produkt/:id">
         <ProductDetail
+          onAddToCart={onAddToCart}
+          onCartOpen={onCartOpen}
+        />
+      </Route>
+      <Route path="/torta-na-mieru">
+        <CustomCakeOrder
           onAddToCart={onAddToCart}
           onCartOpen={onCartOpen}
         />
@@ -158,12 +165,25 @@ function App() {
                         : item
                     );
                   } else {
+                    // Build additional_notes from custom attributes and special instructions
+                    let additionalNotes = '';
+                    if (product.customAttributes && Object.keys(product.customAttributes).length > 0) {
+                      const attributeDescriptions = Object.entries(product.customAttributes)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                      additionalNotes = attributeDescriptions;
+                    }
+                    if (product.specialInstructions) {
+                      additionalNotes += additionalNotes ? `, Poznámky: ${product.specialInstructions}` : `Poznámky: ${product.specialInstructions}`;
+                    }
+
                     return [...prevItems, {
                       id: product.id,
                       name: product.name,
                       price: product.price,
                       quantity,
-                      image: product.image
+                      image: product.image,
+                      additional_notes: additionalNotes || undefined
                     }];
                   }
                 });

@@ -14,13 +14,13 @@ import {
 } from '@/components/ui/sidebar';
 import { User, FileText, Receipt } from 'lucide-react';
 import Profile from './Profile';
+import { Orders } from '@/components/Orders';
 
 // Komponenty pre jednotlivé sekcie
 function OrdersSection() {
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-playfair mb-4">Objednávky</h2>
-      <p className="text-muted-foreground">Zoznam vašich objednávok sa načítava...</p>
+      <Orders />
     </div>
   );
 }

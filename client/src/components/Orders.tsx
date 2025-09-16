@@ -1,0 +1,192 @@
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Package, Calendar, CreditCard, FileText } from "lucide-react";
+import { format } from "date-fns";
+import { sk } from "date-fns/locale";
+import type { UserOrder } from "@shared/schema";
+
+interface OrdersResponse {
+  orders: UserOrder[];
+  customer: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export function Orders() {
+  const { data, isLoading, error } = useQuery<OrdersResponse>({
+    queryKey: ['/api/user-orders'],
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12" data-testid="loading-orders">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Načítavam objednávky...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12" data-testid="error-orders">
+        <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">
+          Chyba pri načítaní objednávok
+        </h3>
+        <p className="text-muted-foreground">
+          Nie je možné načítať vaše objednávky. Skúste to prosím neskôr.
+        </p>
+      </div>
+    );
+  }
+
+  if (!data?.orders || data.orders.length === 0) {
+    return (
+      <div className="text-center py-12" data-testid="empty-orders">
+        <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">
+          Zatiaľ nemáte žiadne objednávky
+        </h3>
+        <p className="text-muted-foreground">
+          Keď si objednáte niečo z našej ponuky, vaše objednávky sa zobrazia tu.
+        </p>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'draft':
+      case 'návrh':
+        return 'secondary';
+      case 'submitted':
+      case 'odoslané':
+        return 'default';
+      case 'confirmed':
+      case 'potvrdené':
+        return 'default';
+      case 'completed':
+      case 'dokončené':
+        return 'default';
+      case 'cancelled':
+      case 'zrušené':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'dd.MM.yyyy', { locale: sk });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('sk-SK', {
+      style: 'currency',
+      currency: currency || 'EUR',
+    }).format(amount);
+  };
+
+  return (
+    <div className="space-y-6" data-testid="orders-list">
+      <div className="flex items-center gap-2 mb-6">
+        <Package className="h-5 w-5 text-primary" />
+        <h2 className="text-xl font-semibold text-foreground">
+          Moje objednávky ({data.orders.length})
+        </h2>
+      </div>
+
+      <div className="space-y-4">
+        {data.orders.map((order) => (
+          <Card key={order.id} className="hover-elevate" data-testid={`order-${order.id}`}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  Objednávka #{order.id}
+                </CardTitle>
+                <Badge 
+                  variant={getStatusColor(order.status)}
+                  data-testid={`order-status-${order.id}`}
+                >
+                  {order.status}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{formatDate(order.transactionDate)}</span>
+                </div>
+                {order.deliveryDate && (
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    <span>Doručenie: {formatDate(order.deliveryDate)}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <CreditCard className="h-4 w-4" />
+                  <span className="font-semibold text-foreground">
+                    {formatCurrency(order.grandTotal, order.currency)}
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="pt-0">
+              <Separator className="mb-4" />
+              
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground mb-2">Položky objednávky:</h4>
+                
+                {order.items.map((item, index) => (
+                  <div 
+                    key={`${order.id}-${index}`} 
+                    className="flex items-center justify-between p-3 rounded-md bg-muted/30"
+                    data-testid={`order-item-${order.id}-${index}`}
+                  >
+                    <div className="flex-1">
+                      <h5 className="font-medium text-foreground">{item.itemName}</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Kód: {item.itemCode}
+                      </p>
+                      {item.description && (
+                        <p className="text-sm text-muted-foreground italic">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className="text-sm text-muted-foreground">
+                        {item.qty} × {formatCurrency(item.rate, order.currency)}
+                      </div>
+                      <div className="font-semibold text-foreground">
+                        {formatCurrency(item.amount, order.currency)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <Separator className="my-4" />
+              
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Celková suma:</span>
+                <span className="text-lg font-bold text-foreground">
+                  {formatCurrency(order.grandTotal, order.currency)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1139,8 +1139,7 @@ export class ERPNextService {
             'grand_total',
             'outstanding_amount',
             'status',
-            'currency',
-            'sales_order'
+            'currency'
           ]),
           filters: JSON.stringify([
             ['Sales Invoice', 'customer', '=', customerName]
@@ -1161,8 +1160,7 @@ export class ERPNextService {
         grand_total: parseFloat(invoice.grand_total) || 0,
         outstanding_amount: parseFloat(invoice.outstanding_amount) || 0,
         status: invoice.status,
-        currency: invoice.currency || 'EUR',
-        sales_order: invoice.sales_order
+        currency: invoice.currency || 'EUR'
       }));
       
     } catch (error) {

@@ -506,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Transformuj ERPNext faktúry na frontend formát
       const invoices: Invoice[] = erpInvoices.map(erpInvoice => ({
         id: erpInvoice.name,
-        orderNumber: erpInvoice.sales_order || undefined,
+        orderNumber: undefined, // Sales order nie je dostupný cez ERPNext API
         issueDate: erpInvoice.posting_date,
         dueDate: erpInvoice.due_date,
         amount: erpInvoice.grand_total,

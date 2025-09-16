@@ -87,7 +87,7 @@ export function ChatWidget() {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        data-testid="button-chat-open"
+        data-testid="chat-button"
         className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-lg bg-gradient-to-r from-[#667eea] to-[#764ba2] hover:from-[#5a67d8] hover:to-[#6b46c1] transition-all duration-300 hover:scale-105 group z-[9999]"
         size="icon"
       >

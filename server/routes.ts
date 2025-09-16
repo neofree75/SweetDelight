@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { erpNextService } from "./erpnext-service";
 import { openaiService } from "./openai-service";
-import { retellService } from "./retell-service";
+import { retellService, retellChatMessageSchema } from "./retell-service";
 import { 
   insertCustomerSchema, 
   insertOrderSchema,
@@ -1082,20 +1082,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Validate request body
-      const { message, sessionId } = req.body;
+      // Validate request body using Zod schema
+      const validationResult = retellChatMessageSchema.safeParse(req.body);
       
-      if (!message || typeof message !== 'string') {
+      if (!validationResult.success) {
         return res.status(400).json({ 
-          error: "Správa je povinná." 
+          error: "Neplatné údaje správy.",
+          details: validationResult.error.errors
         });
       }
-
-      if (message.length > 1000) {
-        return res.status(400).json({ 
-          error: "Správa je príliš dlhá. Maximum 1000 znakov." 
-        });
-      }
+      
+      const { message, sessionId } = validationResult.data;
 
       const finalSessionId = sessionId || req.session.id || 'default';
       

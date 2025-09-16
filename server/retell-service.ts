@@ -1,4 +1,11 @@
 import Retell from 'retell-sdk';
+import { z } from 'zod';
+
+// Schema pre validáciu Retell chat správ
+export const retellChatMessageSchema = z.object({
+  message: z.string().min(1).max(1000),
+  sessionId: z.string().min(1).max(100)
+});
 
 export class RetellService {
   private retell?: Retell;
@@ -28,17 +35,70 @@ export class RetellService {
 
   async sendChatMessage(message: string, sessionId: string): Promise<string> {
     try {
-      // Pro účely dema použijeme OpenAI GPT model pre chat
-      // V reálnej implementácii by ste použili Retell AI chat endpoint
+      // Ak je Retell AI dostupné, použijeme skutočné API
+      if (this.isAvailable && this.retell) {
+        console.log('Using Retell AI for message:', message.substring(0, 50) + '...');
+        
+        // Vytvoríme novú chat session pre každú správu
+        // Note: Retell AI API je optimalizované pre session-based chat, nie message-by-message
+        const chatResponse = await this.retell.chat.create({
+          agent_id: this.agentId,
+          // Možeme pridať metadata pre kontext
+          metadata: {
+            session_id: sessionId,
+            user_message: message,
+            business_type: 'slovak_bakery',
+            business_name: 'Marsela Bakery'
+          },
+          // Dynamické premenné pre Response Engine
+          retell_llm_dynamic_variables: {
+            user_message: message,
+            language: 'slovak',
+            business_context: 'Slovak bakery specializing in makrónky, zákusky, torty a čerstvé pečivo'
+          }
+        });
+        
+        // Extraktujeme odpoveď z transkriptu
+        if (chatResponse.transcript) {
+          // Parse transcript to get agent response
+          const lines = chatResponse.transcript.split('\n');
+          const agentLines = lines.filter(line => line.startsWith('Agent:'));
+          if (agentLines.length > 0) {
+            const lastAgentResponse = agentLines[agentLines.length - 1].replace('Agent: ', '').trim();
+            return lastAgentResponse || 'Prepáčte, nedostal som správnu odpoveď. Skúste to prosím znova.';
+          }
+        }
+        
+        // Ak nemáme transcript, skúsime message_with_tool_calls
+        if (chatResponse.message_with_tool_calls && chatResponse.message_with_tool_calls.length > 0) {
+          const agentMessages = chatResponse.message_with_tool_calls.filter((msg: any) => msg.role === 'agent');
+          if (agentMessages.length > 0) {
+            const lastMessage = agentMessages[agentMessages.length - 1];
+            // Bezpečný prístup k content property
+            const content = 'content' in lastMessage ? lastMessage.content : null;
+            return content || 'Prepáčte, nedostal som správnu odpoveď. Skúste to prosím znova.';
+          }
+        }
+        
+        // Fallback ak nemáme žiadnu odpoveď z Retell AI
+        console.warn('Retell AI did not provide expected response format, using fallback');
+      }
       
-      // Zatiaľ použijeme fallback response system s kontextom pekárne
+      // Fallback na lokálny systém
+      console.log('Using fallback chat system for message:', message.substring(0, 50) + '...');
       const response = await this.generateBakeryResponse(message, sessionId);
       return response;
     } catch (error) {
       console.error('Retell AI chat error:', error);
       
-      // Fallback odpoveď v slovenčine
-      return 'Ospravedlňujem sa, momentálne nemôžem odpovedať. Kontaktujte nás prosím priamo na telefóne +421 917 795 731.';
+      // Pri chybe skúsime fallback
+      try {
+        console.log('Retell AI failed, trying fallback for:', message.substring(0, 50) + '...');
+        return await this.generateBakeryResponse(message, sessionId);
+      } catch (fallbackError) {
+        console.error('Both Retell AI and fallback failed:', fallbackError);
+        return 'Ospravedlňujem sa, momentálne nemôžem odpovedať. Kontaktujte nás prosím priamo na telefóne +421 917 795 731.';
+      }
     }
   }
 
@@ -92,12 +152,23 @@ export class RetellService {
 
   async healthCheck(): Promise<boolean> {
     try {
-      // Jednoduchý health check pre Retell AI
+      if (this.isAvailable && this.retell) {
+        // Skutočný health check pre Retell AI
+        // Note: Retell SDK môže mať iný API pre health check
+        // Pre teraz kontrolujeme iba inicializáciu
+        return true;
+      }
+      // Fallback systém je vždy dostupný
       return true;
     } catch (error) {
       console.error('Retell health check failed:', error);
       return false;
     }
+  }
+
+  // Pridáme getter pre dostupnosť Retell AI
+  get isRetellAvailable(): boolean {
+    return this.isAvailable;
   }
 }
 

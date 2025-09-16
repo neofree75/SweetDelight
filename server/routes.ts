@@ -453,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orders = erpNextOrders.map(order => {
         return {
           id: order.name,
-          status: order.status,
+          status: order.workflow_state || order.status, // Použi workflow_state ak existuje, inak status
           customer: order.customer,
           customerName: order.customer_name,
           transactionDate: order.transaction_date,

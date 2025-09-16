@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Package, Calendar, CreditCard, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Package, Calendar, CreditCard, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { UserOrder } from "@shared/schema";
@@ -16,7 +18,11 @@ interface OrdersResponse {
   };
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export function Orders() {
+  const [currentPage, setCurrentPage] = useState(1);
+  
   const { data, isLoading, error } = useQuery<OrdersResponse>({
     queryKey: ['/api/user-orders'],
   });
@@ -57,6 +63,16 @@ export function Orders() {
       </div>
     );
   }
+
+  // Pagination calculations
+  const totalOrders = data.orders.length;
+  const totalPages = Math.ceil(totalOrders / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedOrders = data.orders.slice(startIndex, endIndex);
+  
+  // Show pagination only if more than ITEMS_PER_PAGE orders
+  const showPagination = totalOrders > ITEMS_PER_PAGE;
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -105,7 +121,7 @@ export function Orders() {
       </div>
 
       <div className="space-y-4">
-        {data.orders.map((order) => (
+        {paginatedOrders.map((order) => (
           <Card key={order.id} className="hover-elevate" data-testid={`order-${order.id}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -187,6 +203,54 @@ export function Orders() {
           </Card>
         ))}
       </div>
+
+      {/* Pagination */}
+      {showPagination && (
+        <div className="flex items-center justify-between mt-8" data-testid="pagination-controls">
+          <div className="text-sm text-muted-foreground">
+            Zobrazujem {startIndex + 1}-{Math.min(endIndex, totalOrders)} z {totalOrders} objednávok
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Predošlá
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <Button
+                  key={page}
+                  variant={page === currentPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  data-testid={`button-page-${page}`}
+                  className="min-w-[40px]"
+                >
+                  {page}
+                </Button>
+              ))}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              data-testid="button-next-page"
+            >
+              Ďalšia
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

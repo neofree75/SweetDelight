@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingBag, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { queryClient } from '@/lib/queryClient';
 
 interface CartItem {
   id: string;
@@ -27,9 +28,10 @@ interface User {
 interface BillingProps {
   cartItems: CartItem[];
   user?: User | null;
+  onClearCart?: () => void;
 }
 
-export default function Billing({ cartItems, user }: BillingProps) {
+export default function Billing({ cartItems, user, onClearCart }: BillingProps) {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const [, setLocation] = useLocation();
@@ -212,6 +214,14 @@ export default function Billing({ cartItems, user }: BillingProps) {
         title: "Objednávka úspešne odoslaná!",
         description: `Objednávka číslo ${result.orderId} bola vytvorená v ERPNext.`,
       });
+
+      // Clear cart after successful order
+      if (onClearCart) {
+        onClearCart();
+      }
+
+      // Invalidate user orders cache to show new order immediately
+      queryClient.invalidateQueries({ queryKey: ['/api/user-orders'] });
 
       // Clear form data after successful order
       setEmail('');

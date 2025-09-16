@@ -36,6 +36,15 @@ export default function Hero() {
               Objednať teraz
             </Button>
           </Link>
+          <Link href="/torta-na-mieru">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-3 bg-accent/90 backdrop-blur-sm border border-accent-border text-white"
+              data-testid="button-custom-cake"
+            >
+              Torta na mieru
+            </Button>
+          </Link>
           <Link href="/o-nas">
             <Button 
               variant="outline" 

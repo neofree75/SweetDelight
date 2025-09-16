@@ -75,18 +75,6 @@ export const erpNextSalesOrderSchema = z.object({
   // selling_price_list: z.string().default("Standard Selling"), // Dočasne odstránené - price list neexistuje v ERPNext
 });
 
-// Chat message schema pre n8n chat
-export const chatMessageSchema = z.object({
-  message: z.string().optional(), // Povoliť prázdnu správu pre inicializačné požiadavky
-  sessionId: z.string().optional(),
-  chatInput: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
-  // Pridať podporu pre iné n8n chat polia
-  action: z.string().optional(),
-  workflowId: z.string().optional()
-});
-
-export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
 // Frontend Product schema (simplified for UI)
 export const productSchema = z.object({

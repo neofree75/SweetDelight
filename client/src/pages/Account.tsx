@@ -92,46 +92,44 @@ export default function Account({ user }: AccountProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <SidebarProvider style={style as React.CSSProperties}>
-        <div className="flex h-screen w-full">
-          <Sidebar collapsible="icon">
-            <SidebarContent className="pt-4">
-              <SidebarGroup>
-                <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
-                <SidebarGroupContent className="mt-4">
-                  <SidebarMenu>
-                    {menuItems.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton
-                          onClick={() => setCurrentSection(item.id)}
-                          isActive={currentSection === item.id}
-                          data-testid={`button-account-${item.id}`}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
-          </Sidebar>
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex min-h-[calc(100vh-140px)] w-full">
+        <Sidebar collapsible="icon">
+          <SidebarContent className="h-full">
+            <SidebarGroup className="pt-4">
+              <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
+              <SidebarGroupContent className="mt-4">
+                <SidebarMenu>
+                  {menuItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setCurrentSection(item.id)}
+                        isActive={currentSection === item.id}
+                        data-testid={`button-account-${item.id}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        
+        <div className="flex flex-col flex-1 min-h-[calc(100vh-140px)]">
+          <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <h1 className="text-lg font-playfair">Môj účet</h1>
+            <div></div> {/* Spacer for center alignment */}
+          </header>
           
-          <div className="flex flex-col flex-1">
-            <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
-              <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <h1 className="text-lg font-playfair">Môj účet</h1>
-              <div></div> {/* Spacer for center alignment */}
-            </header>
-            
-            <main className="flex-1 overflow-auto bg-background">
-              {renderContent()}
-            </main>
-          </div>
+          <main className="flex-1 overflow-auto bg-background">
+            {renderContent()}
+          </main>
         </div>
-      </SidebarProvider>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }

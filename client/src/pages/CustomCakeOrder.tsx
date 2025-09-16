@@ -48,22 +48,27 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   };
 
   const handleAddToCart = () => {
+    // Convert attribute IDs to names for proper display in cart
+    const customAttributesWithNames: Record<string, string> = {};
+    Object.entries(selectedAttributes).forEach(([attrId, value]) => {
+      const attr = attributes.find(a => a.id === attrId);
+      if (attr) {
+        customAttributesWithNames[attr.name] = value;
+      }
+    });
+
     // Create a custom cake product object
     const customCakeProduct = {
       id: `custom-cake-${Date.now()}`,
       name: 'Torta na mieru',
-      description: `Vlastná torta s atribútmi: ${Object.entries(selectedAttributes)
-        .map(([key, value]) => {
-          const attr = attributes.find(a => a.id === key);
-          return attr ? `${attr.name}: ${value}` : '';
-        })
-        .filter(Boolean)
+      description: `Vlastná torta s atribútmi: ${Object.entries(customAttributesWithNames)
+        .map(([name, value]) => `${name}: ${value}`)
         .join(', ')}${specialInstructions ? `, Poznámky: ${specialInstructions}` : ''}`,
       price: estimatedPrice,
       image: '/api/placeholder/300/200', // Default custom cake image
       category: 'Torty na mieru',
       inStock: true,
-      customAttributes: selectedAttributes,
+      customAttributes: customAttributesWithNames, // Use names instead of IDs
       specialInstructions
     };
 

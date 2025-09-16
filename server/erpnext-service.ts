@@ -5,6 +5,7 @@ import {
   ERPNextPrice, 
   ERPNextCustomer, 
   ERPNextSalesOrder,
+  ERPNextSalesInvoice,
   ERPNextItemAttribute,
   Product,
   CustomCakeAttribute,
@@ -1120,6 +1121,53 @@ export class ERPNextService {
         console.error('ERPNext API chyba:', error.response?.data);
       }
       throw new Error('Nepodarilo sa načítať atribúty pre torty na mieru');
+    }
+  }
+
+  // Get sales invoices for customer
+  async getSalesInvoicesForCustomer(customerName: string): Promise<ERPNextSalesInvoice[]> {
+    try {
+      console.log(`[sales-invoices] Fetching invoices for customer: ${customerName}`);
+      
+      const response = await this.client.get('/resource/Sales%20Invoice', {
+        params: {
+          fields: JSON.stringify([
+            'name',
+            'customer', 
+            'posting_date',
+            'due_date',
+            'grand_total',
+            'outstanding_amount',
+            'status',
+            'currency',
+            'sales_order'
+          ]),
+          filters: JSON.stringify([
+            ['Sales Invoice', 'customer', '=', customerName]
+          ]),
+          order_by: 'posting_date desc', // Najnovšie faktúry navrchu
+          limit_page_length: 100 // Obmedzenie na 100 faktúr
+        }
+      });
+
+      const invoices = response.data.data || [];
+      console.log(`[sales-invoices] Found ${invoices.length} invoices for customer ${customerName}`);
+      
+      return invoices.map((invoice: any) => ({
+        name: invoice.name,
+        customer: invoice.customer,
+        posting_date: invoice.posting_date,
+        due_date: invoice.due_date,
+        grand_total: parseFloat(invoice.grand_total) || 0,
+        outstanding_amount: parseFloat(invoice.outstanding_amount) || 0,
+        status: invoice.status,
+        currency: invoice.currency || 'EUR',
+        sales_order: invoice.sales_order
+      }));
+      
+    } catch (error) {
+      console.error('Error fetching sales invoices from ERPNext:', error);
+      return [];
     }
   }
 }

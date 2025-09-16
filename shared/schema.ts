@@ -184,6 +184,29 @@ export type ERPNextItemVariant = z.infer<typeof erpNextItemVariantSchema>;
 export type ERPNextPrice = z.infer<typeof erpNextPriceSchema>;
 export type ERPNextCustomer = z.infer<typeof erpNextCustomerSchema>;
 export type ERPNextSalesOrder = z.infer<typeof erpNextSalesOrderSchema>;
+
+// Schema pre objednávky zobrazované v frontend (z ERPNext)
+export const userOrderSchema = z.object({
+  id: z.string(), // Meno objednávky z ERPNext (napr. SO-001)
+  status: z.string(), // Stav objednávky
+  customer: z.string(), // ID zákazníka
+  customerName: z.string(), // Meno zákazníka
+  transactionDate: z.string(), // Dátum objednávky
+  deliveryDate: z.string().optional(), // Dátum doručenia
+  total: z.number(), // Celková suma
+  grandTotal: z.number(), // Konečná suma
+  currency: z.string(), // Mena
+  items: z.array(z.object({
+    itemCode: z.string(), // Kód položky
+    itemName: z.string(), // Názov položky
+    qty: z.number(), // Množstvo
+    rate: z.number(), // Cena za kus
+    amount: z.number(), // Celková suma za položku
+    description: z.string().optional(), // Poznámky k položke
+  })),
+});
+
+export type UserOrder = z.infer<typeof userOrderSchema>;
 export type ERPNextItemAttribute = z.infer<typeof erpNextItemAttributeSchema>;
 
 export type Product = z.infer<typeof productSchema>;

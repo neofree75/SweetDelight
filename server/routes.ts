@@ -10,11 +10,13 @@ import {
   insertOrderSchema,
   cartItemSchema,
   chatMessageSchema,
+  userOrderSchema,
   type CartItem,
   type Product,
   type ERPNextCustomer,
   type ERPNextSalesOrder,
-  type ChatMessage 
+  type ChatMessage,
+  type UserOrder 
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -1137,6 +1139,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         error: "Nastala chyba pri spracovaní správy.",
         response: "Ospravedlňujem sa, momentálne nemôžem odpovedať. Kontaktujte nás prosím na +421 917 795 731."
+      });
+    }
+  });
+
+  // Načítaj objednávky používateľa z ERPNext (SECURE VERSION)
+  app.get("/api/user-orders", async (req, res) => {
+    try {
+      // SECURITY CHECK: Verify user is authenticated
+      const sessionUser = (req.session as any)?.user;
+      if (!sessionUser || !sessionUser.email) {
+        return res.status(401).json({
+          error: "Unauthorized access - user must be logged in",
+          message: "Please log in to view your orders"
+        });
+      }
+
+      // Use authenticated user's email only - no parameter injection possible
+      const authenticatedEmail = sessionUser.email;
+      console.log(`[user-orders] Fetching orders for authenticated user: ${authenticatedEmail}`);
+
+      let customer;
+      try {
+        // Search for customer in ERPNext with authenticated user's email
+        customer = await erpNextService.findCustomerByEmail(authenticatedEmail);
+      } catch (erpError) {
+        console.error('ERPNext customer lookup error:', erpError);
+        return res.status(503).json({
+          error: "ERP system temporarily unavailable",
+          message: "Please try again later or contact support"
+        });
+      }
+
+      if (!customer) {
+        // Customer not found in ERPNext - return empty orders (not an error)
+        return res.json({
+          orders: [],
+          customer: {
+            email: authenticatedEmail,
+            name: `${sessionUser.firstName || ''} ${sessionUser.lastName || ''}`.trim() || 'User'
+          },
+          message: "No orders found for your account"
+        });
+      }
+
+      let erpNextOrders;
+      try {
+        // Fetch orders for the authenticated customer only
+        erpNextOrders = await erpNextService.getOrdersByCustomer(customer.customerId);
+      } catch (erpError) {
+        console.error('ERPNext orders fetch error:', erpError);
+        return res.status(503).json({
+          error: "ERP system temporarily unavailable", 
+          message: "Please try again later or contact support"
+        });
+      }
+
+      // Transform and validate orders using the userOrderSchema
+      const orders = erpNextOrders.map(order => ({
+        id: order.name || '',
+        status: order.status || 'Unknown',
+        customer: order.customer || '',
+        customerName: order.customer_name || 'Customer',
+        transactionDate: order.transaction_date || '',
+        deliveryDate: order.delivery_date,
+        total: order.total || 0,
+        grandTotal: order.grand_total || 0,
+        currency: order.currency || 'EUR',
+        items: (order.items || []).map((item: any) => ({
+          itemCode: item.item_code || '',
+          itemName: item.item_name || '',
+          qty: item.qty || 0,
+          rate: item.rate || 0,
+          amount: item.amount || 0,
+          description: item.description
+        }))
+      }));
+
+      // VALIDATION: Validate response structure using schema
+      let validatedOrders;
+      try {
+        validatedOrders = userOrderSchema.array().parse(orders);
+      } catch (validationError) {
+        console.error('Order data validation error:', validationError);
+        return res.status(500).json({
+          error: "Invalid order data format",
+          message: "Contact support if this issue persists"
+        });
+      }
+
+      res.json({
+        orders: validatedOrders,
+        customer: {
+          id: customer.customerId,
+          email: authenticatedEmail,
+          name: `${sessionUser.firstName || ''} ${sessionUser.lastName || ''}`.trim() || 'User'
+        }
+      });
+
+    } catch (error) {
+      console.error('Unexpected error in user-orders endpoint:', error);
+      res.status(500).json({
+        error: "Internal server error",
+        message: "Please try again later or contact support"
       });
     }
   });

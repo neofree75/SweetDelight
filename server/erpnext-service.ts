@@ -341,7 +341,7 @@ export class ERPNextService {
         variants = itemVariants.map(variant => ({
           id: variant.name,
           name: variant.item_name,
-          minOrderQuantity: variant.custom_min_mnozstvo_obj_predaj || 1,
+          minOrderQuantity: Number(variant.custom_min_mnozstvo_obj_predaj) || 1,
           attributes: (variant.attributes || []).map(attr => ({
             attribute: attr.attribute,
             value: attr.attribute_value || ''
@@ -359,7 +359,7 @@ export class ERPNextService {
         image: imageUrl,
         category: item.item_group,
         inStock: !item.disabled,
-        minOrderQuantity: item.custom_min_mnozstvo_obj_predaj || 1,
+        minOrderQuantity: Number(item.custom_min_mnozstvo_obj_predaj) || 1,
         hasVariants: item.has_variants || false,
         variants: variants
       };

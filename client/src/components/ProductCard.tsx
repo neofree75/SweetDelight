@@ -15,7 +15,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, onAddToCart, onViewDetails }: ProductCardProps) {
   const [, setLocation] = useLocation();
   // Minimálny počet z ERPNext alebo 1 ako fallback
-  const getMinQuantity = () => product.minOrderQuantity || 1;
+  const getMinQuantity = () => Number(product.minOrderQuantity) || 1;
   const [quantity, setQuantity] = useState(getMinQuantity());
 
 

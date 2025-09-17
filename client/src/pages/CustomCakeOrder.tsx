@@ -26,6 +26,21 @@ function useCustomCakeAttributes() {
   });
 }
 
+// Hook to fetch custom cake product (TORTCUS001) for min order quantity
+function useCustomCakeProduct() {
+  return useQuery({
+    queryKey: ['/api/products', 'TORTCUS001'],
+    queryFn: async () => {
+      const response = await fetch('/api/products/TORTCUS001');
+      if (!response.ok) {
+        throw new Error('Failed to fetch custom cake product');
+      }
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
 interface CustomCakeOrderProps {
   onAddToCart: (product: any, quantity: number) => void;
   onCartOpen: () => void;
@@ -38,7 +53,12 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   const { toast } = useToast();
 
   // Fetch custom cake attributes from ERPNext
-  const { data: attributes = [], isLoading, error } = useCustomCakeAttributes();
+  const { data: attributes = [], isLoading: attributesLoading, error } = useCustomCakeAttributes();
+  
+  // Fetch custom cake product for min order quantity
+  const { data: customCakeProduct, isLoading: productLoading } = useCustomCakeProduct();
+  
+  const isLoading = attributesLoading || productLoading;
 
   const handleAttributeChange = (attributeId: string, value: string) => {
     setSelectedAttributes(prev => ({
@@ -58,7 +78,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     });
 
     // Create a custom cake product object
-    const customCakeProduct = {
+    const customCakeProductObject = {
       id: `custom-cake-${Date.now()}`,
       name: 'Torta na mieru',
       description: `Vlastná torta s atribútmi: ${Object.entries(customAttributesWithNames)
@@ -68,11 +88,12 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
       image: '/api/placeholder/300/200', // Default custom cake image
       category: 'Torty na mieru',
       inStock: true,
+      minOrderQuantity: customCakeProduct?.minOrderQuantity || 1, // Použij minimálne množstvo z ERPNext
       customAttributes: customAttributesWithNames, // Use names instead of IDs
       specialInstructions
     };
 
-    onAddToCart(customCakeProduct, 1);
+    onAddToCart(customCakeProductObject, customCakeProduct?.minOrderQuantity || 1);
     onCartOpen();
     
     toast({
@@ -255,12 +276,18 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                 )}
 
                 <div className="pt-4 border-t">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium">Odhadovaná cena:</span>
                     <span className="text-2xl font-bold text-primary" data-testid="estimated-price">
                       €{estimatedPrice.toFixed(2)}
                     </span>
                   </div>
+                  
+                  {customCakeProduct?.minOrderQuantity && customCakeProduct.minOrderQuantity > 1 && (
+                    <div className="mb-4 text-sm text-muted-foreground">
+                      Min. objednávka: {customCakeProduct.minOrderQuantity} kusov
+                    </div>
+                  )}
                   
                   <Button
                     onClick={handleAddToCart}

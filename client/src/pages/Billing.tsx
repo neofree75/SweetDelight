@@ -171,6 +171,8 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
           
         return {
           ...item,
+          quantity: typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity, // Konvertuj na number
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price, // Konvertuj na number
           additional_notes: combinedNotes
         };
       });

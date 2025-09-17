@@ -235,7 +235,8 @@ function App() {
                       price: product.price,
                       quantity,
                       image: product.image,
-                      additional_notes: additionalNotes || undefined
+                      additional_notes: additionalNotes || undefined,
+                      minOrderQuantity: product.minOrderQuantity || 1
                     }];
                   }
                 });

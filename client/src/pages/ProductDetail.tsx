@@ -5,26 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart } from 'lucide-react';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-  inStock: boolean;
-  hasVariants?: boolean;
-  variants?: {
-    id: string;
-    name: string;
-    attributes: {
-      attribute: string;
-      value: string;
-    }[];
-    price?: number;
-  }[];
-}
+import { Product } from '@shared/schema';
 
 interface ProductDetailProps {
   onAddToCart?: (product: Product, quantity: number) => void;
@@ -34,9 +15,6 @@ interface ProductDetailProps {
 export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetailProps) {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  
-  // Minimálny počet pre zákusky je 10 ks, inak 1
-  const getMinQuantity = (category: string) => category === 'Zákusky' ? 10 : 1;
   
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -57,7 +35,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   // Set minimum quantity when product loads
   useEffect(() => {
     if (product) {
-      setQuantity(getMinQuantity(product.category));
+      setQuantity(product.minOrderQuantity || 1);
     }
   }, [product]);
 
@@ -286,11 +264,11 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                   <CardTitle className="text-xl font-serif">Objednať</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Minimum quantity notice for Zákusky */}
-                  {product.category === 'Zákusky' && (
+                  {/* Minimum quantity notice */}
+                  {(product.minOrderQuantity || 1) > 1 && (
                     <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-lg p-4">
                       <p className="text-sm text-amber-800 dark:text-amber-200">
-                        <strong>Upozornenie:</strong> Minimálny počet objednávky pre zákusky je {getMinQuantity(product.category)} kusov.
+                        <strong>Upozornenie:</strong> Minimálny počet objednávky je {product.minOrderQuantity || 1} kusov.
                       </p>
                     </div>
                   )}
@@ -304,9 +282,9 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setQuantity(Math.max(getMinQuantity(product.category), quantity - 1))}
+                        onClick={() => setQuantity(Math.max(product.minOrderQuantity || 1, quantity - 1))}
                         className="h-10 w-10"
-                        disabled={quantity <= getMinQuantity(product.category)}
+                        disabled={quantity <= (product.minOrderQuantity || 1)}
                         data-testid={`button-decrease-detail-${product.id}`}
                       >
                         <Minus className="h-4 w-4" />

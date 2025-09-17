@@ -211,8 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const isCustomCake = orderItem.id.startsWith('custom-cake-');
         
         if (isCustomCake) {
-          // Pre torty na mieru nájdi TORTCUS001 produkt
-          productToValidate = products.find(p => p.id === "TORTCUS001");
+          // Pre torty na mieru načítaj TORTCUS001 priamo z ERPNext (nie je v cache kvôli filtringu)
+          productToValidate = await erpNextService.getProductById("TORTCUS001");
           if (!productToValidate) {
             console.error("TORTCUS001 product not found for custom cake validation");
             return res.status(500).json({ 

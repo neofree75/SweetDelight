@@ -11,6 +11,7 @@ interface CartItem {
   quantity: number;
   image: string;
   additional_notes?: string;
+  minOrderQuantity?: number; // Minimálne množstvo pre objednanie
 }
 
 interface CartProps {
@@ -95,14 +96,20 @@ export default function Cart({
                           {item.additional_notes}
                         </p>
                       )}
+                      {(item.minOrderQuantity || 1) > 1 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Min. množstvo: {item.minOrderQuantity} ks
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                        onClick={() => onUpdateQuantity(item.id, Math.max(item.minOrderQuantity || 1, item.quantity - 1))}
                         className="h-8 w-8"
+                        disabled={item.quantity <= (item.minOrderQuantity || 1)}
                         data-testid={`button-decrease-cart-${item.id}`}
                       >
                         <Minus className="h-3 w-3" />

@@ -4,16 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Minus } from 'lucide-react';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-  inStock: boolean;
-}
+import { Product } from '@shared/schema';
 
 interface ProductCardProps {
   product: Product;
@@ -23,8 +14,8 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onAddToCart, onViewDetails }: ProductCardProps) {
   const [, setLocation] = useLocation();
-  // Minimálny počet pre zákusky je 10 ks, inak 1
-  const getMinQuantity = () => product.category === 'Zákusky' ? 10 : 1;
+  // Minimálny počet z ERPNext alebo 1 ako fallback
+  const getMinQuantity = () => product.minOrderQuantity || 1;
   const [quantity, setQuantity] = useState(getMinQuantity());
 
 
@@ -98,8 +89,8 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
       <CardFooter className="p-4 pt-0">
         {product.inStock ? (
           <div className="w-full space-y-3">
-            {/* Minimum quantity notice for Zákusky */}
-            {product.category === 'Zákusky' && (
+            {/* Minimum quantity notice */}
+            {getMinQuantity() > 1 && (
               <div className="text-xs text-muted-foreground text-center w-full">
                 Min. objednávka: {getMinQuantity()} ks
               </div>

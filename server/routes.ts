@@ -201,6 +201,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Order must contain at least one item" });
       }
 
+      // Validácia minimálneho množstva pre každú položku
+      const products = await erpNextService.getProductsForFrontend();
+      for (const orderItem of orderData.items) {
+        let productToValidate = null;
+        let productName = orderItem.name;
+
+        // Detekuj torty na mieru a použij TORTCUS001 pre validáciu
+        const isCustomCake = orderItem.id.startsWith('custom-cake-');
+        
+        if (isCustomCake) {
+          // Pre torty na mieru nájdi TORTCUS001 produkt
+          productToValidate = products.find(p => p.id === "TORTCUS001");
+          if (!productToValidate) {
+            console.error("TORTCUS001 product not found for custom cake validation");
+            return res.status(500).json({ 
+              error: "Systémová chyba: Nie je možné validovať tortu na mieru" 
+            });
+          }
+          productName = "Torta na mieru";
+        } else {
+          // Pre bežné produkty najprv skús nájsť hlavný produkt
+          productToValidate = products.find(p => p.id === orderItem.id);
+          
+          // Ak hlavný produkt nebol nájdený, skús nájsť vo variantoch
+          if (!productToValidate) {
+            for (const product of products) {
+              if (product.hasVariants && product.variants) {
+                const variant = product.variants.find(v => v.id === orderItem.id);
+                if (variant) {
+                  // Pre varianty použij minOrderQuantity z variantu, ak existuje
+                  productToValidate = {
+                    id: variant.id,
+                    name: variant.name,
+                    minOrderQuantity: variant.minOrderQuantity,
+                    // Ostatné vlastnosti nie sú potrebné pre validáciu
+                    price: 0,
+                    description: "",
+                    image: "",
+                    category: "",
+                    inStock: true,
+                    hasVariants: false
+                  };
+                  productName = variant.name;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // Skontroluj minimálne množstvo ak bol produkt nájdený
+        if (productToValidate && productToValidate.minOrderQuantity) {
+          if (orderItem.quantity < productToValidate.minOrderQuantity) {
+            const errorMessage = isCustomCake 
+              ? `Minimálne množstvo pre tortu na mieru je ${productToValidate.minOrderQuantity} kus. Aktuálne množstvo: ${orderItem.quantity}`
+              : `Minimálne množstvo pre ${productName} je ${productToValidate.minOrderQuantity} kusov. Aktuálne množstvo: ${orderItem.quantity}`;
+              
+            return res.status(400).json({ 
+              error: errorMessage
+            });
+          }
+        } else if (!isCustomCake) {
+          // Pre bežné produkty (nie torty na mieru) log warning ak produkt nebol nájdený
+          console.warn(`Product with ID ${orderItem.id} not found in product list for minimum quantity validation`);
+        }
+      }
+
       // 1. Vytvor zákazníka v ERPNext
       let customerId: string | null;
       try {

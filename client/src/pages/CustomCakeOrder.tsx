@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Cake, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CustomCakeAttribute, CustomCakeAttributeValue } from '@shared/schema';
+import { formatPrice } from '@/lib/format-price';
 
 // Hook to fetch custom cake attributes from ERPNext
 function useCustomCakeAttributes() {
@@ -279,7 +280,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium">Odhadovaná cena:</span>
                     <span className="text-2xl font-bold text-primary" data-testid="estimated-price">
-                      €{estimatedPrice.toFixed(2)}
+{formatPrice(estimatedPrice)}
                     </span>
                   </div>
                   

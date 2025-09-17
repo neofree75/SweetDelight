@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Minus } from 'lucide-react';
 import { Product } from '@shared/schema';
+import { formatPrice } from '@/lib/format-price';
 
 interface ProductCardProps {
   product: Product;
@@ -75,7 +76,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
             className="text-xl font-semibold text-primary"
             data-testid={`text-product-price-${product.id}`}
           >
-            €{product.price.toFixed(2)}
+{formatPrice(product.price)}
           </span>
           
           {!product.inStock && (

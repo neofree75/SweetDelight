@@ -39,7 +39,7 @@ function useProducts() {
   });
 }
 
-const categories = ['Všetky', 'Pečivo', 'Zákusky', 'Torty'];
+const categories = ['Všetky' , 'Zákusky', 'Torty'];
 const PRODUCTS_PER_PAGE = 20;
 
 interface ShopProps {

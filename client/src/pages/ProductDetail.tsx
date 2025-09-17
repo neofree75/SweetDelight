@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart } from 'lucide-react';
 import { Product } from '@shared/schema';
+import { formatPrice } from '@/lib/format-price';
 
 interface ProductDetailProps {
   onAddToCart?: (product: Product, quantity: number) => void;
@@ -168,7 +169,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                   className="text-3xl font-semibold text-primary"
                   data-testid={`text-product-detail-price-${product.id}`}
                 >
-                  €{product.price.toFixed(2)}
+{formatPrice(product.price)}
                 </span>
                 
                 {!product.inStock && (
@@ -317,7 +318,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                         className="text-2xl font-bold text-primary"
                         data-testid={`text-total-price-detail-${product.id}`}
                       >
-                        €{(() => {
+{(() => {
                           let price = product.price;
                           if (selectedVariant && product.variants) {
                             const variant = product.variants.find(v => v.id === selectedVariant);
@@ -325,7 +326,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                               price = variant.price;
                             }
                           }
-                          return (price * quantity).toFixed(2);
+                          return formatPrice(price * quantity);
                         })()}
                       </span>
                     </div>

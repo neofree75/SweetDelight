@@ -18,7 +18,7 @@ export class ERPNextService {
   private apiKey: string;
   private apiSecret: string;
   private productCache: { data: Product[]; timestamp: number } | null = null;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minút
+  private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
 
   constructor() {
     this.baseUrl = process.env.ERPNEXT_URL || '';

@@ -21,17 +21,20 @@ export class ERPNextService {
   private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
 
   constructor() {
+    this.baseUrl = '';
+    this.apiKey = '';
+    this.apiSecret = '';
+    this.client = axios.create(); // Placeholder, will be set in refreshClient
+    this.refreshClient();
+  }
+
+  // Refresh the axios client with current environment variables
+  private refreshClient() {
     this.baseUrl = process.env.ERPNEXT_URL || '';
     this.apiKey = process.env.ERPNEXT_API_KEY || '';
     this.apiSecret = process.env.ERPNEXT_API_SECRET || '';
-
-    // Validácia konfigurčných premenných
-    if (!this.baseUrl || !this.apiKey || !this.apiSecret) {
-      console.error('ERPNext konfigurácia je neúplná. Skontrolujte premenné prostredia: ERPNEXT_URL, ERPNEXT_API_KEY, ERPNEXT_API_SECRET, ERPNEXT_COMPANY');
-    }
-
     this.client = axios.create({
-      baseURL: `${this.baseUrl}/api`,
+      baseURL: this.baseUrl ? `${this.baseUrl}/api` : '',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `token ${this.apiKey}:${this.apiSecret}`
@@ -42,6 +45,7 @@ export class ERPNextService {
 
   // Validate ERPNext credentials and configuration
   async validateCredentials(): Promise<{ valid: boolean; error?: string }> {
+    this.refreshClient();
     // Check if all required environment variables are set
     if (!process.env.ERPNEXT_URL || this.baseUrl === 'https://your-erpnext-instance.com') {
       return {
@@ -127,11 +131,12 @@ export class ERPNextService {
 
   // Get all active items from ERPNext
   async getItems(): Promise<ERPNextItem[]> {
+    this.refreshClient();
     try {
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","attributes"]',
-          filters: '[["disabled","=","0"]]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]',
+          filters: '[["disabled","=","0"],["custom_is_eshop","=","1"]]',
           limit_page_length: 100
         }
       });
@@ -145,12 +150,13 @@ export class ERPNextService {
 
   // Get variants for a specific item template
   async getItemVariants(templateName: string): Promise<ERPNextItemVariant[]> {
+    this.refreshClient();
     try {
       console.log(`Debug: Fetching variants for template: ${templateName}`);
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","attributes","valuation_rate","disabled"]',
-          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"]]`,
+          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes","valuation_rate","disabled"]',
+          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"],["custom_is_eshop","=","1"]]`,
           limit_page_length: 50
         }
       });
@@ -167,6 +173,7 @@ export class ERPNextService {
 
   // Search for existing customer by email
   async findCustomerByEmail(email: string): Promise<{customerId: string; needsGroupUpdate: boolean} | null> {
+    this.refreshClient();
     try {
       // Normalize email (trim and lowercase)
       const normalizedEmail = email.trim().toLowerCase();
@@ -200,6 +207,7 @@ export class ERPNextService {
 
   // Update customer's group in ERPNext
   async updateCustomerGroup(customerId: string, customerGroup: string): Promise<boolean> {
+    this.refreshClient();
     try {
       await this.client.put(`/resource/Customer/${customerId}`, {
         customer_group: customerGroup
@@ -214,6 +222,7 @@ export class ERPNextService {
 
   // Create customer in ERPNext
   async createCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
+    this.refreshClient();
     try {
       const response = await this.client.post('/resource/Customer', customerData);
 
@@ -226,6 +235,7 @@ export class ERPNextService {
 
   // Find or create customer in ERPNext
   async findOrCreateCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
+    this.refreshClient();
     // Najprv sa pokús nájsť existujúceho zákazníka
     if (customerData.email_id) {
       const normalizedEmail = customerData.email_id.trim().toLowerCase();
@@ -254,6 +264,7 @@ export class ERPNextService {
 
   // Create sales order in ERPNext
   async createSalesOrder(orderData: ERPNextSalesOrder): Promise<string | null> {
+    this.refreshClient();
     try {
       const response = await this.client.post('/resource/Sales%20Order', orderData);
 
@@ -266,6 +277,7 @@ export class ERPNextService {
 
   // Načítaj objednávky pre špecifického zákazníka
   async getOrdersByCustomer(customerId: string): Promise<any[]> {
+    this.refreshClient();
     try {
       const response = await this.client.get('/resource/Sales%20Order', {
         params: {
@@ -303,12 +315,14 @@ export class ERPNextService {
 
   // Clear product cache
   async clearProductCache(): Promise<void> {
+    this.refreshClient();
     this.productCache = null;
     console.log('Product cache cleared');
   }
 
   // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
+    this.refreshClient();
     // Skontroluj cache
     if (this.productCache && 
         Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
@@ -376,6 +390,7 @@ export class ERPNextService {
 
   // Získaj konkrétny produkt podľa ID
   async getProductById(productId: string): Promise<Product | null> {
+    this.refreshClient();
     const products = await this.getProductsForFrontend();
     return products.find(p => p.id === productId) || null;
   }
@@ -387,6 +402,7 @@ export class ERPNextService {
     last_name: string;
     mobile_no?: string;
   }): Promise<{ success: boolean; message: string }> {
+    this.refreshClient();
     try {
       const response = await this.client.post('/method/external_reset.api.register.register_user', userData);
       
@@ -466,6 +482,7 @@ export class ERPNextService {
 
   // Update user password via ERPNext reset password API
   async updateUserPassword(data: { key: string; user: string; new_password: string }): Promise<{ success: boolean; message: string }> {
+    this.refreshClient();
     try {
       console.log('Updating password for user:', data.user);
       
@@ -553,6 +570,7 @@ export class ERPNextService {
 
   // Get user profile data from ERPNext (Customer + primary Contact)
   async getUserProfile(email: string): Promise<{ success: boolean; data?: any; message: string }> {
+    this.refreshClient();
     try {
       console.log('Getting user profile for:', email);
       
@@ -701,6 +719,7 @@ export class ERPNextService {
 
   // Update user profile data in ERPNext (Customer + primary Contact)
   async updateUserProfile(email: string, profileData: { firstName: string; lastName: string; email: string; mobile?: string }): Promise<{ success: boolean; message: string }> {
+    this.refreshClient();
     try {
       console.log('Updating user profile for:', email);
       
@@ -918,6 +937,7 @@ export class ERPNextService {
 
   // Authenticate user via ERPNext login API
   async loginUser(credentials: { email: string; password: string }): Promise<{ success: boolean; data?: any; message: string }> {
+    this.refreshClient();
     try {
       console.log('Logging in user:', credentials.email);
       
@@ -1039,6 +1059,7 @@ export class ERPNextService {
 
   // Check if ERPNext is accessible
   async healthCheck(): Promise<boolean> {
+    this.refreshClient();
     try {
       const response = await this.client.get('/method/frappe.ping');
       return response.status === 200;
@@ -1050,6 +1071,7 @@ export class ERPNextService {
 
   // Načítanie atribútov pre torty na mieru z ERPNext
   async getCustomCakeAttributes(): Promise<CustomCakeAttribute[]> {
+    this.refreshClient();
     try {
       console.log('Načítavam atribúty pre torty na mieru z ERPNext...');
       
@@ -1128,6 +1150,7 @@ export class ERPNextService {
 
   // Get sales invoices for customer
   async getSalesInvoicesForCustomer(customerName: string): Promise<ERPNextSalesInvoice[]> {
+    this.refreshClient();
     try {
       console.log(`[sales-invoices] Fetching invoices for customer: ${customerName}`);
       

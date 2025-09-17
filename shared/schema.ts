@@ -16,6 +16,7 @@ export const erpNextItemSchema = z.object({
   has_variants: z.boolean().default(false), // Či má produkt varianty
   variant_of: z.string().optional(), // Ak je variant, z akého template produktu
   custom_min_mnozstvo_obj_predaj: z.number().optional().default(1), // Minimálne množstvo pre objednanie
+  custom_is_eshop: z.boolean().optional().default(false), // Označenie či sa má zobraziť v eshope
   attributes: z.array(z.object({
     attribute: z.string(),
     attribute_value: z.string().optional()
@@ -29,6 +30,7 @@ export const erpNextItemVariantSchema = z.object({
   description: z.string().optional(),
   variant_of: z.string(),
   custom_min_mnozstvo_obj_predaj: z.number().optional().default(1), // Minimálne množstvo pre objednanie
+  custom_is_eshop: z.boolean().optional().default(false), // Označenie či sa má zobraziť v eshope
   attributes: z.array(z.object({
     attribute: z.string(),
     attribute_value: z.string()

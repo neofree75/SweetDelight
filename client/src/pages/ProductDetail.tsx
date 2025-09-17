@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
@@ -18,7 +19,9 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   const [, setLocation] = useLocation();
   
   const [quantity, setQuantity] = useState(1);
+  const [inputValue, setInputValue] = useState('1');
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  const [quantityError, setQuantityError] = useState('');
 
   // Fetch product detail from API
   const { data: product, isLoading, error } = useQuery({
@@ -36,7 +39,9 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   // Set minimum quantity when product loads
   useEffect(() => {
     if (product) {
-      setQuantity(product.minOrderQuantity || 1);
+      const minQty = product.minOrderQuantity || 1;
+      setQuantity(minQty);
+      setInputValue(minQty.toString());
     }
   }, [product]);
 
@@ -44,8 +49,53 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
     setLocation('/obchod');
   };
 
+  const handleQuantityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputVal = e.target.value;
+    setInputValue(inputVal);
+    // No validation during typing - errors only shown on blur/Enter
+  };
+
+  const handleQuantityInputBlur = () => {
+    const value = parseInt(inputValue) || 0;
+    const minQty = product?.minOrderQuantity || 1;
+    
+    if (value < minQty) {
+      setQuantity(minQty);
+      setInputValue(minQty.toString());
+      if (inputValue && parseInt(inputValue) > 0) {
+        setQuantityError(`Minimálne množstvo musí byť ${minQty} ks`);
+      } else {
+        setQuantityError('');
+      }
+    } else {
+      setQuantity(value);
+      setQuantityError('');
+    }
+  };
+
+  const handleQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent non-numeric characters except backspace, delete, tab, escape, enter
+    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
+    // Handle Enter key to trigger blur
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
   const handleAddToCart = () => {
     if (!product) return;
+    
+    // Parse and commit the current input value before adding to cart
+    const currentValue = parseInt(inputValue) || 0;
+    const minQty = product.minOrderQuantity || 1;
+    const finalQuantity = currentValue < minQty ? minQty : currentValue;
+    
+    // Update state to committed value and clear errors
+    setQuantity(finalQuantity);
+    setInputValue(finalQuantity.toString());
+    setQuantityError('');
     
     // Ak má produkt varianty a sú dostupné, ale nebol vybraný žiadny variant
     if (product.hasVariants && product.variants && product.variants.length > 0 && !selectedVariant) {
@@ -68,8 +118,9 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
       }
     }
     
-    onAddToCart?.(productToAdd, quantity);
-    console.log(`Added ${quantity}x ${productToAdd.name} to cart`);
+    // Use the committed quantity for add to cart
+    onAddToCart?.(productToAdd, finalQuantity);
+    console.log(`Added ${finalQuantity}x ${productToAdd.name} to cart`);
     // Automatically open cart after adding item
     onCartOpen?.();
   };
@@ -283,7 +334,11 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setQuantity(Math.max(product.minOrderQuantity || 1, quantity - 1))}
+                        onClick={() => {
+                          const newQty = Math.max(product.minOrderQuantity || 1, quantity - 1);
+                          setQuantity(newQty);
+                          setInputValue(newQty.toString());
+                        }}
                         className="h-10 w-10"
                         disabled={quantity <= (product.minOrderQuantity || 1)}
                         data-testid={`button-decrease-detail-${product.id}`}
@@ -291,17 +346,34 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                         <Minus className="h-4 w-4" />
                       </Button>
                       
-                      <span 
-                        className="font-medium text-xl w-12 text-center"
-                        data-testid={`text-quantity-detail-${product.id}`}
-                      >
-                        {quantity}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={inputValue}
+                          onChange={handleQuantityInputChange}
+                          onBlur={handleQuantityInputBlur}
+                          onKeyDown={handleQuantityKeyDown}
+                          className="w-20 h-10 text-center text-xl font-medium"
+                          min={product.minOrderQuantity || 1}
+                          data-testid={`input-quantity-detail-${product.id}`}
+                        />
+                        {quantityError && (
+                          <div className="text-xs text-destructive mt-1 text-center">
+                            {quantityError}
+                          </div>
+                        )}
+                      </div>
                       
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setQuantity(quantity + 1)}
+                        onClick={() => {
+                          const newQty = quantity + 1;
+                          setQuantity(newQty);
+                          setInputValue(newQty.toString());
+                        }}
                         className="h-10 w-10"
                         data-testid={`button-increase-detail-${product.id}`}
                       >

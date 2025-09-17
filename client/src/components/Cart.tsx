@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 
@@ -32,8 +33,62 @@ export default function Cart({
   onRemoveItem, 
   onCheckout 
 }: CartProps) {
+  const [quantityErrors, setQuantityErrors] = useState<{ [key: string]: string }>({});
+  const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const handleQuantityInputChange = (item: CartItem, e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputVal = e.target.value;
+    setInputValues(prev => ({ ...prev, [item.id]: inputVal }));
+    // No validation during typing - errors only shown on blur/Enter
+  };
+
+  const handleQuantityInputBlur = (item: CartItem) => {
+    const inputVal = inputValues[item.id] || item.quantity.toString();
+    const value = parseInt(inputVal) || 0;
+    const minQty = item.minOrderQuantity || 1;
+    
+    if (value < minQty) {
+      onUpdateQuantity(item.id, minQty);
+      setInputValues(prev => ({ ...prev, [item.id]: minQty.toString() }));
+      if (inputVal && parseInt(inputVal) > 0) {
+        setQuantityErrors(prev => ({
+          ...prev,
+          [item.id]: `Minimálne množstvo musí byť ${minQty} ks`
+        }));
+      } else {
+        setQuantityErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[item.id];
+          return newErrors;
+        });
+      }
+    } else {
+      onUpdateQuantity(item.id, value);
+      setQuantityErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[item.id];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent non-numeric characters except backspace, delete, tab, escape, enter
+    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
+    // Handle Enter key to trigger blur
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
+  // Ensure input values are in sync with cart items
+  const getInputValue = (item: CartItem) => {
+    return inputValues[item.id] !== undefined ? inputValues[item.id] : item.quantity.toString();
+  };
 
   if (!isOpen) return null;
 
@@ -42,6 +97,7 @@ export default function Cart({
       <div 
         className="fixed right-0 top-0 h-full w-full max-w-md bg-card border-l border-card-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
+        data-testid="cart-panel"
       >
         <Card className="h-full rounded-none border-0 shadow-none">
           <CardHeader className="border-b border-card-border">
@@ -108,7 +164,11 @@ export default function Cart({
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => onUpdateQuantity(item.id, Math.max(item.minOrderQuantity || 1, item.quantity - 1))}
+                        onClick={() => {
+                          const newQty = Math.max(item.minOrderQuantity || 1, item.quantity - 1);
+                          onUpdateQuantity(item.id, newQty);
+                          setInputValues(prev => ({ ...prev, [item.id]: newQty.toString() }));
+                        }}
                         className="h-8 w-8"
                         disabled={item.quantity <= (item.minOrderQuantity || 1)}
                         data-testid={`button-decrease-cart-${item.id}`}
@@ -116,17 +176,34 @@ export default function Cart({
                         <Minus className="h-3 w-3" />
                       </Button>
                       
-                      <span 
-                        className="w-8 text-center font-medium"
-                        data-testid={`text-cart-quantity-${item.id}`}
-                      >
-                        {item.quantity}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={getInputValue(item)}
+                          onChange={(e) => handleQuantityInputChange(item, e)}
+                          onBlur={() => handleQuantityInputBlur(item)}
+                          onKeyDown={handleQuantityKeyDown}
+                          className="w-14 h-8 text-center text-sm font-medium"
+                          min={item.minOrderQuantity || 1}
+                          data-testid={`input-cart-quantity-${item.id}`}
+                        />
+                        {quantityErrors[item.id] && (
+                          <div className="text-xs text-destructive mt-1 text-center whitespace-nowrap">
+                            {quantityErrors[item.id]}
+                          </div>
+                        )}
+                      </div>
                       
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => {
+                          const newQty = item.quantity + 1;
+                          onUpdateQuantity(item.id, newQty);
+                          setInputValues(prev => ({ ...prev, [item.id]: newQty.toString() }));
+                        }}
                         className="h-8 w-8"
                         data-testid={`button-increase-cart-${item.id}`}
                       >

@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ShoppingBag, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
+import { formatPrice } from '@/lib/format-price';
 
 interface CartItem {
   id: string;
@@ -502,7 +503,7 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                           <span className="text-muted-foreground ml-2">× {item.quantity}</span>
                         </div>
                         <span className="font-medium" data-testid={`text-order-item-total-${item.id}`}>
-                          €{(item.price * item.quantity).toFixed(2)}
+{formatPrice(item.price * item.quantity)}
                         </span>
                       </div>
                       <div>
@@ -527,7 +528,7 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                 {/* Medzisúčet */}
                 <div className="flex justify-between">
                   <span>Medzisúčet:</span>
-                  <span data-testid="text-order-subtotal">€{subtotal.toFixed(2)}</span>
+<span data-testid="text-order-subtotal">{formatPrice(subtotal)}</span>
                 </div>
 
                 {/* Doprava */}
@@ -543,7 +544,7 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                 {/* Celková cena */}
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Cena spolu:</span>
-                  <span data-testid="text-order-total">€{total.toFixed(2)}</span>
+<span data-testid="text-order-total">{formatPrice(total)}</span>
                 </div>
 
                 <Separator />

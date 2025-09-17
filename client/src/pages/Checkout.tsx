@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { CalendarDays, Clock, CreditCard, Banknote, ShoppingBag } from 'lucide-react';
+import { formatPrice } from '@/lib/format-price';
 
 interface CartItem {
   id: string;
@@ -237,18 +238,18 @@ export default function Checkout({ cartItems }: CheckoutProps) {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span>Medzisúčet:</span>
-                  <span data-testid="text-subtotal">€{subtotal.toFixed(2)}</span>
+<span data-testid="text-subtotal">{formatPrice(subtotal)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Zľava:</span>
-                    <span data-testid="text-discount">-€{discount.toFixed(2)}</span>
+<span data-testid="text-discount">-{formatPrice(discount)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Celkom:</span>
-                  <span data-testid="text-total">€{total.toFixed(2)}</span>
+<span data-testid="text-total">{formatPrice(total)}</span>
                 </div>
               </CardContent>
             </Card>

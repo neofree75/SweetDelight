@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Minus, X, ShoppingBag } from 'lucide-react';
+import { formatPrice } from '@/lib/format-price';
 
 interface CartItem {
   id: string;
@@ -89,7 +90,7 @@ export default function Cart({
                         {item.name}
                       </h4>
                       <p className="text-sm text-muted-foreground">
-                        €{item.price.toFixed(2)} každý
+{formatPrice(item.price)} každý
                       </p>
                       {item.additional_notes && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`text-notes-${item.id}`}>
@@ -152,7 +153,7 @@ export default function Cart({
             <div className="border-t border-card-border p-6 space-y-4">
               <div className="flex items-center justify-between text-lg font-semibold">
                 <span>Celkom:</span>
-                <span data-testid="text-cart-total">€{totalPrice.toFixed(2)}</span>
+<span data-testid="text-cart-total">{formatPrice(totalPrice)}</span>
               </div>
               
               <Button 

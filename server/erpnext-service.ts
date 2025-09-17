@@ -379,20 +379,86 @@ export class ERPNextService {
       };
     }));
 
+    // Vyfiltrovať TORTCUS001 z produktov zobrazovaných v obchode
+    // (Tento produkt sa používa len pre torty na mieru cez špeciálnu stránku)
+    const filteredProducts = products.filter(product => product.id !== 'TORTCUS001');
+
     // Ulož do cache
     this.productCache = {
-      data: products,
+      data: filteredProducts,
       timestamp: Date.now()
     };
 
-    return products;
+    return filteredProducts;
   }
 
   // Získaj konkrétny produkt podľa ID
   async getProductById(productId: string): Promise<Product | null> {
     this.refreshClient();
+    
+    // Najprv skús nájsť produkt v cached produktoch
     const products = await this.getProductsForFrontend();
-    return products.find(p => p.id === productId) || null;
+    const cachedProduct = products.find(p => p.id === productId);
+    
+    if (cachedProduct) {
+      return cachedProduct;
+    }
+    
+    // Ak produkt nebol nájdený v cache (napr. TORTCUS001), načítaj ho priamo z ERPNext
+    try {
+      const response = await this.client.get(`/resource/Item/${productId}`, {
+        params: {
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]'
+        }
+      });
+
+      const item = response.data.data;
+      
+      if (!item || item.disabled) {
+        return null;
+      }
+
+      // Oprav image URL - pridaj ERPNext base URL pre obrázky
+      let imageUrl = '/placeholder-product.jpg';
+      if (item.image && item.image.startsWith('/files/')) {
+        imageUrl = `${this.baseUrl}${item.image}`;
+      } else if (item.image) {
+        imageUrl = item.image;
+      }
+
+      // Ak má produkt varianty, načítaj ich
+      let variants = undefined;
+      if (Boolean(item.has_variants)) {
+        const itemVariants = await this.getItemVariants(item.name);
+        variants = itemVariants.map(variant => ({
+          id: variant.name,
+          name: variant.item_name,
+          minOrderQuantity: Number(variant.custom_min_mnozstvo_obj_predaj) || 1,
+          attributes: (variant.attributes || []).map(attr => ({
+            attribute: attr.attribute,
+            value: attr.attribute_value || ''
+          })),
+          price: variant.valuation_rate || 0
+        }));
+      }
+
+      return {
+        id: item.name,
+        name: item.item_name,
+        description: item.description || '',
+        price: item.valuation_rate || 0,
+        image: imageUrl,
+        category: item.item_group,
+        inStock: !item.disabled,
+        minOrderQuantity: Number(item.custom_min_mnozstvo_obj_predaj) || 1,
+        hasVariants: item.has_variants || false,
+        variants: variants
+      };
+      
+    } catch (error) {
+      console.error(`Error fetching product ${productId} directly from ERPNext:`, error);
+      return null;
+    }
   }
 
   // Register user in ERPNext

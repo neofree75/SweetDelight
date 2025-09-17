@@ -135,8 +135,8 @@ export class ERPNextService {
     try {
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","attributes"]',
-          filters: '[["disabled","=","0"]]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]',
+          filters: '[["disabled","=","0"],["custom_is_eshop","=","1"]]',
           limit_page_length: 100
         }
       });
@@ -155,8 +155,8 @@ export class ERPNextService {
       console.log(`Debug: Fetching variants for template: ${templateName}`);
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","attributes","valuation_rate","disabled"]',
-          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"]]`,
+          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes","valuation_rate","disabled"]',
+          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"],["custom_is_eshop","=","1"]]`,
           limit_page_length: 50
         }
       });

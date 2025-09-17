@@ -130,7 +130,7 @@ export class ERPNextService {
     try {
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","attributes"]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","attributes"]',
           filters: '[["disabled","=","0"]]',
           limit_page_length: 100
         }
@@ -149,7 +149,7 @@ export class ERPNextService {
       console.log(`Debug: Fetching variants for template: ${templateName}`);
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","variant_of","attributes","valuation_rate","disabled"]',
+          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","attributes","valuation_rate","disabled"]',
           filters: `[["variant_of","=","${templateName}"],["disabled","=","0"]]`,
           limit_page_length: 50
         }
@@ -341,6 +341,7 @@ export class ERPNextService {
         variants = itemVariants.map(variant => ({
           id: variant.name,
           name: variant.item_name,
+          minOrderQuantity: variant.custom_min_mnozstvo_obj_predaj || 1,
           attributes: (variant.attributes || []).map(attr => ({
             attribute: attr.attribute,
             value: attr.attribute_value || ''
@@ -358,6 +359,7 @@ export class ERPNextService {
         image: imageUrl,
         category: item.item_group,
         inStock: !item.disabled,
+        minOrderQuantity: item.custom_min_mnozstvo_obj_predaj || 1,
         hasVariants: item.has_variants || false,
         variants: variants
       };

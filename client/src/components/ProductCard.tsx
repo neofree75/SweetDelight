@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Plus, Minus } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
@@ -18,6 +19,8 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
   // Minimálny počet z ERPNext alebo 1 ako fallback
   const getMinQuantity = () => Number(product.minOrderQuantity) || 1;
   const [quantity, setQuantity] = useState(getMinQuantity());
+  const [inputValue, setInputValue] = useState(getMinQuantity().toString());
+  const [quantityError, setQuantityError] = useState('');
 
 
   const handleViewDetails = (e: React.MouseEvent) => {
@@ -32,12 +35,60 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
 
   const handleAddToCartClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click when clicking add to cart
-    onAddToCart?.(product, quantity);
-    console.log(`Added ${quantity}x ${product.name} to cart`);
+    
+    // Parse and commit the current input value before adding to cart
+    const currentValue = parseInt(inputValue) || 0;
+    const minQty = getMinQuantity();
+    const finalQuantity = currentValue < minQty ? minQty : currentValue;
+    
+    // Update state to committed value and clear errors
+    setQuantity(finalQuantity);
+    setInputValue(finalQuantity.toString());
+    setQuantityError('');
+    
+    // Use the committed quantity for add to cart
+    onAddToCart?.(product, finalQuantity);
+    console.log(`Added ${finalQuantity}x ${product.name} to cart`);
   };
 
   const handleQuantityChange = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click when changing quantity
+  };
+
+  const handleQuantityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const inputVal = e.target.value;
+    setInputValue(inputVal);
+    // No validation during typing - errors only shown on blur/Enter
+  };
+
+  const handleQuantityInputBlur = () => {
+    const value = parseInt(inputValue) || 0;
+    const minQty = getMinQuantity();
+    
+    if (value < minQty) {
+      setQuantity(minQty);
+      setInputValue(minQty.toString());
+      if (inputValue && parseInt(inputValue) > 0) {
+        setQuantityError(`Minimálne množstvo musí byť ${minQty} ks`);
+      } else {
+        setQuantityError('');
+      }
+    } else {
+      setQuantity(value);
+      setQuantityError('');
+    }
+  };
+
+  const handleQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent non-numeric characters except backspace, delete, tab, escape, enter
+    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
+    // Handle Enter key to trigger blur
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
   };
 
   return (
@@ -104,7 +155,9 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
                 size="icon"
                 onClick={(e) => {
                   handleQuantityChange(e);
-                  setQuantity(Math.max(getMinQuantity(), quantity - 1));
+                  const newQty = Math.max(getMinQuantity(), quantity - 1);
+                  setQuantity(newQty);
+                  setInputValue(newQty.toString());
                 }}
                 className="h-8 w-8"
                 disabled={quantity <= getMinQuantity()}
@@ -113,19 +166,35 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
                 <Minus className="h-4 w-4" />
               </Button>
               
-              <span 
-                className="font-medium text-lg w-8 text-center"
-                data-testid={`text-quantity-${product.id}`}
-              >
-                {quantity}
-              </span>
+              <div className="flex flex-col items-center">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={inputValue}
+                  onChange={handleQuantityInputChange}
+                  onBlur={handleQuantityInputBlur}
+                  onKeyDown={handleQuantityKeyDown}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-16 h-8 text-center text-lg font-medium"
+                  min={getMinQuantity()}
+                  data-testid={`input-quantity-${product.id}`}
+                />
+                {quantityError && (
+                  <div className="text-xs text-destructive mt-1 text-center">
+                    {quantityError}
+                  </div>
+                )}
+              </div>
               
               <Button
                 variant="outline"
                 size="icon"
                 onClick={(e) => {
                   handleQuantityChange(e);
-                  setQuantity(quantity + 1);
+                  const newQty = quantity + 1;
+                  setQuantity(newQty);
+                  setInputValue(newQty.toString());
                 }}
                 className="h-8 w-8"
                 data-testid={`button-increase-${product.id}`}

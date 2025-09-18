@@ -45,7 +45,13 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
 }) {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/">
+        <Home 
+          cartItems={cartItems}
+          onAddToCart={onAddToCart}
+          onCartOpen={onCartOpen}
+        />
+      </Route>
       <Route path="/obchod">
         <Shop 
           cartItems={cartItems}

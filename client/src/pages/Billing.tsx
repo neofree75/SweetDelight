@@ -11,6 +11,7 @@ import { ShoppingBag, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { formatPrice } from '@/lib/format-price';
+import { calculateDeposit, getDepositReason, getPaymentOptions } from '@/lib/deposit-utils';
 
 interface CartItem {
   id: string;
@@ -41,6 +42,7 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
   const deliveryDate = params.get('date') || '';
   const deliveryTime = params.get('time') || '';
   const paymentMethod = params.get('payment') || 'card';
+  const paymentAmount = params.get('amount') || 'full';
   
   // Fakturačné údaje
   const [email, setEmail] = useState('');
@@ -155,6 +157,21 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const delivery: number = 0; // Osobný odber je zadarmo
   const total = subtotal + delivery;
+  
+  // Calculate deposit information - map cart items to include category detection
+  const itemsWithCategories = cartItems.map(item => ({
+    ...item,
+    // Detect category based on item properties
+    category: item.id === 'TORTCUS001' || item.name === 'Torta na mieru' || item.id.startsWith('custom-cake-') 
+      ? 'Torty na mieru' 
+      : item.id.startsWith('TORT') || (item.name && item.name.toLowerCase().includes('torta'))
+      ? 'Torty'
+      : 'Zákusky'
+  }));
+  const depositCalculation = calculateDeposit(itemsWithCategories);
+  const paymentOptions = getPaymentOptions(depositCalculation);
+  const selectedPaymentOption = paymentOptions.find(option => option.id === paymentAmount);
+  const finalAmount = selectedPaymentOption?.amount || total;
 
   const handleFinalOrder = async () => {
     if (isSubmitting) return;
@@ -190,7 +207,7 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
           notes: notes
         },
         items: cartItemsWithNotes,
-        total: total,
+        total: finalAmount, // Use the selected payment amount (full or deposit)
         sessionId: undefined // Session handled automatically by server
       };
       
@@ -541,11 +558,43 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
 
                 <Separator />
 
-                {/* Celková cena */}
+                {/* Deposit information if applicable */}
+                {depositCalculation.requiresDeposit && (
+                  <>
+                    <div className="flex justify-between text-amber-600">
+                      <span>Možná záloha (50%):</span>
+                      <span data-testid="text-deposit-amount">{formatPrice(depositCalculation.depositAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Dôvod zálohy:</span>
+                      <span data-testid="text-deposit-reason">{getDepositReason(depositCalculation.reason)}</span>
+                    </div>
+                  </>
+                )}
+                
+                {/* Selected payment amount */}
                 <div className="flex justify-between text-lg font-semibold">
-                  <span>Cena spolu:</span>
-<span data-testid="text-order-total">{formatPrice(total)}</span>
+                  <span>
+                    {paymentAmount === 'deposit' && depositCalculation.requiresDeposit 
+                      ? 'K uhradeniu (záloha):' 
+                      : 'Cena spolu:'}
+                  </span>
+                  <span data-testid="text-final-amount" className={
+                    paymentAmount === 'deposit' && depositCalculation.requiresDeposit 
+                      ? 'text-amber-600' 
+                      : ''
+                  }>
+                    {formatPrice(finalAmount)}
+                  </span>
                 </div>
+                
+                {/* Show remaining amount if deposit is selected */}
+                {paymentAmount === 'deposit' && depositCalculation.requiresDeposit && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Zostáva k doplateniu:</span>
+                    <span data-testid="text-remaining-amount">{formatPrice(depositCalculation.subtotal - depositCalculation.depositAmount)}</span>
+                  </div>
+                )}
 
                 <Separator />
 
@@ -583,7 +632,9 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                   Odosielanie objednávky...
                 </>
               ) : (
-                'Objednať s povinnosťou platby'
+                paymentAmount === 'deposit' && depositCalculation.requiresDeposit
+                  ? `Objednať so zálohou ${formatPrice(finalAmount)}`
+                  : `Objednať s povinnosťou platby ${formatPrice(finalAmount)}`
               )}
             </Button>
           </div>

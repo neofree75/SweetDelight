@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Hero from '@/components/Hero';
 import ProductGrid from '@/components/ProductGrid';
 import AboutSection from '@/components/AboutSection';
-import Cart from '@/components/Cart';
 
 interface Product {
   id: string;
@@ -40,53 +38,22 @@ function useFeaturedProducts() {
   });
 }
 
-export default function Home() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+interface HomeProps {
+  cartItems: CartItem[];
+  onAddToCart: (product: Product, quantity: number) => void;
+  onCartOpen: () => void;
+}
+
+export default function Home({ cartItems, onAddToCart, onCartOpen }: HomeProps) {
   
   // Načítaj obľúbené produkty z ERPNext
   const { data: featuredProducts = [], isLoading, error } = useFeaturedProducts();
 
   const handleAddToCart = (product: Product, quantity: number) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      } else {
-        return [...prevItems, {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity,
-          image: product.image
-        }];
-      }
-    });
-    console.log(`Added ${quantity}x ${product.name} to cart`);
+    onAddToCart(product, quantity);
+    onCartOpen(); // Automatically open cart after adding item
   };
 
-  const handleUpdateCartQuantity = (id: string, quantity: number) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
-    );
-  };
-
-  const handleRemoveFromCart = (id: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
-  };
-
-  const handleCheckout = () => {
-    console.log('Proceeding to checkout with items:', cartItems);
-    // TODO: Integrate with ERPNext - create sales order
-    setIsCartOpen(false);
-  };
 
   const handleViewDetails = (product: Product) => {
     console.log('Viewing product details:', product.name);
@@ -124,15 +91,6 @@ export default function Home() {
       )}
       
       <AboutSection />
-      
-      <Cart
-        items={cartItems}
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        onUpdateQuantity={handleUpdateCartQuantity}
-        onRemoveItem={handleRemoveFromCart}
-        onCheckout={handleCheckout}
-      />
     </div>
   );
 }

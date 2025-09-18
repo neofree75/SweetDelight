@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { CalendarDays, Clock, CreditCard, Banknote, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
+import { calculateDeposit, getDepositReason, getPaymentOptions } from '@/lib/deposit-utils';
 
 interface CartItem {
   id: string;
@@ -28,12 +29,28 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [deliveryTime, setDeliveryTime] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [, setLocation] = useLocation();
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const discount = 0; // Implementované neskôr s kupónmi
   const total = subtotal - discount;
+  
+  // Calculate deposit information - map cart items to include category detection
+  const itemsWithCategories = cartItems.map(item => ({
+    ...item,
+    // Detect category based on item properties
+    category: item.id === 'TORTCUS001' || item.name === 'Torta na mieru' || item.id.startsWith('custom-cake-') 
+      ? 'Torty na mieru' 
+      : item.id.startsWith('TORT') || (item.name && item.name.toLowerCase().includes('torta'))
+      ? 'Torty'
+      : 'Zákusky'
+  }));
+  const depositCalculation = calculateDeposit(itemsWithCategories);
+  const paymentOptions = getPaymentOptions(depositCalculation);
+  const selectedPaymentOption = paymentOptions.find(option => option.id === paymentAmount);
+  const finalAmount = selectedPaymentOption?.amount || total;
 
   // Funkcia pre aktualizáciu poznámok k položkám
   const updateItemNote = (itemId: string, note: string) => {
@@ -69,7 +86,15 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       deliveryDate,
       deliveryTime,
       paymentMethod,
-      total
+      paymentAmount,
+      total: finalAmount,
+      depositInfo: {
+        subtotal: depositCalculation.subtotal,
+        depositAmount: depositCalculation.depositAmount,
+        requiresDeposit: depositCalculation.requiresDeposit,
+        reason: depositCalculation.reason,
+        selectedAmount: finalAmount
+      }
     });
 
     // Navigácia na pokladňa stránku - údaje sa predajú cez URL params pre jednoduchosť
@@ -79,7 +104,8 @@ export default function Checkout({ cartItems }: CheckoutProps) {
     const params = new URLSearchParams({
       date: deliveryDate,
       time: deliveryTime,
-      payment: paymentMethod
+      payment: paymentMethod,
+      amount: paymentAmount
     });
     
     setLocation(`/pokladna?${params.toString()}`);
@@ -247,12 +273,53 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                   </div>
                 )}
                 <Separator />
+                {depositCalculation.requiresDeposit && (
+                  <div className="flex justify-between text-amber-600">
+                    <span>Možná záloha (50%):</span>
+                    <span data-testid="text-deposit-amount">{formatPrice(depositCalculation.depositAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Celkom:</span>
-<span data-testid="text-total">{formatPrice(total)}</span>
+                  <span data-testid="text-total">{formatPrice(total)}</span>
                 </div>
+                {depositCalculation.requiresDeposit && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Dôvod zálohy:</span>
+                    <span data-testid="text-deposit-reason">{getDepositReason(depositCalculation.reason)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {/* Suma platby */}
+            {depositCalculation.requiresDeposit && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-serif">Suma platby</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup 
+                    value={paymentAmount} 
+                    onValueChange={(value) => setPaymentAmount(value as 'full' | 'deposit')}
+                    data-testid="payment-amount-group"
+                  >
+                    {paymentOptions.map((option) => (
+                      <div key={option.id} className="flex items-start space-x-2">
+                        <RadioGroupItem value={option.id} id={option.id} className="mt-1" />
+                        <Label htmlFor={option.id} className="cursor-pointer flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{option.label}</span>
+                            <span className="font-bold text-primary">{formatPrice(option.amount)}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Platobné metódy */}
             <Card>

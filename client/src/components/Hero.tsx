@@ -22,8 +22,7 @@ export default function Hero() {
           Ručne vyrábané s láskou
         </p>
         <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto opacity-90">
-          Objavte naše remeselné pečivo, čerstvé koláče a tradičné slovenské dezerty. 
-          Denne pripravované z prvotriednych surovín a podľa overených receptov.
+          U nás nájdete slovenské i svetové zákusky a koláče – pripravované denne z kvalitných surovín a s dôrazom na chuť i tradíciu.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">

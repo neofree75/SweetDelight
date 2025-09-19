@@ -637,6 +637,8 @@ export class ERPNextService {
   // Request password reset via ERPNext
   async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
     this.refreshClient();
+    
+    // Najprv skús custom external_reset modul
     try {
       console.log('Requesting password reset for:', email);
       
@@ -661,15 +663,45 @@ export class ERPNextService {
         };
       }
     } catch (error) {
-      console.error('Error requesting password reset from ERPNext:', error);
+      console.error('Error with external_reset module:', error);
       
-      if (axios.isAxiosError(error)) {
-        if (error.response?.data?.message) {
+      // Ak external_reset zlyhá, skús štandardný Frappe password reset
+      if (axios.isAxiosError(error) && error.response?.status === 500) {
+        console.log('Trying fallback to standard Frappe password reset...');
+        
+        try {
+          const fallbackResponse = await this.client.post('/method/frappe.core.doctype.user.user.reset_password', {
+            user: email
+          });
+          
+          console.log('Fallback password reset response:', fallbackResponse.status);
+          
+          return {
+            success: true,
+            message: 'Ak účet existuje, email s odkazom bol odoslaný'
+          };
+          
+        } catch (fallbackError) {
+          console.error('Fallback password reset also failed:', fallbackError);
+          
+          if (axios.isAxiosError(fallbackError)) {
+            if (fallbackError.response?.status === 404) {
+              return {
+                success: true, // Bezpečnosť: neodhalíme či účet existuje
+                message: 'Ak účet existuje, email s odkazom bol odoslaný'
+              };
+            }
+          }
+          
           return {
             success: false,
-            message: error.response.data.message
+            message: 'Služba obnovenia hesla je dočasne nedostupná'
           };
         }
+      }
+      
+      // Iné chyby pre external_reset
+      if (axios.isAxiosError(error)) {
         if (error.response?.data?.exc) {
           const excMessage = error.response.data.exc;
           if (typeof excMessage === 'string') {

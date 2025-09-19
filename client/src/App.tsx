@@ -22,6 +22,7 @@ import Profile from "@/pages/Profile";
 import Account from "@/pages/Account";
 import TermsOfService from "@/pages/TermsOfService";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import ForgotPassword from "@/pages/ForgotPassword";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -83,6 +84,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       <Route path="/prihlasenie">
         <Login onLogin={onLogin} />
       </Route>
+      <Route path="/zabudnute-heslo" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/moj-ucet">
         <Account user={user} />

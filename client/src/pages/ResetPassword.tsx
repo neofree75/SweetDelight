@@ -14,7 +14,7 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [urlParams, setUrlParams] = useState<{key: string; user: string} | null>(null);
+  const [urlParams, setUrlParams] = useState<{token?: string; key?: string; user?: string} | null>(null);
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: ''
@@ -23,10 +23,18 @@ export default function ResetPassword() {
   // Načítaj query parametre z URL
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get('token');
     const key = searchParams.get('key');
     const user = searchParams.get('user');
     
-    if (!key || !user) {
+    // Podporujeme nový token-based flow aj starý key/user flow
+    if (token) {
+      // Nový ERPNext token-based flow
+      setUrlParams({ token });
+    } else if (key && user) {
+      // Starý flow s key a user
+      setUrlParams({ key, user });
+    } else {
       toast({
         title: "Neplatný odkaz",
         description: "Odkaz pre zmenu hesla nie je platný alebo vypršal",
@@ -36,8 +44,6 @@ export default function ResetPassword() {
       setLocation('/prihlasenie');
       return;
     }
-
-    setUrlParams({ key, user });
   }, [toast, setLocation]);
 
   const handleInputChange = (field: string, value: string) => {
@@ -87,21 +93,49 @@ export default function ResetPassword() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          key: urlParams.key,
-          user: urlParams.user,
-          newPassword: formData.newPassword
-        })
-      });
+      let response;
+      
+      if (urlParams.token) {
+        // Nový ERPNext token-based flow
+        console.log('Calling token-based password reset API');
+        response = await fetch('/api/update-password-frontend', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: urlParams.token,
+            new_password: formData.newPassword
+          })
+        });
+      } else {
+        // Starý flow s key a user
+        console.log('Calling legacy password reset API');
+        response = await fetch('/api/reset-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            key: urlParams.key,
+            user: urlParams.user,
+            newPassword: formData.newPassword
+          })
+        });
+      }
 
-      const result = await response.json();
+      console.log('Password reset API response status:', response.status);
 
-      if (result.success) {
+      let result;
+      try {
+        result = await response.json();
+        console.log('Password reset API result:', result);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        throw new Error('Neplatná odpoveď zo servera');
+      }
+
+      if (response.ok && result.success) {
         toast({
           title: "Heslo zmenené",
           description: "Vaše heslo bolo úspešne zmenené. Môžete sa prihlásiť.",
@@ -113,9 +147,16 @@ export default function ResetPassword() {
           setLocation('/prihlasenie');
         }, 2000);
       } else {
+        // Zobraz chybovú správu z servera alebo všeobecnú chybu
+        const errorMessage = result.message || 
+          (response.status === 400 ? "Neplatné údaje pre zmenu hesla" :
+           response.status === 404 ? "Odkaz na zmenu hesla je neplatný alebo vypršal" :
+           response.status >= 500 ? "Chyba servera. Skúste to neskôr." :
+           "Nastala chyba pri zmene hesla");
+
         toast({
           title: "Zmena hesla neúspešná",
-          description: result.message || "Nastala chyba pri zmene hesla",
+          description: errorMessage,
           variant: "destructive",
           action: <AlertCircle className="h-4 w-4" />
         });
@@ -160,9 +201,11 @@ export default function ResetPassword() {
               <p className="text-muted-foreground mt-2">
                 Zadajte nové heslo pre váš účet
               </p>
-              <p className="text-sm text-muted-foreground/80 mt-1">
-                {urlParams.user}
-              </p>
+              {urlParams.user && (
+                <p className="text-sm text-muted-foreground/80 mt-1">
+                  {urlParams.user}
+                </p>
+              )}
             </CardHeader>
             
             <CardContent>

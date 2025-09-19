@@ -473,6 +473,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Request password reset
+  app.post("/api/request-password-reset", async (req, res) => {
+    try {
+      const { email } = req.body;
+      console.log('Requesting password reset for:', email);
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Validácia emailu
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+
+      const resetResult = await erpNextService.requestPasswordReset(email);
+      
+      res.json({
+        success: resetResult.success,
+        message: resetResult.message
+      });
+
+    } catch (error) {
+      console.error("Error requesting password reset:", error);
+      res.status(500).json({ 
+        error: "Failed to process password reset request",
+        message: "Chyba pri spracovaní požiadavky na obnovenie hesla"
+      });
+    }
+  });
+
+  // Update password using frontend token
+  app.post("/api/update-password-frontend", async (req, res) => {
+    try {
+      const { token, new_password } = req.body;
+      console.log('Updating password with frontend token');
+      
+      if (!token || !new_password) {
+        return res.status(400).json({ error: "Token and new password are required" });
+      }
+
+      // Validácia hesla
+      if (new_password.length < 8) {
+        return res.status(400).json({ 
+          error: "Password too short",
+          message: "Heslo musí mať aspoň 8 znakov"
+        });
+      }
+
+      const updateResult = await erpNextService.updatePasswordFrontend({ 
+        token, 
+        new_password 
+      });
+      
+      if (!updateResult.success) {
+        return res.status(400).json({ 
+          error: "Password update failed",
+          message: updateResult.message
+        });
+      }
+
+      res.json({
+        success: true,
+        message: updateResult.message
+      });
+
+    } catch (error) {
+      console.error("Error updating password:", error);
+      res.status(500).json({ 
+        error: "Failed to update password",
+        message: "Chyba pri zmene hesla"
+      });
+    }
+  });
+
+  // Legacy reset password route (for existing key/user flow)
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { key, user, newPassword } = req.body;
+      console.log('Legacy password reset for user:', user);
+      
+      if (!key || !user || !newPassword) {
+        return res.status(400).json({ error: "Key, user, and new password are required" });
+      }
+
+      // Validácia hesla
+      if (newPassword.length < 8) {
+        return res.status(400).json({ 
+          error: "Password too short",
+          message: "Heslo musí mať aspoň 8 znakov"
+        });
+      }
+
+      const updateResult = await erpNextService.updateUserPassword({ 
+        key, 
+        user, 
+        new_password: newPassword 
+      });
+      
+      if (!updateResult.success) {
+        return res.status(400).json({ 
+          error: "Password update failed",
+          message: updateResult.message
+        });
+      }
+
+      res.json({
+        success: true,
+        message: updateResult.message
+      });
+
+    } catch (error) {
+      console.error("Error with legacy password reset:", error);
+      res.status(500).json({ 
+        error: "Failed to reset password",
+        message: "Chyba pri zmene hesla"
+      });
+    }
+  });
+
   // Get user profile
   app.get("/api/profile", async (req, res) => {
     try {

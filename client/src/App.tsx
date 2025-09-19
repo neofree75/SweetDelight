@@ -20,6 +20,8 @@ import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
 import Profile from "@/pages/Profile";
 import Account from "@/pages/Account";
+import TermsOfService from "@/pages/TermsOfService";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import NotFound from "@/pages/not-found";
 
 interface CartItem {
@@ -87,6 +89,8 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
+      <Route path="/obchodne-podmienky" component={TermsOfService} />
+      <Route path="/ochrana-osobnych-udajov" component={PrivacyPolicy} />
       <Route component={NotFound} />
     </Switch>
   );

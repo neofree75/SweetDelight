@@ -61,7 +61,13 @@ export default function ForgotPassword() {
         });
       } else {
         // Skontroluj či ide o technickú chybu alebo bezpečnostnú odpoveď
-        if (result.message && result.message.includes('Chyba pri odosielaní emailu')) {
+        const isTechnicalError = result.message && (
+          result.message.includes('Chyba pri odosielaní emailu') ||
+          result.message.includes('ERPNext server chyba') ||
+          result.message.includes('Služba obnovenia hesla je dočasne nedostupná')
+        );
+        
+        if (isTechnicalError) {
           // Technická chyba - zobraz používateľovi
           toast({
             title: "Chyba odosielania",

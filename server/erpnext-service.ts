@@ -634,13 +634,12 @@ export class ERPNextService {
     }
   }
 
-  // Request password reset via ERPNext
+  // Request password reset via ERPNext external_reset module ONLY
   async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
     this.refreshClient();
     
-    // Najprv skús custom external_reset modul
     try {
-      console.log('Requesting password reset for:', email);
+      console.log('Requesting password reset via external_reset for:', email);
       
       const response = await this.client.post('/method/external_reset.api.register.request_password_reset', {
         email: email
@@ -665,43 +664,16 @@ export class ERPNextService {
     } catch (error) {
       console.error('Error with external_reset module:', error);
       
-      // Ak external_reset zlyhá, skús štandardný Frappe password reset
-      if (axios.isAxiosError(error) && error.response?.status === 500) {
-        console.log('Trying fallback to standard Frappe password reset...');
-        
-        try {
-          const fallbackResponse = await this.client.post('/method/frappe.core.doctype.user.user.reset_password', {
-            user: email
-          });
-          
-          console.log('Fallback password reset response:', fallbackResponse.status);
-          
-          return {
-            success: true,
-            message: 'Ak účet existuje, email s odkazom bol odoslaný'
-          };
-          
-        } catch (fallbackError) {
-          console.error('Fallback password reset also failed:', fallbackError);
-          
-          if (axios.isAxiosError(fallbackError)) {
-            if (fallbackError.response?.status === 404) {
-              return {
-                success: true, // Bezpečnosť: neodhalíme či účet existuje
-                message: 'Ak účet existuje, email s odkazom bol odoslaný'
-              };
-            }
-          }
-          
+      if (axios.isAxiosError(error)) {
+        // Skontroluj či je problém s chýbajúcim importom
+        if (error.response?.status === 500 && 
+            error.response?.data?.exception?.includes("name 'random_string' is not defined")) {
           return {
             success: false,
-            message: 'Služba obnovenia hesla je dočasne nedostupná'
+            message: 'ERPNext server chyba: external_reset modul potrebuje opravu importu pre random_string funkciu'
           };
         }
-      }
-      
-      // Iné chyby pre external_reset
-      if (axios.isAxiosError(error)) {
+        
         if (error.response?.data?.exc) {
           const excMessage = error.response.data.exc;
           if (typeof excMessage === 'string') {
@@ -713,10 +685,18 @@ export class ERPNextService {
             }
           }
         }
+        
         if (error.response?.status === 404) {
           return {
             success: true, // Bezpečnosť: neodhalíme či účet existuje
             message: 'Ak účet existuje, email s odkazom bol odoslaný'
+          };
+        }
+        
+        if (error.response?.status === 500) {
+          return {
+            success: false,
+            message: 'ERPNext server chyba v external_reset module'
           };
         }
       }

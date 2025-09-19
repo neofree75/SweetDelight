@@ -17,7 +17,7 @@ export default function AboutSection() {
             O našej cukrárni
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Od roku 2015 prinášame autentické chuť tradičných slovenských a francúzskych zákuskov do nášho krásneho regiónu.
+            Prinášame autentické chute tradičných aj netradičných zákuskov do nášho regiónu.
           </p>
         </div>
 
@@ -41,7 +41,7 @@ export default function AboutSection() {
               <p className="text-muted-foreground leading-relaxed">
                 Začali sme ako malá rodinná cukráreň s veľkými snami. Dnes sme pyšní na to, 
                 že každý deň pečieme čerstvé produkty používajúc iba tie najkvalitnejšie suroviny. 
-                Naše recepty kombinujú tradičné slovenské postupy s modernými francúzskymi technikami.
+                Naše recepty kombinujú tradičné slovenské postupy s modernými technikami.
               </p>
             </div>
 

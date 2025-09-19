@@ -87,3 +87,51 @@ Pri štarte sa automaticky skontroluje ERPNext konfigurácia a vypíšu sa príp
 1. Overte Item permissions
 2. Skontrolujte Item Price List nastavenia
 3. Uistite sa, že Items majú nastavené ceny
+
+Riešenie 1: Aktualizujte Node.js na verziu 20+
+# Nainštalujte Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+# Alebo cez nvm
+nvm install 20
+nvm use 20
+nvm alias default 20
+Potom:
+
+node --version  # Malo by ukázať v20.x.x
+npm run dev
+
+Postup ako obmedziť prístup len na vašu IP adresu
+Riešenie 1: Cez Nginx (odporúčané)
+1. Nainštalujte Nginx (ak nemáte)
+sudo apt install nginx
+2. Vytvorte konfiguráciu
+
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+3. Aktivujte konfiguráciu
+sudo ln -s /etc/nginx/sites-available/sweet-delight /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+4. Zistenie vašej IP adresy
+curl ifconfig.me
+5. Updatujte konfiguráciu s vaša IP
+sudo nano /etc/nginx/sites-available/sweet-delight
+# Nahraďte VASA_IP skutočnou IP adresou

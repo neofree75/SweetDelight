@@ -60,13 +60,24 @@ export default function ForgotPassword() {
           action: <CheckCircle className="h-4 w-4" />
         });
       } else {
-        // Aj pri neúspešnej odpovedi ukážeme rovnakú správu kvôli bezpečnosti
-        setIsSuccess(true);
-        toast({
-          title: "Email odoslaný",
-          description: "Ak účet existuje, na váš email sme odoslali odkaz na obnovenie hesla",
-          action: <CheckCircle className="h-4 w-4" />
-        });
+        // Skontroluj či ide o technickú chybu alebo bezpečnostnú odpoveď
+        if (result.message && result.message.includes('Chyba pri odosielaní emailu')) {
+          // Technická chyba - zobraz používateľovi
+          toast({
+            title: "Chyba odosielania",
+            description: result.message,
+            variant: "destructive",
+            action: <AlertCircle className="h-4 w-4" />
+          });
+        } else {
+          // Bezpečnostná odpoveď - neodhaľuj existenciu účtu
+          setIsSuccess(true);
+          toast({
+            title: "Email odoslaný",
+            description: "Ak účet existuje, na váš email sme odoslali odkaz na obnovenie hesla",
+            action: <CheckCircle className="h-4 w-4" />
+          });
+        }
       }
     } catch (error) {
       console.error('Password reset request error:', error);

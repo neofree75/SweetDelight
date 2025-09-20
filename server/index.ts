@@ -8,6 +8,12 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Trust proxy in production (for secure cookies behind CDN/proxy)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -15,6 +21,11 @@ app.use(express.urlencoded({ extended: false }));
 // WARNING: MemoryStore loses all sessions on server restart!
 // In production, consider using Redis or database-backed session store
 const sessionStore = MemoryStore(session);
+// Enforce strong SESSION_SECRET in production
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET environment variable is required in production');
+}
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-dev-secret-key-change-in-production',
   store: new sessionStore({

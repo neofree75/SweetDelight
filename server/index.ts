@@ -12,6 +12,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Configure session management with secure settings
+// WARNING: MemoryStore loses all sessions on server restart!
+// In production, consider using Redis or database-backed session store
 const sessionStore = MemoryStore(session);
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-dev-secret-key-change-in-production',
@@ -19,11 +21,12 @@ app.use(session({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false, // Don't save empty sessions
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // Better CSRF protection
   },
   name: 'sessionId' // Custom session cookie name
 }));

@@ -785,12 +785,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const depositCalculation = calculateDeposit(cartItems);
       const { subtotal, depositAmount, requiresDeposit } = depositCalculation;
 
-      // Find or create customer in ERPNext
+      // Check if user is authenticated and use their information instead of form data
+      const session = req.session as Session & { user?: any };
+      const userEmail = session?.user?.email;
+      
+      let finalCustomerInfo = customerInfo;
+      
+      if (userEmail) {
+        // User is authenticated - find their existing customer record
+        const existingCustomer = await erpNextService.findCustomerByEmail(userEmail);
+        if (existingCustomer) {
+          console.log(`Using authenticated user's customer: ${existingCustomer.customerId} instead of form data`);
+          // User is authenticated - use their existing customer ID directly without recreating
+          const customerId = existingCustomer.customerId;
+          
+          // Create Sales Order directly with authenticated user's customer
+          const salesOrderData = {
+            customer: customerId,
+            company: process.env.ERPNEXT_COMPANY || '',
+            delivery_date: deliveryInfo.date,
+            transaction_date: new Date().toISOString().split('T')[0],
+            items: cartItems.map((item: any) => ({
+              item_code: item.id,
+              qty: item.quantity,
+              rate: item.price,
+              amount: item.price * item.quantity,
+              stock_uom: 'Nos',
+              parentfield: 'items',
+              item_name: item.name,
+              description: item.additional_notes || ''
+            })),
+            total: subtotal,
+            grand_total: subtotal,
+            currency: 'EUR'
+          };
+
+          const salesOrderId = await erpNextService.createSalesOrder(salesOrderData);
+          
+          if (!salesOrderId) {
+            return res.status(500).json({ error: "Failed to create order in ERP system" });
+          }
+
+          console.log(`Sales Order ${salesOrderId} created for authenticated customer ${customerId}`);
+
+          // Determine payment amounts and options
+          let payNow = subtotal; // Default to full amount
+          let paymentMode = 'full';
+          
+          if (paymentMethod === 'card' && requiresDeposit) {
+            // For online payments, offer both deposit and full options
+            payNow = depositAmount; // Default to deposit for required cases
+            paymentMode = 'deposit';
+          }
+
+          return res.json({
+            success: true,
+            salesOrderId,
+            customerId,
+            amounts: {
+              total: subtotal,
+              deposit: depositAmount,
+              payNow,
+              requiresDeposit,
+              mode: paymentMode
+            },
+            paymentOptions: requiresDeposit 
+              ? [
+                  { id: 'deposit', label: 'Uhradiť zálohu', amount: depositAmount, description: `Záloha ${Math.round((depositAmount / subtotal) * 100)}%` },
+                  { id: 'full', label: 'Uhradiť celú sumu', amount: subtotal, description: 'Celková platba' }
+                ]
+              : [
+                  { id: 'full', label: 'Uhradiť celú sumu', amount: subtotal, description: 'Celková platba' }
+                ]
+          });
+        }
+      }
+
+      // Find or create customer in ERPNext using final customer info
       const customerId = await erpNextService.findOrCreateCustomer({
-        customer_name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
+        customer_name: `${finalCustomerInfo.firstName} ${finalCustomerInfo.lastName}`.trim(),
         customer_type: "Individual",
-        email_id: customerInfo.email.toLowerCase(),
-        mobile_no: customerInfo.phone,
+        email_id: finalCustomerInfo.email.toLowerCase(),
+        mobile_no: finalCustomerInfo.phone,
         customer_group: "Internetový predaj",
         territory: "Slovakia"
       });

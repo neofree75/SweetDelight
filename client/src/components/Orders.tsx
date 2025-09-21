@@ -109,7 +109,7 @@ export function Orders() {
   // Check if order status is "New" and can be paid
   const isOrderNew = (status: string) => {
     const s = (status ?? "").toLowerCase();
-    return s.includes('nový') || s.includes('new') || s.includes('návrh') || s.includes('draft');
+    return s.includes('nov') || s.includes('new') || s.includes('návrh') || s.includes('draft');
   };
 
   // Handle pay button click

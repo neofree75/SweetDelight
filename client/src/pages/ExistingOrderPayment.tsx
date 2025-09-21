@@ -41,12 +41,17 @@ export default function ExistingOrderPayment() {
   const { data: paymentData, isLoading, error } = useQuery({
     queryKey: ['/api/order/prepare-payment', orderId],
     queryFn: async () => {
+      console.log(`[CLIENT] Calling /api/order/prepare-payment with orderId: ${orderId}`);
       const response = await apiRequest('POST', '/api/order/prepare-payment', { orderId });
+      console.log(`[CLIENT] API response status: ${response.status}`);
       if (!response.ok) {
         const errorData = await response.json();
+        console.log(`[CLIENT] API error response:`, errorData);
         throw new Error(errorData.error || 'Failed to prepare payment');
       }
-      return response.json();
+      const result = await response.json();
+      console.log(`[CLIENT] API success response:`, result);
+      return result;
     },
     enabled: !!orderId
   });

@@ -903,9 +903,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify that this Sales Order belongs to the authenticated user
-      const userCustomerId = session.user.customerId;
-      if (!userCustomerId || salesOrder.customer !== userCustomerId) {
-        console.log(`Security check failed: User ${session.user.email} (customer: ${userCustomerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
+      // Find customer by email (same approach as in user-orders API)
+      const userEmail = session.user.email;
+      const customer = await erpNextService.findCustomerByEmail(userEmail);
+      
+      console.log(`[ORDER-AUTH] User: ${userEmail}, Found Customer: ${customer?.customerId}, Order: ${orderId}, Order Customer: ${salesOrder.customer}`);
+      
+      if (!customer || salesOrder.customer !== customer.customerId) {
+        console.log(`[ORDER-AUTH] Security check failed: User ${userEmail} (customer: ${customer?.customerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
         return res.status(403).json({ error: "Access denied - order does not belong to authenticated user" });
       }
 

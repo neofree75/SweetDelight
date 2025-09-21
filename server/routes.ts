@@ -881,6 +881,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Prepare existing order for payment - apply deposit logic to existing Sales Order
+  app.post("/api/order/prepare-payment", async (req, res) => {
+    try {
+      const { orderId } = req.body;
+      
+      if (!orderId) {
+        return res.status(400).json({ error: "Order ID is required" });
+      }
+
+      // Get existing Sales Order from ERPNext
+      const salesOrder = await erpNextService.getSalesOrderById(orderId);
+      if (!salesOrder) {
+        return res.status(404).json({ error: "Sales Order not found" });
+      }
+
+      // Check if order is in a state that allows payment
+      const allowedStatuses = ['Draft', 'To Deliver and Bill', 'To Bill', 'Overdue'];
+      if (!allowedStatuses.includes(salesOrder.status)) {
+        return res.status(400).json({ 
+          error: "Order cannot be paid in current status",
+          currentStatus: salesOrder.status 
+        });
+      }
+
+      // Convert Sales Order items to format expected by calculateDeposit
+      const orderItems = (salesOrder.items || []).map((item: any) => ({
+        id: item.item_code,
+        name: item.item_name,
+        price: item.rate,
+        quantity: item.qty,
+        // Try to determine category from item code or name patterns
+        category: item.item_code === 'TORTCUS001' || 
+                 (item.item_name && item.item_name.toLowerCase().includes('torta na mieru')) || 
+                 item.item_code.startsWith('custom-cake-') 
+                   ? 'Torty na mieru' 
+                   : item.item_code.startsWith('TORT') || 
+                     (item.item_name && item.item_name.toLowerCase().includes('torta'))
+                   ? 'Torty'
+                   : 'Zákusky'
+      }));
+
+      // Apply deposit calculation logic
+      const depositCalculation = calculateDeposit(orderItems);
+      const { subtotal, depositAmount, requiresDeposit } = depositCalculation;
+
+      // Use the grand_total from ERPNext if available, otherwise use calculated subtotal
+      const grandTotal = salesOrder.grand_total || subtotal;
+
+      // Determine payment amounts and options
+      let payNow = grandTotal; // Default to full amount
+      let paymentMode = 'full';
+      
+      if (requiresDeposit) {
+        // For orders requiring deposits, default to deposit
+        payNow = depositAmount;
+        paymentMode = 'deposit';
+      }
+
+      res.json({
+        success: true,
+        salesOrderId: orderId,
+        customerId: salesOrder.customer,
+        orderStatus: salesOrder.status,
+        deliveryDate: salesOrder.delivery_date,
+        amounts: {
+          total: grandTotal,
+          deposit: depositAmount,
+          payNow: payNow,
+          requiresDeposit,
+          mode: paymentMode
+        },
+        paymentOptions: requiresDeposit ? [
+          {
+            id: 'deposit',
+            label: 'Uhradiť zálohu (50%)',
+            amount: depositAmount,
+            description: `Záloha ${depositAmount.toFixed(2)} € z celkovej sumy ${grandTotal.toFixed(2)} €`
+          },
+          {
+            id: 'full',
+            label: 'Uhradiť celú sumu',
+            amount: grandTotal,
+            description: `Celková platba ${grandTotal.toFixed(2)} €`
+          }
+        ] : [
+          {
+            id: 'full',
+            label: 'Uhradiť celú sumu',
+            amount: grandTotal,
+            description: 'Celková platba'
+          }
+        ],
+        items: orderItems
+      });
+
+    } catch (error: any) {
+      console.error('Error preparing order for payment:', error);
+      res.status(500).json({
+        error: "Failed to prepare order for payment",
+        message: error.message
+      });
+    }
+  });
+
   // Stripe payment intent endpoint (secured with Sales Order validation)
   app.post("/api/create-payment-intent", async (req, res) => {
     try {

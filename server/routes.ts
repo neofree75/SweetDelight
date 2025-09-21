@@ -1052,6 +1052,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = req.sessionID || `session-${Date.now()}`;
       const idempotencyKey = `${sessionId}-${salesOrderId}-${paymentMode}-${Math.round(expectedAmount * 100)}`;
 
+      // Get authenticated user's email for proper customer assignment
+      const session = req.session as Session & { user?: any };
+      const userEmail = session?.user?.email;
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(expectedAmount * 100), // Convert to cents
         currency,
@@ -1061,6 +1065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expectedAmount: expectedAmount.toString(),
           paymentMode,
           sessionId,
+          userEmail: userEmail || '',
           source: 'marsela-bakery'
         },
         automatic_payment_methods: {
@@ -1138,10 +1143,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       id: paymentIntentId,
       amount,
       currency,
-      metadata: { salesOrderId, customerId, expectedAmount, paymentMode, sessionId } 
+      metadata: { salesOrderId, customerId, expectedAmount, paymentMode, sessionId, userEmail } 
     } = paymentIntent;
 
-    console.log(`Processing successful payment: ${paymentIntentId} for Sales Order ${salesOrderId}`);
+    console.log(`Processing successful payment: ${paymentIntentId} for Sales Order ${salesOrderId}, User: ${userEmail}`);
 
     // Validate payment amount matches expected amount
     const expectedAmountCents = Math.round(parseFloat(expectedAmount) * 100);
@@ -1155,17 +1160,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // TODO: Store and check processed webhook events in storage/database
     
     try {
+      // Find the correct customer for invoice creation
+      let invoiceCustomerId = customerId; // Default to order customer
+      
+      if (userEmail) {
+        // If we have the user's email, find their proper customer record
+        const customer = await erpNextService.findCustomerByEmail(userEmail);
+        if (customer) {
+          invoiceCustomerId = customer.customerId;
+          console.log(`Using customer ${invoiceCustomerId} (${userEmail}) for invoice instead of order customer ${customerId}`);
+        }
+      }
+      
       if (paymentMode === 'full') {
         // Full payment: Create Sales Invoice and Payment Entry
-        const salesInvoiceId = await erpNextService.createSalesInvoiceFromOrder(salesOrderId);
+        const salesInvoiceId = await erpNextService.createSalesInvoiceFromOrder(salesOrderId, undefined, invoiceCustomerId);
         if (salesInvoiceId) {
-          console.log(`Sales Invoice ${salesInvoiceId} created for full payment of Sales Order ${salesOrderId}`);
+          console.log(`Sales Invoice ${salesInvoiceId} created for full payment of Sales Order ${salesOrderId} under customer ${invoiceCustomerId}`);
           
           // Create Payment Entry against the Sales Invoice
           const paymentData = {
             payment_type: 'Receive' as const,
             party_type: 'Customer' as const,
-            party: customerId,
+            party: invoiceCustomerId,
             company: process.env.ERPNEXT_COMPANY || '',
             mode_of_payment: 'Card Payment',
             paid_amount: parseFloat(expectedAmount),

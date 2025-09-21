@@ -327,7 +327,7 @@ export class ERPNextService {
   }
 
   // Create Sales Invoice from Sales Order
-  async createSalesInvoiceFromOrder(salesOrderId: string, invoiceData?: Partial<ERPNextSalesInvoice>): Promise<string | null> {
+  async createSalesInvoiceFromOrder(salesOrderId: string, invoiceData?: Partial<ERPNextSalesInvoice>, overrideCustomerId?: string): Promise<string | null> {
     this.refreshClient();
     try {
       // Get the Sales Order details first
@@ -339,7 +339,7 @@ export class ERPNextService {
 
       // Create Sales Invoice based on Sales Order
       const salesInvoiceData = {
-        customer: salesOrder.customer,
+        customer: overrideCustomerId || salesOrder.customer,
         company: salesOrder.company || process.env.ERPNEXT_COMPANY,
         posting_date: new Date().toISOString().split('T')[0],
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now

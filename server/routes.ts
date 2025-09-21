@@ -886,6 +886,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { orderId } = req.body;
       
+      // Check if user is authenticated
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
       if (!orderId) {
         return res.status(400).json({ error: "Order ID is required" });
       }
@@ -894,6 +900,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const salesOrder = await erpNextService.getSalesOrderById(orderId);
       if (!salesOrder) {
         return res.status(404).json({ error: "Sales Order not found" });
+      }
+
+      // Verify that this Sales Order belongs to the authenticated user
+      const userCustomerId = session.user.customerId;
+      if (!userCustomerId || salesOrder.customer !== userCustomerId) {
+        console.log(`Security check failed: User ${session.user.email} (customer: ${userCustomerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
+        return res.status(403).json({ error: "Access denied - order does not belong to authenticated user" });
       }
 
       // Check if order is in a state that allows payment

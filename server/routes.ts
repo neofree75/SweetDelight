@@ -1052,16 +1052,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = req.sessionID || `session-${Date.now()}`;
       const idempotencyKey = `${sessionId}-${salesOrderId}-${paymentMode}-${Math.round(expectedAmount * 100)}`;
 
-      // Get authenticated user's email for proper customer assignment
+      // Get authenticated user's email and find their correct customer ID
       const session = req.session as Session & { user?: any };
       const userEmail = session?.user?.email;
+      
+      // Find the correct customer for the authenticated user
+      let correctCustomerId = salesOrder.customer; // Default to order customer
+      if (userEmail) {
+        const customer = await erpNextService.findCustomerByEmail(userEmail);
+        if (customer) {
+          correctCustomerId = customer.customerId;
+          console.log(`Using correct customer ${correctCustomerId} for payment intent instead of order customer ${salesOrder.customer}`);
+        }
+      }
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(expectedAmount * 100), // Convert to cents
         currency,
         metadata: {
           salesOrderId,
-          customerId: salesOrder.customer,
+          customerId: correctCustomerId,
           expectedAmount: expectedAmount.toString(),
           paymentMode,
           sessionId,

@@ -376,6 +376,22 @@ export class ERPNextService {
     }
   }
 
+  // Update Sales Order status
+  async updateSalesOrderStatus(salesOrderId: string, status: string): Promise<boolean> {
+    this.refreshClient();
+    try {
+      await this.client.put(`/resource/Sales Order/${salesOrderId}`, {
+        status: status
+      });
+      
+      console.log(`Sales Order ${salesOrderId} status updated to: ${status}`);
+      return true;
+    } catch (error) {
+      console.error('Error updating Sales Order status:', error);
+      return false;
+    }
+  }
+
   // Create Payment Entry for advance payment or invoice payment
   async createPaymentEntry(paymentData: ERPNextPaymentEntry): Promise<string | null> {
     this.refreshClient();

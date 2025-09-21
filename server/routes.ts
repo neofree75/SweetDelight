@@ -25,7 +25,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-08-27.basil",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1185,6 +1185,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const paymentEntryId = await erpNextService.createPaymentEntry(paymentData);
           if (paymentEntryId) {
             console.log(`Payment Entry ${paymentEntryId} created for Sales Invoice ${salesInvoiceId}`);
+            
+            // Update Sales Order status to "Uhradená" (Paid) for full payment
+            const statusUpdated = await erpNextService.updateSalesOrderStatus(salesOrderId, 'Paid');
+            if (statusUpdated) {
+              console.log(`Sales Order ${salesOrderId} status updated to "Paid" after full payment`);
+            }
           }
         }
       } else if (paymentMode === 'deposit') {

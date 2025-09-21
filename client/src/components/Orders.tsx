@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -22,6 +23,7 @@ const ITEMS_PER_PAGE = 10;
 
 export function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [, setLocation] = useLocation();
   
   const { data, isLoading, error } = useQuery<OrdersResponse>({
     queryKey: ['/api/user-orders'],
@@ -102,6 +104,29 @@ export function Orders() {
       style: 'currency',
       currency: currency || 'EUR',
     }).format(amount);
+  };
+
+  // Check if order status is "New" and can be paid
+  const isOrderNew = (status: string) => {
+    const s = (status ?? "").toLowerCase();
+    return s.includes('nový') || s.includes('new') || s.includes('návrh') || s.includes('draft');
+  };
+
+  // Handle pay button click
+  const handlePayOrder = (order: UserOrder) => {
+    // Store order data for payment processing
+    const orderPaymentData = {
+      orderId: order.id,
+      customerName: data?.customer?.name,
+      customerEmail: data?.customer?.email,
+      grandTotal: order.grandTotal,
+      currency: order.currency,
+      deliveryDate: order.deliveryDate,
+      items: order.items
+    };
+    
+    localStorage.setItem('orderPaymentData', JSON.stringify(orderPaymentData));
+    setLocation(`/payment-existing-order?orderId=${order.id}`);
   };
 
   return (
@@ -192,6 +217,23 @@ export function Orders() {
                   {formatCurrency(order.grandTotal, order.currency)}
                 </span>
               </div>
+
+              {/* Pay button for orders with "New" status */}
+              {isOrderNew(order.status) && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => handlePayOrder(order)}
+                      className="w-full sm:w-auto"
+                      data-testid={`button-pay-order-${order.id}`}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Uhradiť objednávku
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         ))}

@@ -97,8 +97,7 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       }
     });
 
-    // Navigácia na pokladňa stránku - údaje sa predajú cez URL params pre jednoduchosť
-    // Poznámky k položkám sa uložia do localStorage pre prenesenie medzi stránkami
+    // Uložiť poznámky k položkám do localStorage
     localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
     
     const params = new URLSearchParams({
@@ -108,7 +107,12 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       amount: paymentAmount
     });
     
-    setLocation(`/pokladna?${params.toString()}`);
+    // Pre platobné karty presmeruj na platbu, inak na pokladňu
+    if (paymentMethod === 'card') {
+      setLocation(`/platba?${params.toString()}`);
+    } else {
+      setLocation(`/pokladna?${params.toString()}`);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -357,7 +361,7 @@ export default function Checkout({ cartItems }: CheckoutProps) {
               onClick={handleSubmitOrder}
               data-testid="button-submit-order"
             >
-              Skontrolovať a objednať
+              {paymentMethod === 'card' ? 'Pokračovať na platbu' : 'Skontrolovať a objednať'}
             </Button>
           </div>
         </div>

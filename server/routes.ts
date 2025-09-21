@@ -3,6 +3,7 @@ import type { Session } from "express-session";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { erpNextService } from "./erpnext-service";
+import Stripe from "stripe";
 import { 
   insertCustomerSchema, 
   insertOrderSchema,
@@ -18,6 +19,14 @@ import {
   type InsertOrder 
 } from "@shared/schema";
 import { z } from "zod";
+
+// Initialize Stripe
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-08-27.basil",
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -708,6 +717,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user invoices:", error);
       res.status(500).json({ error: "Failed to fetch invoices" });
+    }
+  });
+
+  // Stripe payment intent endpoint
+  app.post("/api/create-payment-intent", async (req, res) => {
+    try {
+      const { amount, currency = 'eur', metadata = {} } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency,
+        metadata: {
+          ...metadata,
+          source: 'marsela-bakery'
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ 
+        error: "Error creating payment intent",
+        message: error.message 
+      });
+    }
+  });
+
+  // Confirm payment and process order
+  app.post("/api/confirm-payment", async (req, res) => {
+    try {
+      const { paymentIntentId, orderData } = req.body;
+      
+      if (!paymentIntentId || !orderData) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Retrieve the payment intent to verify status
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ 
+          error: "Payment not completed",
+          status: paymentIntent.status 
+        });
+      }
+
+      // Process the order in ERPNext
+      console.log('Processing order after successful payment:', orderData);
+      
+      // Here you would create the sales order in ERPNext
+      // For now, return success response
+      res.json({
+        success: true,
+        paymentStatus: paymentIntent.status,
+        amount: paymentIntent.amount / 100,
+        currency: paymentIntent.currency
+      });
+
+    } catch (error: any) {
+      console.error('Error confirming payment:', error);
+      res.status(500).json({ 
+        error: "Error confirming payment",
+        message: error.message 
+      });
     }
   });
 

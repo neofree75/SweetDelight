@@ -47,6 +47,10 @@ localPort = 39845
 externalPort = 3000
 
 [[ports]]
+localPort = 40131
+externalPort = 8008
+
+[[ports]]
 localPort = 41359
 externalPort = 8000
 
@@ -79,4 +83,4 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_openai:1.0.0"]
+integrations = ["javascript_openai:1.0.0", "javascript_stripe:1.0.0"]

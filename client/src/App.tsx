@@ -14,6 +14,7 @@ import CustomCakeOrder from "@/pages/CustomCakeOrder";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Checkout from "@/pages/Checkout";
+import Payment from "@/pages/Payment";
 import Billing from "@/pages/Billing";
 import Registration from "@/pages/Registration";
 import Login from "@/pages/Login";
@@ -77,6 +78,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       <Route path="/checkout">
         <Checkout cartItems={cartItems} />
       </Route>
+      <Route path="/platba" component={Payment} />
       <Route path="/pokladna">
         <Billing cartItems={cartItems} user={user} onClearCart={onClearCart} />
       </Route>

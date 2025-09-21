@@ -6,6 +6,7 @@ import {
   ERPNextCustomer, 
   ERPNextSalesOrder,
   ERPNextSalesInvoice,
+  ERPNextPaymentEntry,
   ERPNextItemAttribute,
   Product,
   CustomCakeAttribute,
@@ -310,6 +311,126 @@ export class ERPNextService {
     } catch (error) {
       console.error('Error fetching orders from ERPNext:', error);
       return [];
+    }
+  }
+
+  // Get Sales Order by ID with full details
+  async getSalesOrderById(salesOrderId: string): Promise<any | null> {
+    this.refreshClient();
+    try {
+      const response = await this.client.get(`/resource/Sales%20Order/${salesOrderId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching Sales Order ${salesOrderId}:`, error);
+      return null;
+    }
+  }
+
+  // Create Sales Invoice from Sales Order
+  async createSalesInvoiceFromOrder(salesOrderId: string, invoiceData?: Partial<ERPNextSalesInvoice>): Promise<string | null> {
+    this.refreshClient();
+    try {
+      // Get the Sales Order details first
+      const salesOrder = await this.getSalesOrderById(salesOrderId);
+      if (!salesOrder) {
+        console.error(`Sales Order ${salesOrderId} not found`);
+        return null;
+      }
+
+      // Create Sales Invoice based on Sales Order
+      const salesInvoiceData = {
+        customer: salesOrder.customer,
+        company: salesOrder.company || process.env.ERPNEXT_COMPANY,
+        posting_date: new Date().toISOString().split('T')[0],
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        currency: salesOrder.currency || 'EUR',
+        items: salesOrder.items.map((item: any) => ({
+          item_code: item.item_code,
+          qty: item.qty,
+          rate: item.rate,
+          amount: item.amount,
+          stock_uom: item.stock_uom || 'Nos',
+          parentfield: 'items',
+          item_name: item.item_name,
+          description: item.description,
+          sales_order: salesOrderId, // Link to original Sales Order
+          so_detail: item.name // Link to Sales Order item
+        })),
+        // Override with any custom data
+        ...invoiceData
+      };
+
+      const response = await this.client.post('/resource/Sales%20Invoice', salesInvoiceData);
+      
+      // Submit the invoice to make it active
+      const invoiceId = response.data.data.name;
+      await this.client.put(`/resource/Sales%20Invoice/${invoiceId}`, {
+        docstatus: 1 // Submit the document
+      });
+
+      console.log(`Sales Invoice ${invoiceId} created from Sales Order ${salesOrderId}`);
+      return invoiceId;
+    } catch (error) {
+      console.error('Error creating Sales Invoice from Sales Order:', error);
+      return null;
+    }
+  }
+
+  // Create Payment Entry for advance payment or invoice payment
+  async createPaymentEntry(paymentData: ERPNextPaymentEntry): Promise<string | null> {
+    this.refreshClient();
+    try {
+      const response = await this.client.post('/resource/Payment%20Entry', paymentData);
+      
+      // Submit the payment entry to make it active
+      const paymentId = response.data.data.name;
+      await this.client.put(`/resource/Payment%20Entry/${paymentId}`, {
+        docstatus: 1 // Submit the document
+      });
+
+      console.log(`Payment Entry ${paymentId} created`);
+      return paymentId;
+    } catch (error) {
+      console.error('Error creating Payment Entry:', error);
+      return null;
+    }
+  }
+
+  // Create advance payment against Sales Order (záloha)
+  async createAdvancePayment(salesOrderId: string, amount: number, referenceNo?: string): Promise<string | null> {
+    this.refreshClient();
+    try {
+      // Get Sales Order details to get customer info
+      const salesOrder = await this.getSalesOrderById(salesOrderId);
+      if (!salesOrder) {
+        console.error(`Sales Order ${salesOrderId} not found`);
+        return null;
+      }
+
+      const paymentData: ERPNextPaymentEntry = {
+        payment_type: 'Receive',
+        party_type: 'Customer',
+        party: salesOrder.customer,
+        company: salesOrder.company || process.env.ERPNEXT_COMPANY || '',
+        mode_of_payment: 'Card Payment',
+        paid_amount: amount,
+        received_amount: amount,
+        currency: 'EUR',
+        posting_date: new Date().toISOString().split('T')[0],
+        reference_no: referenceNo,
+        reference_date: new Date().toISOString().split('T')[0],
+        references: [{
+          reference_doctype: 'Sales Order',
+          reference_name: salesOrderId,
+          allocated_amount: amount,
+          parentfield: 'references'
+        }]
+      };
+
+      return await this.createPaymentEntry(paymentData);
+    } catch (error) {
+      console.error('Error creating advance payment:', error);
+      return null;
     }
   }
 

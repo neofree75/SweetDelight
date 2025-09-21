@@ -9,22 +9,33 @@ export default function PaymentSuccess() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
 
   useEffect(() => {
-    // Clear cart after successful payment
-    localStorage.removeItem('cartItems');
-    localStorage.removeItem('checkoutItemNotes');
-    
-    // Get order details from URL params or localStorage if available
+    // Get order details from checkout data or URL params BEFORE clearing
+    const storedCheckoutData = localStorage.getItem('checkoutData');
     const urlParams = new URLSearchParams(window.location.search);
-    const amount = urlParams.get('amount');
-    const paymentIntent = urlParams.get('payment_intent');
+    const paymentIntentId = urlParams.get('payment_intent');
+    const salesOrderId = urlParams.get('salesOrderId');
     
-    if (amount || paymentIntent) {
+    if (storedCheckoutData) {
+      const checkoutData = JSON.parse(storedCheckoutData);
       setOrderDetails({
-        amount: amount ? parseFloat(amount) : null,
-        paymentIntent,
+        salesOrderId: checkoutData.salesOrderId,
+        amount: checkoutData.amounts?.payNow,
+        paymentMode: checkoutData.amounts?.mode,
+        paymentIntentId,
+        timestamp: new Date()
+      });
+    } else if (salesOrderId) {
+      setOrderDetails({
+        salesOrderId,
+        paymentIntentId,
         timestamp: new Date()
       });
     }
+    
+    // Clear cart and checkout data after reading the details
+    localStorage.removeItem('cartItems');
+    localStorage.removeItem('checkoutData');
+    localStorage.removeItem('checkoutItemNotes');
   }, []);
 
   const handleContinueShopping = () => {
@@ -59,6 +70,15 @@ export default function PaymentSuccess() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {orderDetails?.salesOrderId && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Číslo objednávky:</span>
+                  <span className="font-mono text-sm font-semibold">
+                    {orderDetails.salesOrderId}
+                  </span>
+                </div>
+              )}
+              
               {orderDetails?.amount && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Uhradená suma:</span>
@@ -68,11 +88,19 @@ export default function PaymentSuccess() {
                 </div>
               )}
               
-              {orderDetails?.paymentIntent && (
+              {orderDetails?.paymentMode === 'deposit' && (
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-700">
+                    <strong>Záloha uhradená.</strong> Zostatok uhradíte pri prevzatí objednávky.
+                  </p>
+                </div>
+              )}
+              
+              {orderDetails?.paymentIntentId && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">ID platby:</span>
                   <span className="font-mono text-sm">
-                    {orderDetails.paymentIntent}
+                    {orderDetails.paymentIntentId}
                   </span>
                 </div>
               )}

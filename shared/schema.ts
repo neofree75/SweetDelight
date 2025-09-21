@@ -88,7 +88,39 @@ export const erpNextSalesInvoiceSchema = z.object({
   grand_total: z.number(), // Celková suma
   outstanding_amount: z.number(), // Zostávajúca suma na úhradu
   status: z.string(), // Draft, Submitted, Paid, atď
-  currency: z.string().default("EUR")
+  currency: z.string().default("EUR"),
+  items: z.array(z.object({
+    item_code: z.string(),
+    qty: z.number(),
+    rate: z.number(),
+    amount: z.number(),
+    stock_uom: z.string().default("Nos"),
+    parentfield: z.string().default("items"),
+    item_name: z.string(),
+    description: z.string().optional(),
+  })).optional(),
+});
+
+// ERPNext Payment Entry schema
+export const erpNextPaymentEntrySchema = z.object({
+  payment_type: z.string(), // "Receive" pre zákazníkov, "Pay" pre dodávateľov
+  party_type: z.string().default("Customer"), // "Customer", "Supplier"
+  party: z.string(), // Customer/Supplier ID
+  company: z.string(), // Company field
+  mode_of_payment: z.string().default("Card Payment"), // Spôsob platby
+  paid_amount: z.number(), // Uhradená suma
+  received_amount: z.number(), // Prijatá suma (po smernom kurze)
+  currency: z.string().default("EUR"),
+  posting_date: z.string(), // Dátum zaúčtovania
+  reference_no: z.string().optional(), // Referenčné číslo (napr. Stripe Payment Intent ID)
+  reference_date: z.string().optional(), // Dátum referencie
+  // Pre advance payment proti Sales Order
+  references: z.array(z.object({
+    reference_doctype: z.string(), // "Sales Order" alebo "Sales Invoice"
+    reference_name: z.string(), // ID objednávky alebo faktúry
+    allocated_amount: z.number(), // Alokovaná suma
+    parentfield: z.string().default("references"),
+  })).optional(),
 });
 
 
@@ -190,6 +222,8 @@ export type ERPNextItemVariant = z.infer<typeof erpNextItemVariantSchema>;
 export type ERPNextPrice = z.infer<typeof erpNextPriceSchema>;
 export type ERPNextCustomer = z.infer<typeof erpNextCustomerSchema>;
 export type ERPNextSalesOrder = z.infer<typeof erpNextSalesOrderSchema>;
+export type ERPNextSalesInvoice = z.infer<typeof erpNextSalesInvoiceSchema>;
+export type ERPNextPaymentEntry = z.infer<typeof erpNextPaymentEntrySchema>;
 
 // Schema pre objednávky zobrazované v frontend (z ERPNext)
 export const userOrderSchema = z.object({
@@ -226,7 +260,6 @@ export const invoiceSchema = z.object({
 
 export type UserOrder = z.infer<typeof userOrderSchema>;
 export type ERPNextItemAttribute = z.infer<typeof erpNextItemAttributeSchema>;
-export type ERPNextSalesInvoice = z.infer<typeof erpNextSalesInvoiceSchema>;
 
 export type Product = z.infer<typeof productSchema>;
 export type Customer = z.infer<typeof customerSchema>;

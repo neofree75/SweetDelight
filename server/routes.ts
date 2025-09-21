@@ -25,7 +25,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-08-27.basil",
+  apiVersion: "2024-06-20",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -720,30 +720,242 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stripe payment intent endpoint
-  app.post("/api/create-payment-intent", async (req, res) => {
+  // Server-side deposit calculation logic
+  function calculateDeposit(cartItems: any[]) {
+    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Check if any item contains cake categories
+    const containsTorta = cartItems.some(item => 
+      item.category === 'Torty' || 
+      item.category === 'Torta na mieru' ||
+      item.category === 'Torty na mieru'
+    );
+    
+    // Check if any item is a custom cake
+    const containsCustomCake = cartItems.some(item => 
+      item.name === 'Torta na mieru' ||
+      item.id.startsWith('custom-cake-') ||
+      item.category === 'Torty na mieru'
+    );
+    
+    let requiresDeposit = false;
+    let reason = 'none';
+    
+    if (containsCustomCake) {
+      requiresDeposit = true;
+      reason = 'contains_custom_cake';
+    } else if (containsTorta) {
+      requiresDeposit = true;
+      reason = 'contains_cake';
+    } else if (subtotal > 150) {
+      requiresDeposit = true;
+      reason = 'high_total';
+    }
+    
+    const depositPercentage = requiresDeposit ? 50 : 0;
+    const depositAmount = requiresDeposit ? subtotal * 0.5 : 0;
+    
+    return {
+      subtotal,
+      depositAmount,
+      depositPercentage,
+      requiresDeposit,
+      reason
+    };
+  }
+
+  // Start checkout process - create Sales Order first
+  app.post("/api/checkout/start", async (req, res) => {
     try {
-      const { amount, currency = 'eur', metadata = {} } = req.body;
+      const { cartItems, customerInfo, deliveryInfo, paymentMethod } = req.body;
       
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
+      if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+        return res.status(400).json({ error: "Invalid cart items" });
       }
 
+      if (!customerInfo || !customerInfo.email) {
+        return res.status(400).json({ error: "Customer information required" });
+      }
+
+      if (!deliveryInfo || !deliveryInfo.date) {
+        return res.status(400).json({ error: "Delivery information required" });
+      }
+
+      // Calculate deposit and total amounts
+      const depositCalculation = calculateDeposit(cartItems);
+      const { subtotal, depositAmount, requiresDeposit } = depositCalculation;
+
+      // Find or create customer in ERPNext
+      const customerId = await erpNextService.findOrCreateCustomer({
+        customer_name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
+        customer_type: "Individual",
+        email_id: customerInfo.email.toLowerCase(),
+        mobile_no: customerInfo.phone,
+        customer_group: "Internetový predaj",
+        territory: "Slovakia"
+      });
+
+      if (!customerId) {
+        return res.status(500).json({ error: "Failed to create customer in ERP system" });
+      }
+
+      // Create Sales Order in ERPNext
+      const salesOrderData = {
+        customer: customerId,
+        company: process.env.ERPNEXT_COMPANY || '',
+        delivery_date: deliveryInfo.date,
+        transaction_date: new Date().toISOString().split('T')[0],
+        items: cartItems.map((item: any) => ({
+          item_code: item.id,
+          qty: item.quantity,
+          rate: item.price,
+          amount: item.price * item.quantity,
+          stock_uom: 'Nos',
+          parentfield: 'items',
+          item_name: item.name,
+          description: item.additional_notes || ''
+        })),
+        total: subtotal,
+        grand_total: subtotal,
+        currency: 'EUR'
+      };
+
+      const salesOrderId = await erpNextService.createSalesOrder(salesOrderData);
+      
+      if (!salesOrderId) {
+        return res.status(500).json({ error: "Failed to create order in ERP system" });
+      }
+
+      console.log(`Sales Order ${salesOrderId} created for customer ${customerId}`);
+
+      // Determine payment amounts and options
+      let payNow = subtotal; // Default to full amount
+      let paymentMode = 'full';
+      
+      if (paymentMethod === 'card' && requiresDeposit) {
+        // For online payments, offer both deposit and full options
+        payNow = depositAmount; // Default to deposit for required cases
+        paymentMode = 'deposit';
+      }
+
+      res.json({
+        success: true,
+        salesOrderId,
+        customerId,
+        amounts: {
+          total: subtotal,
+          deposit: depositAmount,
+          payNow: payNow,
+          requiresDeposit,
+          mode: paymentMode
+        },
+        paymentOptions: requiresDeposit ? [
+          {
+            id: 'deposit',
+            label: 'Uhradiť zálohu (50%)',
+            amount: depositAmount,
+            description: `Záloha ${depositAmount.toFixed(2)} € z celkovej sumy ${subtotal.toFixed(2)} €`
+          },
+          {
+            id: 'full',
+            label: 'Uhradiť celú sumu',
+            amount: subtotal,
+            description: `Celková platba ${subtotal.toFixed(2)} €`
+          }
+        ] : [
+          {
+            id: 'full',
+            label: 'Uhradiť celú sumu',
+            amount: subtotal,
+            description: 'Celková platba'
+          }
+        ]
+      });
+
+    } catch (error: any) {
+      console.error('Error starting checkout process:', error);
+      res.status(500).json({
+        error: "Failed to start checkout process",
+        message: error.message
+      });
+    }
+  });
+
+  // Stripe payment intent endpoint (secured with Sales Order validation)
+  app.post("/api/create-payment-intent", async (req, res) => {
+    try {
+      const { salesOrderId, paymentMode = 'full', currency = 'eur' } = req.body;
+      
+      if (!salesOrderId) {
+        return res.status(400).json({ error: "Sales Order ID is required" });
+      }
+
+      if (!['full', 'deposit'].includes(paymentMode)) {
+        return res.status(400).json({ error: "Invalid payment mode. Must be 'full' or 'deposit'" });
+      }
+
+      // Get Sales Order from ERPNext to validate and calculate amount
+      const salesOrder = await erpNextService.getSalesOrderById(salesOrderId);
+      if (!salesOrder) {
+        return res.status(404).json({ error: "Sales Order not found" });
+      }
+
+      // Server-side calculation of expected amount
+      const grandTotal = salesOrder.grand_total || 0;
+      let expectedAmount = grandTotal;
+
+      if (paymentMode === 'deposit') {
+        // Calculate deposit based on server-side rules
+        const orderItems = salesOrder.items || [];
+        const depositCalculation = calculateDeposit(orderItems.map((item: any) => ({
+          id: item.item_code,
+          name: item.item_name,
+          price: item.rate,
+          quantity: item.qty,
+          category: item.category // This might not be available from Sales Order
+        })));
+        
+        if (!depositCalculation.requiresDeposit) {
+          return res.status(400).json({ error: "Deposit not required for this order" });
+        }
+        
+        expectedAmount = depositCalculation.depositAmount;
+      }
+
+      if (expectedAmount <= 0) {
+        return res.status(400).json({ error: "Invalid order amount" });
+      }
+
+      // Generate idempotency key from session, order, mode, and amount
+      const sessionId = req.sessionID || `session-${Date.now()}`;
+      const idempotencyKey = `${sessionId}-${salesOrderId}-${paymentMode}-${Math.round(expectedAmount * 100)}`;
+
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: Math.round(expectedAmount * 100), // Convert to cents
         currency,
         metadata: {
-          ...metadata,
+          salesOrderId,
+          customerId: salesOrder.customer,
+          expectedAmount: expectedAmount.toString(),
+          paymentMode,
+          sessionId,
           source: 'marsela-bakery'
         },
         automatic_payment_methods: {
           enabled: true,
         },
+      }, {
+        idempotencyKey // Prevent duplicate payments
       });
+
+      console.log(`Payment Intent created: ${paymentIntent.id} for Sales Order ${salesOrderId}, mode: ${paymentMode}, amount: €${expectedAmount}`);
 
       res.json({ 
         clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id
+        paymentIntentId: paymentIntent.id,
+        salesOrderId,
+        expectedAmount,
+        paymentMode
       });
     } catch (error: any) {
       console.error('Error creating payment intent:', error);
@@ -754,7 +966,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Confirm payment and process order
+  // Stripe webhook endpoint with signature verification
+  app.post("/api/stripe/webhook", async (req, res) => {
+    let event: any;
+
+    try {
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
+        return res.status(400).json({ error: 'Webhook secret not configured' });
+      }
+
+      const sig = req.headers['stripe-signature'];
+      if (!sig) {
+        return res.status(400).json({ error: 'Missing stripe signature' });
+      }
+
+      // Verify webhook signature
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    try {
+      // Handle different event types
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          await handlePaymentSuccess(event.data.object);
+          break;
+        case 'payment_intent.payment_failed':
+        case 'payment_intent.canceled':
+          await handlePaymentFailed(event.data.object);
+          break;
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Error processing webhook:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
+  // Handle successful payment
+  async function handlePaymentSuccess(paymentIntent: any) {
+    const { 
+      id: paymentIntentId,
+      amount,
+      currency,
+      metadata: { salesOrderId, customerId, expectedAmount, paymentMode, sessionId } 
+    } = paymentIntent;
+
+    console.log(`Processing successful payment: ${paymentIntentId} for Sales Order ${salesOrderId}`);
+
+    // Validate payment amount matches expected amount
+    const expectedAmountCents = Math.round(parseFloat(expectedAmount) * 100);
+    if (amount !== expectedAmountCents) {
+      console.error(`Payment amount mismatch: expected ${expectedAmountCents} cents, got ${amount} cents`);
+      return;
+    }
+
+    // Check idempotency to prevent duplicate processing
+    const idempotencyKey = `webhook-${paymentIntentId}`;
+    // TODO: Store and check processed webhook events in storage/database
+    
+    try {
+      if (paymentMode === 'full') {
+        // Full payment: Create Sales Invoice and Payment Entry
+        const salesInvoiceId = await erpNextService.createSalesInvoiceFromOrder(salesOrderId);
+        if (salesInvoiceId) {
+          console.log(`Sales Invoice ${salesInvoiceId} created for full payment of Sales Order ${salesOrderId}`);
+          
+          // Create Payment Entry against the Sales Invoice
+          const paymentData = {
+            payment_type: 'Receive' as const,
+            party_type: 'Customer' as const,
+            party: customerId,
+            company: process.env.ERPNEXT_COMPANY || '',
+            mode_of_payment: 'Card Payment',
+            paid_amount: parseFloat(expectedAmount),
+            received_amount: parseFloat(expectedAmount),
+            currency: 'EUR',
+            posting_date: new Date().toISOString().split('T')[0],
+            reference_no: paymentIntentId,
+            reference_date: new Date().toISOString().split('T')[0],
+            references: [{
+              reference_doctype: 'Sales Invoice',
+              reference_name: salesInvoiceId,
+              allocated_amount: parseFloat(expectedAmount),
+              parentfield: 'references'
+            }]
+          };
+          
+          const paymentEntryId = await erpNextService.createPaymentEntry(paymentData);
+          if (paymentEntryId) {
+            console.log(`Payment Entry ${paymentEntryId} created for Sales Invoice ${salesInvoiceId}`);
+          }
+        }
+      } else if (paymentMode === 'deposit') {
+        // Deposit payment: Create advance Payment Entry against Sales Order
+        const paymentEntryId = await erpNextService.createAdvancePayment(
+          salesOrderId, 
+          parseFloat(expectedAmount),
+          paymentIntentId
+        );
+        if (paymentEntryId) {
+          console.log(`Advance Payment Entry ${paymentEntryId} created for deposit payment of Sales Order ${salesOrderId}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing payment in ERPNext:', error);
+      // TODO: Store failed webhook processing for retry
+    }
+  }
+
+  // Handle failed/canceled payment
+  async function handlePaymentFailed(paymentIntent: any) {
+    const { 
+      id: paymentIntentId,
+      metadata: { salesOrderId }
+    } = paymentIntent;
+
+    console.log(`Payment failed/canceled: ${paymentIntentId} for Sales Order ${salesOrderId}`);
+    
+    // Sales Order remains open for retry or cash payment
+    // No action needed in ERPNext - order stays as draft/pending payment
+  }
+
+  // Confirm payment and process order (legacy endpoint - kept for compatibility)
   app.post("/api/confirm-payment", async (req, res) => {
     try {
       const { paymentIntentId, orderData } = req.body;

@@ -15,21 +15,23 @@ if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 interface StripeCheckoutFormProps {
+  salesOrderId: string;
+  paymentMode: 'full' | 'deposit';
   amount: number;
   currency?: string;
   onSuccess: (paymentIntent: any) => void;
   onError: (error: any) => void;
   isLoading?: boolean;
-  orderData?: any;
 }
 
 function StripeCheckoutForm({ 
+  salesOrderId,
+  paymentMode,
   amount, 
   currency = 'eur',
   onSuccess, 
   onError, 
-  isLoading = false,
-  orderData 
+  isLoading = false
 }: StripeCheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -49,7 +51,7 @@ function StripeCheckoutForm({
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/payment-success`,
+          return_url: `${window.location.origin}/payment-success?salesOrderId=${salesOrderId}`,
         },
         redirect: 'if_required',
       });
@@ -68,7 +70,7 @@ function StripeCheckoutForm({
           title: "Platba úspešná",
           description: "Vaša platba bola úspešne spracovaná",
         });
-        onSuccess({ amount, currency });
+        onSuccess({ salesOrderId, paymentMode, amount, currency });
       }
     } catch (error: any) {
       console.error('Payment processing error:', error);
@@ -137,21 +139,21 @@ function StripeCheckoutForm({
 }
 
 interface StripeCheckoutProps {
+  salesOrderId: string;
+  paymentMode: 'full' | 'deposit';
   amount: number;
   currency?: string;
-  metadata?: Record<string, string>;
   onSuccess: (paymentIntent: any) => void;
   onError: (error: any) => void;
-  orderData?: any;
 }
 
 export default function StripeCheckout({
+  salesOrderId,
+  paymentMode,
   amount,
   currency = 'eur',
-  metadata = {},
   onSuccess,
-  onError,
-  orderData
+  onError
 }: StripeCheckoutProps) {
   const [clientSecret, setClientSecret] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -162,12 +164,9 @@ export default function StripeCheckout({
       try {
         setIsLoading(true);
         const response = await apiRequest("POST", "/api/create-payment-intent", {
-          amount,
-          currency,
-          metadata: {
-            ...metadata,
-            orderData: JSON.stringify(orderData)
-          }
+          salesOrderId,
+          paymentMode,
+          currency
         });
         
         const data = await response.json();
@@ -185,10 +184,10 @@ export default function StripeCheckout({
       }
     };
 
-    if (amount > 0) {
+    if (salesOrderId) {
       createPaymentIntent();
     }
-  }, [amount, currency, metadata]);
+  }, [salesOrderId, paymentMode, currency]);
 
   if (isLoading) {
     return (
@@ -230,12 +229,13 @@ export default function StripeCheckout({
       }}
     >
       <StripeCheckoutForm
+        salesOrderId={salesOrderId}
+        paymentMode={paymentMode}
         amount={amount}
         currency={currency}
         onSuccess={onSuccess}
         onError={onError}
         isLoading={isLoading}
-        orderData={orderData}
       />
     </Elements>
   );

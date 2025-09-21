@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { CalendarDays, Clock, CreditCard, Banknote, ShoppingBag } from 'lucide-react';
+import { CalendarDays, Clock, CreditCard, Banknote, ShoppingBag, Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 import { calculateDeposit, getDepositReason, getPaymentOptions } from '@/lib/deposit-utils';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 interface CartItem {
   id: string;
@@ -31,7 +33,9 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const discount = 0; // Implementované neskôr s kupónmi
@@ -60,58 +64,102 @@ export default function Checkout({ cartItems }: CheckoutProps) {
     }));
   };
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     // Validácia povinných polí
     if (!deliveryDate || !deliveryTime) {
-      alert('Prosím vyplňte dátum a čas doručenia');
+      toast({
+        title: "Chyba",
+        description: "Prosím vyplňte dátum a čas doručenia",
+        variant: "destructive"
+      });
       return;
     }
 
-    // Pridať poznámky k položkám - zachovať existujúce additional_notes a pridať nové ak sú zadané
-    const cartItemsWithNotes = cartItems.map(item => {
-      const existingNotes = item.additional_notes || '';
-      const newNotes = itemNotes[item.id] || '';
-      const combinedNotes = existingNotes && newNotes 
-        ? `${existingNotes}, ${newNotes}` 
-        : existingNotes || newNotes;
-        
-      return {
-        ...item,
-        additional_notes: combinedNotes
+    setIsSubmitting(true);
+
+    try {
+      // Pridať poznámky k položkám - zachovať existujúce additional_notes a pridať nové ak sú zadané
+      const cartItemsWithNotes = cartItems.map(item => {
+        const existingNotes = item.additional_notes || '';
+        const newNotes = itemNotes[item.id] || '';
+        const combinedNotes = existingNotes && newNotes 
+          ? `${existingNotes}, ${newNotes}` 
+          : existingNotes || newNotes;
+          
+        return {
+          ...item,
+          additional_notes: combinedNotes,
+          // Add category detection for server-side processing
+          category: item.id === 'TORTCUS001' || item.name === 'Torta na mieru' || item.id.startsWith('custom-cake-') 
+            ? 'Torty na mieru' 
+            : item.id.startsWith('TORT') || (item.name && item.name.toLowerCase().includes('torta'))
+            ? 'Torty'
+            : 'Zákusky'
+        };
+      });
+
+      // Get customer info - for now use placeholder data
+      // TODO: Get actual customer info from login session or checkout form
+      const customerInfo = {
+        firstName: 'Guest',
+        lastName: 'Customer',
+        email: 'guest@marsela.sk', // This should come from login or checkout form
+        phone: '+421000000000' // This should come from checkout form
       };
-    });
 
-    console.log('Proceeding to billing page with:', {
-      items: cartItemsWithNotes,
-      deliveryDate,
-      deliveryTime,
-      paymentMethod,
-      paymentAmount,
-      total: finalAmount,
-      depositInfo: {
-        subtotal: depositCalculation.subtotal,
-        depositAmount: depositCalculation.depositAmount,
-        requiresDeposit: depositCalculation.requiresDeposit,
-        reason: depositCalculation.reason,
-        selectedAmount: finalAmount
+      const deliveryInfo = {
+        date: deliveryDate,
+        time: deliveryTime
+      };
+
+      // Call checkout/start API to create Sales Order first
+      const res = await apiRequest('POST', '/api/checkout/start', {
+        cartItems: cartItemsWithNotes,
+        customerInfo,
+        deliveryInfo,
+        paymentMethod
+      });
+
+      const response = await res.json();
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to start checkout process');
       }
-    });
 
-    // Uložiť poznámky k položkám do localStorage
-    localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
-    
-    const params = new URLSearchParams({
-      date: deliveryDate,
-      time: deliveryTime,
-      payment: paymentMethod,
-      amount: paymentAmount
-    });
-    
-    // Pre platobné karty presmeruj na platbu, inak na pokladňu
-    if (paymentMethod === 'card') {
-      setLocation(`/platba?${params.toString()}`);
-    } else {
-      setLocation(`/pokladna?${params.toString()}`);
+      const { salesOrderId, amounts, paymentOptions } = response;
+
+      console.log('Sales Order created:', salesOrderId, 'amounts:', amounts);
+
+      // Store checkout data for payment page
+      const checkoutData = {
+        salesOrderId,
+        amounts,
+        paymentOptions,
+        deliveryDate,
+        deliveryTime,
+        paymentMethod,
+        paymentAmount
+      };
+
+      localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
+      localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
+
+      // Redirect based on payment method
+      if (paymentMethod === 'card') {
+        setLocation(`/platba?salesOrderId=${salesOrderId}`);
+      } else {
+        setLocation(`/pokladna?salesOrderId=${salesOrderId}`);
+      }
+
+    } catch (error: any) {
+      console.error('Error starting checkout process:', error);
+      toast({
+        title: "Chyba pri vytváraní objednávky",
+        description: error.message || "Nepodarilo sa vytvoriť objednávku. Skúste to znovu.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

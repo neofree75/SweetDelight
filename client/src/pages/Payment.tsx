@@ -20,52 +20,40 @@ interface CartItem {
 
 export default function Payment() {
   const [, setLocation] = useLocation();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [deliveryDate, setDeliveryDate] = useState('');
-  const [deliveryTime, setDeliveryTime] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
+  const [salesOrderId, setSalesOrderId] = useState('');
+  const [checkoutData, setCheckoutData] = useState<any>(null);
   const [showStripeCheckout, setShowStripeCheckout] = useState(false);
 
   useEffect(() => {
-    // Get cart items from localStorage
-    const storedItems = localStorage.getItem('cartItems');
-    if (storedItems) {
-      const items = JSON.parse(storedItems);
-      setCartItems(items);
+    // Get checkout data from localStorage (created by checkout/start API)
+    const storedCheckoutData = localStorage.getItem('checkoutData');
+    if (storedCheckoutData) {
+      const data = JSON.parse(storedCheckoutData);
+      setCheckoutData(data);
+      setSalesOrderId(data.salesOrderId);
     }
 
-    // Get checkout data from URL params
+    // Also check URL params for salesOrderId as fallback
     const urlParams = new URLSearchParams(window.location.search);
-    setDeliveryDate(urlParams.get('date') || '');
-    setDeliveryTime(urlParams.get('time') || '');
-    setPaymentMethod(urlParams.get('payment') || 'card');
-    setPaymentAmount(urlParams.get('amount') as 'full' | 'deposit' || 'full');
+    const urlSalesOrderId = urlParams.get('salesOrderId');
+    if (urlSalesOrderId && !storedCheckoutData) {
+      setSalesOrderId(urlSalesOrderId);
+    }
   }, []);
 
-  // Calculate deposit information - map cart items to include category detection
-  const itemsWithCategories = cartItems.map(item => ({
-    ...item,
-    category: item.id === 'TORTCUS001' || item.name === 'Torta na mieru' || item.id.startsWith('custom-cake-') 
-      ? 'Torty na mieru' 
-      : item.id.startsWith('TORT') || (item.name && item.name.toLowerCase().includes('torta'))
-      ? 'Torty'
-      : 'Zákusky'
-  }));
-
-  const depositCalculation = calculateDeposit(itemsWithCategories);
-  const paymentOptions = getPaymentOptions(depositCalculation);
-  const selectedPaymentOption = paymentOptions.find(option => option.id === paymentAmount);
-  const finalAmount = selectedPaymentOption?.amount || depositCalculation.subtotal;
+  // Use server-provided payment options from checkout data
+  const paymentOptions = checkoutData?.paymentOptions || [];
+  const amounts = checkoutData?.amounts || { total: 0, deposit: 0, payNow: 0 };
 
   const handlePaymentSuccess = (paymentIntent: any) => {
     console.log('Payment successful:', paymentIntent);
     
-    // Clear cart and redirect to success page
+    // Clear checkout data and redirect to success page with order context
     localStorage.removeItem('cartItems');
+    localStorage.removeItem('checkoutData');
     localStorage.removeItem('checkoutItemNotes');
     
-    setLocation('/payment-success');
+    setLocation(`/payment-success?salesOrderId=${salesOrderId}&paymentIntentId=${paymentIntent.paymentIntentId || ''}`);
   };
 
   const handlePaymentError = (error: any) => {
@@ -83,15 +71,15 @@ export default function Payment() {
     setLocation('/order-success');
   };
 
-  if (cartItems.length === 0) {
+  if (!checkoutData || !salesOrderId) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto text-center">
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h1 className="text-2xl font-serif mb-4">Košík je prázdny</h1>
+            <h1 className="text-2xl font-serif mb-4">Údaje objednávky sa nenašli</h1>
             <p className="text-muted-foreground mb-8">
-              Zdá sa, že sa stratili údaje o vašej objednávke.
+              Zdá sa, že sa stratili údaje o vašej objednávke. Začnite prosím znovu.
             </p>
             <Button asChild>
               <a href="/obchod">Späť do obchodu</a>
@@ -127,41 +115,23 @@ export default function Payment() {
                   <CardTitle className="text-xl font-serif">Súhrn objednávky</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-4">
-                      <img 
-                        src={item.image}
-                        alt={item.name}
-                        className="w-12 h-12 object-cover rounded-md"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-medium">{item.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {item.quantity} × {formatPrice(item.price)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">
-                          {formatPrice(item.price * item.quantity)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <Separator />
-                  
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span>Medzisúčet:</span>
-                      <span>{formatPrice(depositCalculation.subtotal)}</span>
+                      <span>Číslo objednávky:</span>
+                      <span className="font-mono text-sm">{salesOrderId}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span>Celková suma:</span>
+                      <span>{formatPrice(amounts.total)}</span>
                     </div>
                     <div className="flex justify-between text-lg font-semibold">
                       <span>K úhrade:</span>
-                      <span data-testid="text-final-amount">{formatPrice(finalAmount)}</span>
+                      <span data-testid="text-final-amount">{formatPrice(amounts.payNow)}</span>
                     </div>
-                    {paymentAmount === 'deposit' && (
+                    {amounts.requiresDeposit && amounts.mode === 'deposit' && (
                       <p className="text-sm text-muted-foreground">
-                        Zvyšok {formatPrice(depositCalculation.subtotal - finalAmount)} uhradíte pri prevzatí
+                        Zvyšok {formatPrice(amounts.total - amounts.deposit)} uhradíte pri prevzatí
                       </p>
                     )}
                   </div>
@@ -174,9 +144,9 @@ export default function Payment() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <p><strong>Dátum:</strong> {deliveryDate}</p>
-                    <p><strong>Čas:</strong> {deliveryTime}</p>
-                    <p><strong>Platobná metóda:</strong> {paymentMethod === 'card' ? 'Platobná karta' : 'Hotovosť pri prevzatí'}</p>
+                    <p><strong>Dátum:</strong> {checkoutData?.deliveryDate}</p>
+                    <p><strong>Čas:</strong> {checkoutData?.deliveryTime}</p>
+                    <p><strong>Platobná metóda:</strong> {checkoutData?.paymentMethod === 'card' ? 'Platobná karta' : 'Hotovosť pri prevzatí'}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -184,23 +154,12 @@ export default function Payment() {
 
             {/* Right side - Payment form */}
             <div>
-              {paymentMethod === 'card' ? (
+              {checkoutData?.paymentMethod === 'card' ? (
                 <StripeCheckout
-                  amount={finalAmount}
+                  salesOrderId={salesOrderId}
+                  paymentMode={amounts.mode}
+                  amount={amounts.payNow}
                   currency="eur"
-                  metadata={{
-                    deliveryDate,
-                    deliveryTime,
-                    paymentType: paymentAmount,
-                    itemCount: cartItems.length.toString()
-                  }}
-                  orderData={{
-                    items: cartItems,
-                    deliveryDate,
-                    deliveryTime,
-                    paymentAmount,
-                    total: finalAmount
-                  }}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />
@@ -215,7 +174,7 @@ export default function Payment() {
                   <CardContent className="space-y-4">
                     <div className="p-4 bg-muted rounded-lg">
                       <p className="text-sm text-muted-foreground mb-2">Suma k úhrade pri prevzatí:</p>
-                      <p className="text-xl font-semibold">{formatPrice(finalAmount)}</p>
+                      <p className="text-xl font-semibold">{formatPrice(amounts.payNow)}</p>
                     </div>
                     
                     <div className="text-sm text-muted-foreground space-y-2">

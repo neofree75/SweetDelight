@@ -15,6 +15,7 @@ import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Checkout from "@/pages/Checkout";
 import Payment from "@/pages/Payment";
+import ExistingOrderPayment from "@/pages/ExistingOrderPayment";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import Billing from "@/pages/Billing";
 import Registration from "@/pages/Registration";
@@ -80,6 +81,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
         <Checkout cartItems={cartItems} />
       </Route>
       <Route path="/platba" component={Payment} />
+      <Route path="/payment-existing-order" component={ExistingOrderPayment} />
       <Route path="/payment-success" component={PaymentSuccess} />
       <Route path="/pokladna">
         <Billing cartItems={cartItems} user={user} onClearCart={onClearCart} />

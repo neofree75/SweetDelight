@@ -39,7 +39,6 @@ function useProducts() {
   });
 }
 
-const categories = ['Všetky' , 'Zákusky', 'Torty'];
 const PRODUCTS_PER_PAGE = 20;
 
 interface ShopProps {
@@ -55,6 +54,9 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
 
   // Fetch products from ERPNext
   const { data: allProducts = [], isLoading, error } = useProducts();
+
+  // Dynamicky generuj kategórie z produktov
+  const categories = ['Všetky', ...Array.from(new Set(allProducts.map(product => product.category).filter(Boolean))).sort()];
 
   // Reset stránku pri zmene filtrov
   useEffect(() => {

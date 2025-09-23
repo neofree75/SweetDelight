@@ -17,7 +17,6 @@ export default function Registration() {
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
     mobile: '',
     agreeTerms: false
   });
@@ -30,19 +29,10 @@ export default function Registration() {
     e.preventDefault();
     
     // Základná validácia
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
       toast({
         title: "Chyba validácie",
         description: "Prosím vyplňte všetky povinné polia",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      toast({
-        title: "Slabé heslo",
-        description: "Heslo musí mať aspoň 8 znakov",
         variant: "destructive"
       });
       return;
@@ -69,7 +59,6 @@ export default function Registration() {
           email: formData.email,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          password: formData.password,
           mobile: formData.mobile || undefined
         })
       });
@@ -170,20 +159,6 @@ export default function Registration() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Heslo *
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    placeholder="Minimálne 8 znakov"
-                    required
-                    data-testid="input-password"
-                  />
-                </div>
 
                 <div>
                   <Label htmlFor="mobile" className="text-sm font-medium">

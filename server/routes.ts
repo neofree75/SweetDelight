@@ -470,13 +470,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
-      const { email, firstName, lastName, password } = req.body;
+      const { email, firstName, lastName } = req.body;
       console.log('Registering new user:', email);
       
-      if (!email || !firstName || !lastName || !password) {
+      if (!email || !firstName || !lastName) {
         return res.status(400).json({ 
           error: "All fields are required",
-          message: "Email, meno, priezvisko a heslo sú povinné"
+          message: "Email, meno a priezvisko sú povinné"
         });
       }
 
@@ -486,14 +486,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           error: "Invalid email format",
           message: "Neplatný formát emailu"
-        });
-      }
-
-      // Validácia hesla
-      if (password.length < 8) {
-        return res.status(400).json({ 
-          error: "Password too short",
-          message: "Heslo musí mať aspoň 8 znakov"
         });
       }
 

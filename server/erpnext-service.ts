@@ -629,6 +629,28 @@ export class ERPNextService {
       }
 
       if (registrationSuccess) {
+        // Po úspešnej registrácii vytvor Customer záznam so skupinou "Internetový predaj"
+        try {
+          const customerData = {
+            customer_name: `${userData.first_name} ${userData.last_name}`,
+            customer_type: "Individual",
+            customer_group: "Internetový predaj",
+            territory: "Slovakia",
+            email_id: userData.email.toLowerCase(),
+            mobile_no: userData.mobile_no || ""
+          };
+
+          const customerId = await this.createCustomer(customerData);
+          if (customerId) {
+            console.log(`Customer ${customerId} created successfully with group "Internetový predaj"`);
+          } else {
+            console.warn('User registered but customer creation failed');
+          }
+        } catch (customerError) {
+          // Pokračuj aj keď sa Customer nevytvorí - User je už zaregistrovaný
+          console.warn('Customer creation failed during registration:', customerError);
+        }
+
         return {
           success: true,
           message: 'Registrácia bola úspešná'

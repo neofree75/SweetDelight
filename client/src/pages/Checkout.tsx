@@ -13,15 +13,7 @@ import { formatPrice } from '@/lib/format-price';
 import { calculateDeposit, getDepositReason, getPaymentOptions } from '@/lib/deposit-utils';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  additional_notes?: string;
-}
+import { CartItem } from '@shared/schema';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -45,9 +37,11 @@ export default function Checkout({ cartItems }: CheckoutProps) {
     retry: false
   });
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotalWithoutVat = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotalWithVat = cartItems.reduce((sum, item) => sum + (item.priceWithVat * item.quantity), 0);
+  const totalVat = subtotalWithVat - subtotalWithoutVat;
   const discount = 0; // Implementované neskôr s kupónmi
-  const total = subtotal - discount;
+  const total = subtotalWithVat - discount;
   
   // Calculate deposit information - map cart items to include category detection
   const itemsWithCategories = cartItems.map(item => ({
@@ -349,14 +343,23 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                 <CardTitle className="text-lg font-serif">Súhrn</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* VAT breakdown */}
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Spolu bez DPH:</span>
+                  <span data-testid="text-subtotal-without-vat">{formatPrice(subtotalWithoutVat)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>DPH:</span>
+                  <span data-testid="text-total-vat-amount">{formatPrice(totalVat)}</span>
+                </div>
                 <div className="flex justify-between">
-                  <span>Medzisúčet:</span>
-<span data-testid="text-subtotal">{formatPrice(subtotal)}</span>
+                  <span>Medzisúčet s DPH:</span>
+                  <span data-testid="text-subtotal-with-vat">{formatPrice(subtotalWithVat)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Zľava:</span>
-<span data-testid="text-discount">-{formatPrice(discount)}</span>
+                    <span data-testid="text-discount">-{formatPrice(discount)}</span>
                   </div>
                 )}
                 <Separator />

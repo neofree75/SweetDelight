@@ -10,6 +10,7 @@ This is a modern Slovak pastry shop e-commerce website called "Marsela Bakery". 
 - **Fixed user authentication integration**: Checkout now properly uses authenticated user data when available instead of placeholder information
 - **Enhanced security**: Implemented safe error logging that prevents exposure of authorization tokens in application logs
 - **Added concurrency protection**: Implemented mutex-like system to prevent duplicate customer creation during concurrent requests
+- **Implemented dynamic VAT rate fetching**: Added functionality to fetch actual VAT rate (23%) from ERPNext "Sales Taxes and Charges Template" instead of hardcoded 20%. System now uses template "Slovakia VAT 23% - D-Gcsro" with proper URL encoding and 5-minute caching for optimal performance.
 
 # User Preferences
 

@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { CartItem } from "@shared/schema";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
@@ -28,17 +29,12 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import ForgotPassword from "@/pages/ForgotPassword";
 import NotFound from "@/pages/not-found";
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-}
-
 interface User {
   email: string;
   name: string;
+  id?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user }: { 
@@ -250,11 +246,14 @@ function App() {
                     return [...prevItems, {
                       id: product.id,
                       name: product.name,
-                      price: product.price,
+                      price: product.price, // Cena bez DPH
                       quantity,
                       image: product.image,
                       additional_notes: additionalNotes || undefined,
-                      minOrderQuantity: product.minOrderQuantity || 1
+                      minOrderQuantity: product.minOrderQuantity || 1,
+                      // VAT information
+                      vatRate: product.vatRate,
+                      priceWithVat: product.priceWithVat
                     }];
                   }
                 });

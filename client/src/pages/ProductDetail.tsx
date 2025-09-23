@@ -113,7 +113,10 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
           ...product,
           id: variant.id,
           name: `${product.name} - ${variant.name}`,
-          price: variant.price
+          price: variant.price, // Cena bez DPH
+          // VAT information from variant or fallback to product defaults
+          vatRate: variant.vatRate || product.vatRate,
+          priceWithVat: variant.priceWithVat || (variant.price * (1 + (variant.vatRate || product.vatRate) / 100))
         };
       }
     }
@@ -215,19 +218,32 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                 </Badge>
               </div>
 
-              <div className="flex items-center gap-4 mb-6">
-                <span 
-                  className="text-3xl font-semibold text-primary"
-                  data-testid={`text-product-detail-price-${product.id}`}
-                >
-{formatPrice(product.price)}
-                </span>
+              <div className="space-y-2 mb-6">
+                {/* Price with VAT (main price) */}
+                <div className="flex items-center gap-4">
+                  <span 
+                    className="text-3xl font-semibold text-primary"
+                    data-testid={`text-product-detail-price-with-vat-${product.id}`}
+                  >
+                    {formatPrice(product.priceWithVat)}
+                  </span>
+                  
+                  {!product.inStock && (
+                    <Badge variant="destructive">
+                      Vypredané
+                    </Badge>
+                  )}
+                </div>
                 
-                {!product.inStock && (
-                  <Badge variant="destructive">
-                    Vypredané
-                  </Badge>
-                )}
+                {/* Price without VAT and VAT rate */}
+                <div className="flex items-center gap-4 text-lg text-muted-foreground">
+                  <span data-testid={`text-product-detail-price-without-vat-${product.id}`}>
+                    bez DPH: {formatPrice(product.price)}
+                  </span>
+                  <span data-testid={`text-product-detail-vat-rate-${product.id}`}>
+                    DPH {product.vatRate}%
+                  </span>
+                </div>
               </div>
 
               <p 
@@ -286,9 +302,14 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                                 </div>
                               )}
                               {variant.price !== undefined && variant.price !== product.price && (
-                                <p className="text-sm text-primary font-medium mt-2">
-                                  €{variant.price.toFixed(2)}
-                                </p>
+                                <div className="text-sm mt-2 space-y-1">
+                                  <p className="text-primary font-medium">
+                                    {formatPrice(variant.priceWithVat || variant.price * 1.2)}
+                                  </p>
+                                  <p className="text-muted-foreground text-xs">
+                                    bez DPH: {formatPrice(variant.price)} | DPH {variant.vatRate || 20}%
+                                  </p>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -391,14 +412,14 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                         data-testid={`text-total-price-detail-${product.id}`}
                       >
 {(() => {
-                          let price = product.price;
+                          let priceWithVat = product.priceWithVat;
                           if (selectedVariant && product.variants) {
                             const variant = product.variants.find(v => v.id === selectedVariant);
-                            if (variant && variant.price !== undefined) {
-                              price = variant.price;
+                            if (variant && variant.priceWithVat !== undefined) {
+                              priceWithVat = variant.priceWithVat;
                             }
                           }
-                          return formatPrice(price * quantity);
+                          return formatPrice(priceWithVat * quantity);
                         })()}
                       </span>
                     </div>

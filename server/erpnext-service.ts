@@ -8,6 +8,7 @@ import {
   ERPNextSalesInvoice,
   ERPNextPaymentEntry,
   ERPNextItemAttribute,
+  ERPNextSalesTaxesAndChargesTemplate,
   Product,
   CustomCakeAttribute,
   CustomCakeAttributeValue
@@ -19,7 +20,9 @@ export class ERPNextService {
   private apiKey: string;
   private apiSecret: string;
   private productCache: { data: Product[]; timestamp: number } | null = null;
+  private vatRateCache: { rate: number; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
+  private readonly VAT_CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre sadzbu DPH
   private customerCreationLocks: Map<string, Promise<string | null>> = new Map();
 
   constructor() {
@@ -535,6 +538,58 @@ export class ERPNextService {
     console.log('Product cache cleared');
   }
 
+  // Načítanie predvolenej sadzby DPH z ERPNext Sales Taxes and Charges Template
+  async getDefaultVATRate(): Promise<number> {
+    try {
+      // Skontrolovať cache
+      if (this.vatRateCache && Date.now() - this.vatRateCache.timestamp < this.VAT_CACHE_DURATION) {
+        return this.vatRateCache.rate;
+      }
+
+      console.log('Fetching default VAT rate from ERPNext...');
+      
+      // Načítať predvolenú šablónu daní
+      const response = await this.client.get(`/resource/Sales Taxes and Charges Template`, {
+        params: {
+          filters: JSON.stringify([['is_default', '=', 1]]),
+          fields: JSON.stringify(['name', 'taxes']),
+          limit: 1
+        }
+      });
+
+      if (response.data?.data && response.data.data.length > 0) {
+        const template = response.data.data[0];
+        
+        // Načítať podrobnosti šablóny vrátane daní (správne enkódovať názov)
+        const encodedTemplateName = encodeURIComponent(template.name);
+        const detailResponse = await this.client.get(`/resource/Sales Taxes and Charges Template/${encodedTemplateName}`);
+        
+        if (detailResponse.data?.data && detailResponse.data.data.taxes && detailResponse.data.data.taxes.length > 0) {
+          // Vziať prvú sadzbu z prvej dane v šablóne (obvykle DPH)
+          const firstTax = detailResponse.data.data.taxes[0];
+          const vatRate = parseFloat(firstTax.rate) || 20;
+          
+          console.log(`Loaded VAT rate from ERPNext template "${template.name}": ${vatRate}%`);
+          
+          // Uložiť do cache
+          this.vatRateCache = {
+            rate: vatRate,
+            timestamp: Date.now()
+          };
+          
+          return vatRate;
+        }
+      }
+      
+      console.warn('No default tax template found in ERPNext, using 20% VAT rate');
+      return 20;
+    } catch (error) {
+      console.error('Error fetching VAT rate from ERPNext:', error);
+      // Fallback na slovenskú štandardnú sadzbu DPH
+      return 20;
+    }
+  }
+
   // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
     this.refreshClient();
@@ -550,6 +605,8 @@ export class ERPNextService {
       return [];
     }
 
+    // Načítať sadzbu DPH raz pre všetky produkty
+    const vatRate = await this.getDefaultVATRate();
 
     // Transform items to products
     const products = await Promise.all(items.map(async item => {
@@ -561,22 +618,33 @@ export class ERPNextService {
         imageUrl = item.image;
       }
 
+      // Calculate VAT information using rate from ERPNext tax template
+
+      const priceWithoutVat = item.valuation_rate || 0;
+      const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
+
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
       console.log(`Debug: Checking variants for ${item.name}, has_variants: ${item.has_variants}`);
       if (Boolean(item.has_variants)) {
         console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);
-        variants = itemVariants.map(variant => ({
-          id: variant.name,
-          name: variant.item_name,
-          minOrderQuantity: Number(variant.custom_min_mnozstvo_obj_predaj) || 1,
-          attributes: (variant.attributes || []).map(attr => ({
-            attribute: attr.attribute,
-            value: attr.attribute_value || ''
-          })),
-          price: variant.valuation_rate || 0
-        }));
+        variants = itemVariants.map(variant => {
+          const variantPriceWithoutVat = variant.valuation_rate || 0;
+          const variantPriceWithVat = variantPriceWithoutVat * (1 + vatRate / 100);
+          return {
+            id: variant.name,
+            name: variant.item_name,
+            minOrderQuantity: Number(variant.custom_min_mnozstvo_obj_predaj) || 1,
+            attributes: (variant.attributes || []).map(attr => ({
+              attribute: attr.attribute,
+              value: attr.attribute_value || ''
+            })),
+            price: variantPriceWithoutVat, // Cena bez DPH
+            vatRate: vatRate, // Sadzba DPH v percentách
+            priceWithVat: Math.round(variantPriceWithVat * 100) / 100, // Cena s DPH
+          };
+        });
         console.log(`Debug: Mapped ${variants.length} variants for ${item.name}`);
       }
 
@@ -584,13 +652,15 @@ export class ERPNextService {
         id: item.name,
         name: item.item_name,
         description: item.description || '',
-        price: item.valuation_rate || 0,
+        price: priceWithoutVat, // Cena bez DPH
         image: imageUrl,
         category: item.item_group,
         inStock: !item.disabled,
         minOrderQuantity: Number(item.custom_min_mnozstvo_obj_predaj) || 1,
         hasVariants: item.has_variants || false,
-        variants: variants
+        variants: variants,
+        vatRate: vatRate, // Sadzba DPH v percentách
+        priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
       };
     }));
 
@@ -641,33 +711,46 @@ export class ERPNextService {
         imageUrl = item.image;
       }
 
+      // Calculate VAT information using rate from ERPNext tax template
+
+      const priceWithoutVat = item.valuation_rate || 0;
+      const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
+
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
       if (Boolean(item.has_variants)) {
         const itemVariants = await this.getItemVariants(item.name);
-        variants = itemVariants.map(variant => ({
-          id: variant.name,
-          name: variant.item_name,
-          minOrderQuantity: Number(variant.custom_min_mnozstvo_obj_predaj) || 1,
-          attributes: (variant.attributes || []).map(attr => ({
-            attribute: attr.attribute,
-            value: attr.attribute_value || ''
-          })),
-          price: variant.valuation_rate || 0
-        }));
+        variants = itemVariants.map(variant => {
+          const variantPriceWithoutVat = variant.valuation_rate || 0;
+          const variantPriceWithVat = variantPriceWithoutVat * (1 + vatRate / 100);
+          return {
+            id: variant.name,
+            name: variant.item_name,
+            minOrderQuantity: Number(variant.custom_min_mnozstvo_obj_predaj) || 1,
+            attributes: (variant.attributes || []).map(attr => ({
+              attribute: attr.attribute,
+              value: attr.attribute_value || ''
+            })),
+            price: variantPriceWithoutVat, // Cena bez DPH
+            vatRate: vatRate, // Sadzba DPH v percentách
+            priceWithVat: Math.round(variantPriceWithVat * 100) / 100, // Cena s DPH
+          };
+        });
       }
 
       return {
         id: item.name,
         name: item.item_name,
         description: item.description || '',
-        price: item.valuation_rate || 0,
+        price: priceWithoutVat, // Cena bez DPH
         image: imageUrl,
         category: item.item_group,
         inStock: !item.disabled,
         minOrderQuantity: Number(item.custom_min_mnozstvo_obj_predaj) || 1,
         hasVariants: item.has_variants || false,
-        variants: variants
+        variants: variants,
+        vatRate: vatRate, // Sadzba DPH v percentách
+        priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
       };
       
     } catch (error) {

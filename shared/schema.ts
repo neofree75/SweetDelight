@@ -21,6 +21,12 @@ export const erpNextItemSchema = z.object({
     attribute: z.string(),
     attribute_value: z.string().optional()
   })).optional(), // Atribúty produktu/variantu
+  // VAT/Tax related fields
+  taxes: z.array(z.object({
+    item_tax_template: z.string().optional(), // Tax template name
+    tax_category: z.string().optional(), // Tax category
+    tax_rate: z.number().optional() // Tax rate percentage
+  })).optional(), // Item taxes from ERPNext
 });
 
 // ERPNext Item Variant schema for individual variants
@@ -123,13 +129,28 @@ export const erpNextPaymentEntrySchema = z.object({
   })).optional(),
 });
 
+// ERPNext Sales Taxes and Charges Template schema
+export const erpNextSalesTaxesAndChargesTemplateSchema = z.object({
+  name: z.string(), // Template name
+  title: z.string().optional(), // Display title
+  is_default: z.boolean().default(false), // Je predvolená šablóna
+  company: z.string().optional(), // Spoločnosť
+  taxes: z.array(z.object({
+    charge_type: z.string(), // "On Net Total", "On Previous Row Total", etc.
+    account_head: z.string(), // Tax account
+    description: z.string().optional(), // Popis dane
+    rate: z.number(), // Sadzba dane v percentách
+    tax_amount: z.number().optional(), // Suma dane
+  })).optional(),
+});
+
 
 // Frontend Product schema (simplified for UI)
 export const productSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  price: z.number(),
+  price: z.number(), // Cena bez DPH
   image: z.string(),
   category: z.string(),
   inStock: z.boolean(),
@@ -143,8 +164,13 @@ export const productSchema = z.object({
       attribute: z.string(),
       value: z.string()
     })),
-    price: z.number().optional()
+    price: z.number().optional(), // Cena bez DPH
+    vatRate: z.number().optional(), // Sadzba DPH v percentách
+    priceWithVat: z.number().optional(), // Cena s DPH
   })).optional(), // Dostupné varianty produktu
+  // VAT information
+  vatRate: z.number().default(0), // Sadzba DPH v percentách (napr. 20 pre 20%)
+  priceWithVat: z.number(), // Cena s DPH
 });
 
 // Frontend Customer schema (for checkout form)
@@ -162,10 +188,14 @@ export const customerSchema = z.object({
 export const cartItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  price: z.number(),
+  price: z.number(), // Cena bez DPH
   quantity: z.number().min(1),
   image: z.string(),
   additional_notes: z.string().optional(),
+  minOrderQuantity: z.number().default(1), // Minimálne množstvo pre objednanie
+  // VAT information
+  vatRate: z.number().default(0), // Sadzba DPH v percentách
+  priceWithVat: z.number(), // Cena s DPH
 });
 
 // Frontend Order schema
@@ -224,6 +254,7 @@ export type ERPNextCustomer = z.infer<typeof erpNextCustomerSchema>;
 export type ERPNextSalesOrder = z.infer<typeof erpNextSalesOrderSchema>;
 export type ERPNextSalesInvoice = z.infer<typeof erpNextSalesInvoiceSchema>;
 export type ERPNextPaymentEntry = z.infer<typeof erpNextPaymentEntrySchema>;
+export type ERPNextSalesTaxesAndChargesTemplate = z.infer<typeof erpNextSalesTaxesAndChargesTemplateSchema>;
 
 // Schema pre objednávky zobrazované v frontend (z ERPNext)
 export const userOrderSchema = z.object({
@@ -258,12 +289,12 @@ export const invoiceSchema = z.object({
   status: z.string(), // Stav faktúry
 });
 
+// All type exports
 export type UserOrder = z.infer<typeof userOrderSchema>;
 export type ERPNextItemAttribute = z.infer<typeof erpNextItemAttributeSchema>;
-
 export type Product = z.infer<typeof productSchema>;
-export type Customer = z.infer<typeof customerSchema>;
 export type CartItem = z.infer<typeof cartItemSchema>;
+export type Customer = z.infer<typeof customerSchema>;
 export type Order = z.infer<typeof orderSchema>;
 export type Invoice = z.infer<typeof invoiceSchema>;
 export type CustomCakeAttribute = z.infer<typeof customCakeAttributeSchema>;

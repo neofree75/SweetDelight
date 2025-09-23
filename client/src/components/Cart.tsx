@@ -5,16 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
-
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  additional_notes?: string;
-  minOrderQuantity?: number; // Minimálne množstvo pre objednanie
-}
+import { CartItem } from '@shared/schema';
 
 interface CartProps {
   items: CartItem[];
@@ -36,7 +27,9 @@ export default function Cart({
   const [quantityErrors, setQuantityErrors] = useState<{ [key: string]: string }>({});
   const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalPriceWithoutVat = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalPriceWithVat = items.reduce((sum, item) => sum + (item.priceWithVat * item.quantity), 0);
+  const totalVat = totalPriceWithVat - totalPriceWithoutVat;
 
   const handleQuantityInputChange = (item: CartItem, e: React.ChangeEvent<HTMLInputElement>) => {
     const inputVal = e.target.value;
@@ -228,9 +221,20 @@ export default function Cart({
 
           {items.length > 0 && (
             <div className="border-t border-card-border p-6 space-y-4">
-              <div className="flex items-center justify-between text-lg font-semibold">
-                <span>Celkom:</span>
-<span data-testid="text-cart-total">{formatPrice(totalPrice)}</span>
+              {/* VAT breakdown */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Spolu bez DPH:</span>
+                  <span data-testid="text-cart-total-without-vat">{formatPrice(totalPriceWithoutVat)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>DPH:</span>
+                  <span data-testid="text-cart-total-vat">{formatPrice(totalVat)}</span>
+                </div>
+                <div className="flex items-center justify-between text-lg font-semibold border-t border-card-border pt-2">
+                  <span>Celkom s DPH:</span>
+                  <span data-testid="text-cart-total-with-vat">{formatPrice(totalPriceWithVat)}</span>
+                </div>
               </div>
               
               <Button 

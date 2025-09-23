@@ -122,19 +122,32 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
           {product.description}
         </p>
         
-        <div className="flex items-center justify-between">
-          <span 
-            className="text-xl font-semibold text-primary"
-            data-testid={`text-product-price-${product.id}`}
-          >
-{formatPrice(product.price)}
-          </span>
+        <div className="space-y-1">
+          {/* Price with VAT (main price) */}
+          <div className="flex items-center justify-between">
+            <span 
+              className="text-xl font-semibold text-primary"
+              data-testid={`text-product-price-with-vat-${product.id}`}
+            >
+              {formatPrice(product.priceWithVat)}
+            </span>
+            
+            {!product.inStock && (
+              <Badge variant="destructive" className="text-xs">
+                Vypredané
+              </Badge>
+            )}
+          </div>
           
-          {!product.inStock && (
-            <Badge variant="destructive" className="text-xs">
-              Vypredané
-            </Badge>
-          )}
+          {/* Price without VAT and VAT rate */}
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span data-testid={`text-product-price-without-vat-${product.id}`}>
+              bez DPH: {formatPrice(product.price)}
+            </span>
+            <span data-testid={`text-product-vat-rate-${product.id}`}>
+              DPH {product.vatRate}%
+            </span>
+          </div>
         </div>
       </CardContent>
       

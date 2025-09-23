@@ -69,7 +69,7 @@ export class ERPNextService {
       };
     }
 
-    const company = process.env.ERPNEXT_COMPANY;
+    const company = process.env.ERPNEXT_COMPANY || 'DEMO - Glam cake s. r. o.';
     if (!company || company === 'Your Company Name') {
       return {
         valid: false,

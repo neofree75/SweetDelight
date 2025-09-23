@@ -642,6 +642,20 @@ export class ERPNextService {
       console.error('Error registering user in ERPNext:', error);
       
       if (axios.isAxiosError(error)) {
+        // Check for specific ERPNext validation error messages
+        if (error.response?.data?.exception) {
+          const exception = error.response.data.exception;
+          if (typeof exception === 'string') {
+            // Extract user-friendly message from ValidationError
+            if (exception.includes('už existuje')) {
+              return {
+                success: false,
+                message: 'Používateľ s týmto emailom už existuje'
+              };
+            }
+          }
+        }
+        
         if (error.response?.data?.message) {
           return {
             success: false,

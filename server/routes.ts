@@ -467,6 +467,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User registration endpoint
+  app.post("/api/register", async (req, res) => {
+    try {
+      const { email, firstName, lastName, password } = req.body;
+      console.log('Registering new user:', email);
+      
+      if (!email || !firstName || !lastName || !password) {
+        return res.status(400).json({ 
+          error: "All fields are required",
+          message: "Email, meno, priezvisko a heslo sú povinné"
+        });
+      }
+
+      // Validácia emailu
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ 
+          error: "Invalid email format",
+          message: "Neplatný formát emailu"
+        });
+      }
+
+      // Validácia hesla
+      if (password.length < 8) {
+        return res.status(400).json({ 
+          error: "Password too short",
+          message: "Heslo musí mať aspoň 8 znakov"
+        });
+      }
+
+      // Use ERPNext registration service
+      const registrationResult = await erpNextService.registerUser({
+        email: email.toLowerCase(),
+        first_name: firstName,
+        last_name: lastName,
+        mobile_no: '' // ERPNext vyžaduje tento parameter, aj keď je prázdny
+      });
+      
+      if (!registrationResult.success) {
+        return res.status(400).json({ 
+          error: "Registration failed",
+          message: registrationResult.message
+        });
+      }
+
+      res.json({
+        success: true,
+        message: registrationResult.message
+      });
+
+    } catch (error) {
+      console.error("Error during registration:", error);
+      res.status(500).json({ 
+        error: "Registration failed",
+        message: "Chyba pri registrácii"
+      });
+    }
+  });
+
   app.post("/api/logout", async (req, res) => {
     try {
       req.session.destroy((err) => {

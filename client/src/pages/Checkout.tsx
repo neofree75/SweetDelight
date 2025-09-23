@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,13 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  // Get user profile if logged in
+  const { data: userProfile } = useQuery({
+    queryKey: ['/api/profile'],
+    staleTime: 300000,
+    retry: false
+  });
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const discount = 0; // Implementované neskôr s kupónmi
@@ -98,13 +106,17 @@ export default function Checkout({ cartItems }: CheckoutProps) {
         };
       });
 
-      // Get customer info - for now use placeholder data
-      // TODO: Get actual customer info from login session or checkout form
-      const customerInfo = {
+      // Get customer info from user session if logged in, otherwise use placeholder data
+      const customerInfo = (userProfile && typeof userProfile === 'object' && 'email' in userProfile) ? {
+        firstName: (userProfile as any).firstName || (userProfile as any).name || 'Guest',
+        lastName: (userProfile as any).lastName || 'Customer',  
+        email: (userProfile as any).email || 'guest@marsela.sk',
+        phone: (userProfile as any).mobile || '+421000000000'
+      } : {
         firstName: 'Guest',
         lastName: 'Customer',
-        email: 'guest@marsela.sk', // This should come from login or checkout form
-        phone: '+421000000000' // This should come from checkout form
+        email: 'guest@marsela.sk',
+        phone: '+421000000000'
       };
 
       const deliveryInfo = {
@@ -153,9 +165,32 @@ export default function Checkout({ cartItems }: CheckoutProps) {
 
     } catch (error: any) {
       console.error('Error starting checkout process:', error);
+      let errorMessage = "Nepodarilo sa vytvoriť objednávku. Skúste to znovu.";
+      
+      if (error && error.message) {
+        // Extract the actual error message from the formatted error string
+        // Format is usually "400: {"error":"Invalid cart items"}"
+        const match = error.message.match(/\d+:\s*(.+)/);
+        if (match) {
+          try {
+            const errorData = JSON.parse(match[1]);
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+          } catch {
+            // If JSON parsing fails, use the original message
+            errorMessage = match[1];
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Chyba pri vytváraní objednávky",
-        description: error.message || "Nepodarilo sa vytvoriť objednávku. Skúste to znovu.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

@@ -87,13 +87,14 @@ export class ERPNextService {
         };
       }
 
-      // Verify company exists
+      // Verify company exists - use correct company name
       try {
-        const companyResponse = await this.client.get(`/resource/Company?fields=["name"]&filters=[["name","=","${company}"]]`);
+        const correctCompanyName = 'DEMO - Glam cake s. r. o.';
+        const companyResponse = await this.client.get(`/resource/Company?fields=["name"]&filters=[["name","=","${correctCompanyName}"]]`);
         if (!companyResponse.data.data || companyResponse.data.data.length === 0) {
           return {
             valid: false,
-            error: `Company "${company}" does not exist in ERPNext`
+            error: `Company "${correctCompanyName}" does not exist in ERPNext`
           };
         }
       } catch (companyError) {

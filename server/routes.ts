@@ -470,8 +470,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
-      const { email, firstName, lastName } = req.body;
-      console.log('Registering new user:', email);
+      const { email, firstName, lastName, mobile } = req.body;
+      console.log('Registering new user:', email, 'with mobile:', mobile);
       
       if (!email || !firstName || !lastName) {
         return res.status(400).json({ 
@@ -494,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: email.toLowerCase(),
         first_name: firstName,
         last_name: lastName,
-        mobile_no: '' // ERPNext vyžaduje tento parameter, aj keď je prázdny
+        mobile_no: mobile || '' // Použi mobilné číslo ak je zadané
       });
       
       if (!registrationResult.success) {

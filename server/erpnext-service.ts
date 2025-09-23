@@ -261,7 +261,35 @@ export class ERPNextService {
       email_id: customerData.email_id?.trim().toLowerCase()
     };
     
-    return await this.createCustomer(normalizedCustomerData);
+    try {
+      const customerId = await this.createCustomer(normalizedCustomerData);
+      if (customerId) {
+        return customerId;
+      }
+      
+      // Ak sa customer nevytvoril, pokús sa ho nájsť znovu (možno ho medzitým vytvoril iný proces)
+      if (normalizedCustomerData.email_id) {
+        const existingCustomer = await this.findCustomerByEmail(normalizedCustomerData.email_id);
+        if (existingCustomer) {
+          console.log(`Found existing customer after creation failed: ${existingCustomer.customerId}`);
+          return existingCustomer.customerId;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      // Ak nastala chyba pri vytváraní, skús znovu nájsť zákazníka (možno je to duplicate error)
+      if (normalizedCustomerData.email_id) {
+        const existingCustomer = await this.findCustomerByEmail(normalizedCustomerData.email_id);
+        if (existingCustomer) {
+          console.log(`Found existing customer after creation error: ${existingCustomer.customerId}`);
+          return existingCustomer.customerId;
+        }
+      }
+      
+      console.error('Error in findOrCreateCustomer:', error);
+      return null;
+    }
   }
 
   // Create sales order in ERPNext
@@ -640,11 +668,11 @@ export class ERPNextService {
             mobile_no: userData.mobile_no || ""
           };
 
-          const customerId = await this.createCustomer(customerData);
+          const customerId = await this.findOrCreateCustomer(customerData);
           if (customerId) {
-            console.log(`Customer ${customerId} created successfully with group "Internetový predaj"`);
+            console.log(`Customer ${customerId} created/found successfully with group "Internetový predaj"`);
           } else {
-            console.warn('User registered but customer creation failed');
+            console.warn('User registered but customer creation/lookup failed');
           }
         } catch (customerError) {
           // Pokračuj aj keď sa Customer nevytvorí - User je už zaregistrovaný

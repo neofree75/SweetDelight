@@ -418,7 +418,7 @@ export class ERPNextService {
       // Create Sales Invoice based on Sales Order
       const salesInvoiceData = {
         customer: overrideCustomerId || salesOrder.customer,
-        company: salesOrder.company || process.env.ERPNEXT_COMPANY,
+        company: salesOrder.company || 'DEMO - Glam cake s. r. o.',
         posting_date: new Date().toISOString().split('T')[0],
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
         currency: salesOrder.currency || 'EUR',
@@ -505,7 +505,7 @@ export class ERPNextService {
         payment_type: 'Receive',
         party_type: 'Customer',
         party: salesOrder.customer,
-        company: salesOrder.company || process.env.ERPNEXT_COMPANY || '',
+        company: salesOrder.company || 'DEMO - Glam cake s. r. o.',
         mode_of_payment: 'Card Payment',
         paid_amount: amount,
         received_amount: amount,
@@ -1105,7 +1105,8 @@ export class ERPNextService {
         // Fallback: if no primary address, try to find first address for this customer
         if (!primaryAddress) {
           try {
-            const addressListResponse = await this.client.get(`/resource/Address?filters=[["link_doctype","=","Customer"],["link_name","=","${customer.name}"]]&fields=["name","address_line1","address_line2","city","state","pincode","country"]&limit_page_length=1`);
+            // Use Dynamic Link instead of link_doctype/link_name which are no longer allowed
+            const addressListResponse = await this.client.get(`/resource/Address?filters=[["Dynamic Link.link_doctype","=","Customer"],["Dynamic Link.link_name","=","${customer.name}"]]&fields=["name","address_line1","address_line2","city","state","pincode","country"]&limit_page_length=1`);
             if (addressListResponse.data.data && addressListResponse.data.data.length > 0) {
               primaryAddress = addressListResponse.data.data[0];
               console.log('Fallback address found:', primaryAddress.name);

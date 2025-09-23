@@ -2,6 +2,15 @@
 
 This is a modern Slovak pastry shop e-commerce website called "Marsela Bakery". The application is built as a full-stack TypeScript solution that integrates with ERPNext ERP system for product management, inventory, and order processing. The frontend provides a beautiful artisan bakery experience with product browsing, cart functionality, and order placement, while the backend handles ERPNext integration and session management.
 
+## Recent Fixes (September 2025)
+
+- **Fixed checkout "Pokračovať na platbu" error**: Resolved ERPNext company validation issue by ensuring correct company name "DEMO - Glam cake s. r. o." is used in all Sales Order creation calls
+- **Fixed address query errors**: Updated ERPNext API calls to use "Dynamic Link.link_doctype" instead of deprecated "link_doctype" field
+- **Improved error handling**: Enhanced frontend error parsing to display meaningful error messages from backend API responses
+- **Fixed user authentication integration**: Checkout now properly uses authenticated user data when available instead of placeholder information
+- **Enhanced security**: Implemented safe error logging that prevents exposure of authorization tokens in application logs
+- **Added concurrency protection**: Implemented mutex-like system to prevent duplicate customer creation during concurrent requests
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

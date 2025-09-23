@@ -325,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const salesOrderId = await erpNextService.createSalesOrder({
           customer: customerId,
-          company: process.env.ERPNEXT_COMPANY || "DEMO - Glam cake s. r. o.",
+          company: 'DEMO - Glam cake s. r. o.',
           delivery_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
           transaction_date: new Date().toISOString().split('T')[0],
           items: salesOrderItems,
@@ -853,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create Sales Order directly with authenticated user's customer
           const salesOrderData = {
             customer: customerId,
-            company: process.env.ERPNEXT_COMPANY || 'DEMO - Glam cake s. r. o.',
+            company: 'DEMO - Glam cake s. r. o.',
             delivery_date: deliveryInfo.date,
             transaction_date: new Date().toISOString().split('T')[0],
             items: cartItems.map((item: any) => ({
@@ -1320,7 +1320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             payment_type: 'Receive' as const,
             party_type: 'Customer' as const,
             party: invoiceCustomerId,
-            company: process.env.ERPNEXT_COMPANY || 'DEMO - Glam cake s. r. o.',
+            company: 'DEMO - Glam cake s. r. o.',
             mode_of_payment: 'Card Payment',
             paid_amount: parseFloat(expectedAmount),
             received_amount: parseFloat(expectedAmount),

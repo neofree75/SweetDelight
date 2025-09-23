@@ -20,6 +20,7 @@ export class ERPNextService {
   private apiSecret: string;
   private productCache: { data: Product[]; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
+  private customerCreationLocks: Map<string, Promise<string | null>> = new Map();
 
   constructor() {
     this.baseUrl = '';
@@ -27,6 +28,32 @@ export class ERPNextService {
     this.apiSecret = '';
     this.client = axios.create(); // Placeholder, will be set in refreshClient
     this.refreshClient();
+  }
+
+  // Safely log errors without exposing sensitive information like authorization tokens
+  private logError(context: string, error: any) {
+    if (axios.isAxiosError(error)) {
+      // Extract only safe information from Axios errors
+      const safeErrorInfo = {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url,
+        method: error.config?.method,
+        code: error.code,
+        // Include response data but not request config/headers
+        responseData: error.response?.data
+      };
+      console.error(context, safeErrorInfo);
+    } else if (error instanceof Error) {
+      console.error(context, {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
+    } else {
+      console.error(context, 'Unknown error:', String(error));
+    }
   }
 
   // Refresh the axios client with current environment variables
@@ -145,7 +172,7 @@ export class ERPNextService {
 
       return response.data.data || [];
     } catch (error) {
-      console.error('Error fetching items from ERPNext:', error);
+      this.logError('Error fetching items from ERPNext:', error);
       return [];
     }
   }
@@ -202,7 +229,7 @@ export class ERPNextService {
 
       return null;
     } catch (error) {
-      console.error('Error searching for customer in ERPNext:', error);
+      this.logError('Error searching for customer in ERPNext:', error);
       return null;
     }
   }
@@ -230,35 +257,61 @@ export class ERPNextService {
 
       return response.data.data.name;
     } catch (error) {
-      console.error('Error creating customer in ERPNext:', error);
+      this.logError('Error creating customer in ERPNext:', error);
       return null;
     }
   }
 
-  // Find or create customer in ERPNext
+  // Find or create customer in ERPNext with concurrency protection
   async findOrCreateCustomer(customerData: Omit<ERPNextCustomer, 'name'>): Promise<string | null> {
     this.refreshClient();
+    
+    if (!customerData.email_id) {
+      return await this.createCustomer(customerData);
+    }
+
+    const normalizedEmail = customerData.email_id.trim().toLowerCase();
+    
+    // Check if there's already a creation operation in progress for this email
+    const existingLock = this.customerCreationLocks.get(normalizedEmail);
+    if (existingLock) {
+      console.log(`Waiting for existing customer creation operation for: ${normalizedEmail}`);
+      return await existingLock;
+    }
+
+    // Create new creation operation for this email
+    const creationPromise = this.doFindOrCreateCustomer(customerData, normalizedEmail);
+    this.customerCreationLocks.set(normalizedEmail, creationPromise);
+    
+    try {
+      const result = await creationPromise;
+      return result;
+    } finally {
+      // Clean up the lock regardless of success or failure
+      this.customerCreationLocks.delete(normalizedEmail);
+    }
+  }
+
+  // Internal method that actually performs the find-or-create logic
+  private async doFindOrCreateCustomer(customerData: Omit<ERPNextCustomer, 'name'>, normalizedEmail: string): Promise<string | null> {
     // Najprv sa pokús nájsť existujúceho zákazníka
-    if (customerData.email_id) {
-      const normalizedEmail = customerData.email_id.trim().toLowerCase();
-      const existingCustomer = await this.findCustomerByEmail(normalizedEmail);
-      
-      if (existingCustomer) {
-        // Ak zákazník existuje ale má inú skupinu, aktualizuj ju
-        if (existingCustomer.needsGroupUpdate) {
-          const updated = await this.updateCustomerGroup(existingCustomer.customerId, "Internetový predaj");
-          if (updated) {
-            console.log(`Customer ${existingCustomer.customerId} updated to "Internetový predaj" group`);
-          }
+    const existingCustomer = await this.findCustomerByEmail(normalizedEmail);
+    
+    if (existingCustomer) {
+      // Ak zákazník existuje ale má inú skupinu, aktualizuj ju
+      if (existingCustomer.needsGroupUpdate) {
+        const updated = await this.updateCustomerGroup(existingCustomer.customerId, "Internetový predaj");
+        if (updated) {
+          console.log(`Customer ${existingCustomer.customerId} updated to "Internetový predaj" group`);
         }
-        return existingCustomer.customerId;
       }
+      return existingCustomer.customerId;
     }
 
     // Ak zákazník neexistuje, vytvor nového s normalizovaným emailom
     const normalizedCustomerData = {
       ...customerData,
-      email_id: customerData.email_id?.trim().toLowerCase()
+      email_id: normalizedEmail
     };
     
     try {
@@ -268,26 +321,22 @@ export class ERPNextService {
       }
       
       // Ak sa customer nevytvoril, pokús sa ho nájsť znovu (možno ho medzitým vytvoril iný proces)
-      if (normalizedCustomerData.email_id) {
-        const existingCustomer = await this.findCustomerByEmail(normalizedCustomerData.email_id);
-        if (existingCustomer) {
-          console.log(`Found existing customer after creation failed: ${existingCustomer.customerId}`);
-          return existingCustomer.customerId;
-        }
+      const existingCustomer = await this.findCustomerByEmail(normalizedEmail);
+      if (existingCustomer) {
+        console.log(`Found existing customer after creation failed: ${existingCustomer.customerId}`);
+        return existingCustomer.customerId;
       }
       
       return null;
     } catch (error) {
       // Ak nastala chyba pri vytváraní, skús znovu nájsť zákazníka (možno je to duplicate error)
-      if (normalizedCustomerData.email_id) {
-        const existingCustomer = await this.findCustomerByEmail(normalizedCustomerData.email_id);
-        if (existingCustomer) {
-          console.log(`Found existing customer after creation error: ${existingCustomer.customerId}`);
-          return existingCustomer.customerId;
-        }
+      const existingCustomer = await this.findCustomerByEmail(normalizedEmail);
+      if (existingCustomer) {
+        console.log(`Found existing customer after creation error: ${existingCustomer.customerId}`);
+        return existingCustomer.customerId;
       }
       
-      console.error('Error in findOrCreateCustomer:', error);
+      this.logError('Error in doFindOrCreateCustomer:', error);
       return null;
     }
   }
@@ -300,7 +349,7 @@ export class ERPNextService {
 
       return response.data.data.name;
     } catch (error) {
-      console.error('Error creating sales order in ERPNext:', error);
+      this.logError('Error creating sales order in ERPNext:', error);
       return null;
     }
   }
@@ -690,7 +739,7 @@ export class ERPNextService {
         };
       }
     } catch (error) {
-      console.error('Error registering user in ERPNext:', error);
+      this.logError('Error registering user in ERPNext:', error);
       
       if (axios.isAxiosError(error)) {
         // Check for specific ERPNext validation error messages
@@ -779,7 +828,7 @@ export class ERPNextService {
         };
       }
     } catch (error) {
-      console.error('Error updating password in ERPNext:', error);
+      this.logError('Error updating password in ERPNext:', error);
       
       if (axios.isAxiosError(error)) {
         if (error.response?.data?.message) {
@@ -1110,7 +1159,7 @@ export class ERPNextService {
         };
       }
     } catch (error) {
-      console.error('Error getting user profile from ERPNext:', error);
+      this.logError('Error getting user profile from ERPNext:', error);
       
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {
@@ -1417,7 +1466,7 @@ export class ERPNextService {
         };
       }
     } catch (error) {
-      console.error('Error logging in user to ERPNext:', error);
+      this.logError('Error logging in user to ERPNext:', error);
       
       if (axios.isAxiosError(error)) {
         if (error.response?.data?.message) {
@@ -1481,7 +1530,7 @@ export class ERPNextService {
       const response = await this.client.get('/method/frappe.ping');
       return response.status === 200;
     } catch (error) {
-      console.error('ERPNext health check failed:', error);
+      this.logError('ERPNext health check failed:', error);
       return false;
     }
   }

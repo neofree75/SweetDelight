@@ -168,7 +168,7 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
             
             {/* Pagination */}
             {shouldShowPagination && (
-              <div className="flex justify-center items-center gap-2 mt-8">
+              <div className="flex justify-center items-center gap-2 mt-8 mb-16">
                 <Button
                   variant="outline"
                   size="sm"

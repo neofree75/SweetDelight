@@ -20,13 +20,16 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
-// Initialize Stripe
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+// Initialize Stripe (optional for development)
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-08-27.basil",
+  });
+  console.log('✅ Stripe initialized successfully');
+} else {
+  console.log('⚠️  Stripe not initialized - STRIPE_SECRET_KEY not found. Payment features will not work.');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-08-27.basil",
-});
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -1193,6 +1196,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      if (!stripe) {
+        return res.status(503).json({ 
+          error: "Payment service unavailable", 
+          message: "Stripe not configured. Please contact administrator." 
+        });
+      }
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(expectedAmount * 100), // Convert to cents
         currency,
@@ -1247,6 +1257,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify webhook signature
+      if (!stripe) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+      }
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err.message);
@@ -1387,6 +1400,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Retrieve the payment intent to verify status
+      if (!stripe) {
+        return res.status(503).json({ 
+          error: "Payment service unavailable", 
+          message: "Stripe not configured. Please contact administrator." 
+        });
+      }
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
       
       if (paymentIntent.status !== 'succeeded') {

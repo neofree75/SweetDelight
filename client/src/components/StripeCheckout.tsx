@@ -8,11 +8,10 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/format-price';
 
-// Initialize Stripe
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+// Initialize Stripe (optional for development)
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
 
 interface StripeCheckoutFormProps {
   salesOrderId: string;
@@ -196,6 +195,21 @@ export default function StripeCheckout({
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
             <p className="text-muted-foreground">Pripravujem platbu...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Check if Stripe is configured
+  if (!stripePromise) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="text-center text-muted-foreground">
+            <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="font-medium">Platby kartou nie sú dostupné</p>
+            <p className="text-sm mt-2">Platobný systém nie je nakonfigurovaný.</p>
           </div>
         </CardContent>
       </Card>

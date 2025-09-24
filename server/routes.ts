@@ -682,6 +682,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile
+  app.put("/api/profile", async (req, res) => {
+    try {
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const {
+        email,
+        firstName,
+        lastName,
+        mobile,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        country,
+        salutation,
+        gender,
+        taxId
+      } = req.body;
+
+      const userEmail = session.user.email;
+      console.log('Updating profile for user:', userEmail);
+
+      // Call ERPNext service to update profile
+      const updateResult = await erpNextService.updateUserProfile(userEmail, {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email: email || userEmail,
+        mobile: mobile
+      });
+
+      if (!updateResult.success) {
+        return res.status(400).json({ error: updateResult.message });
+      }
+
+      res.json({
+        success: true,
+        message: updateResult.message
+      });
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ error: "Failed to update user profile" });
+    }
+  });
+
   // Get user orders
   app.get("/api/user-orders", async (req, res) => {
     try {

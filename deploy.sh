@@ -16,6 +16,9 @@ git pull origin replit-agent || { echo "❌ Nepodarilo sa stiahnuť nové zmeny"
 echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 
+echo "🧹 Čistím starý build..."
+rm -rf dist/*
+
 echo "🔨 Build projektu..."
 NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
 

@@ -9,6 +9,39 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
+// Secure CORS configuration with configurable allowlist
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  
+  // Default allowed origins with environment override
+  const defaultOrigins = [
+    'https://bakery.erpnext.sk',
+    'http://bakery.erpnext.sk', 
+    'https://marselabakery.erpnext.sk',
+    'http://marselabakery.erpnext.sk',
+    'http://localhost:5000',
+    'http://localhost:3000'
+  ];
+  
+  const allowedOrigins = process.env.CORS_ORIGINS 
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : defaultOrigins;
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Trust proxy in production (for secure cookies behind CDN/proxy)
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -34,7 +67,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false, // Don't save empty sessions
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.USE_HTTPS !== 'false' && process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax' // Better CSRF protection

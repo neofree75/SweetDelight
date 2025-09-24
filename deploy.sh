@@ -3,6 +3,7 @@
 
 APP_NAME="SweetDelight"
 APP_DIR="/var/www/SweetDelight"
+PORT=5001
 
 echo "🚀 Deploy začína pre $APP_NAME..."
 
@@ -18,10 +19,26 @@ npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 echo "🔨 Build projektu..."
 NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
 
-echo "♻️ Reštartujem PM2 proces..."
-pm2 restart $APP_NAME || pm2 start dist/index.js --name $APP_NAME
+echo "🔎 Kontrolujem proces na porte $PORT..."
+PID=$(lsof -t -i:$PORT)
+
+if [ -n "$PID" ]; then
+  echo "⛔ Na porte $PORT beží proces s PID $PID. Zabíjam..."
+  kill -9 $PID
+else
+  echo "✅ Port $PORT je voľný."
+fi
+
+echo "🗑️ Mažem starý PM2 proces..."
+pm2 delete $APP_NAME || true
+
+echo "🚀 Spúšťam $APP_NAME cez PM2..."
+pm2 start dist/index.js --name $APP_NAME --cwd $APP_DIR
 
 echo "💾 Ukladám PM2 konfiguráciu..."
 pm2 save
+
+echo "🔍 Kontrolujem načítané env hodnoty..."
+pm2 show $APP_NAME | grep -A 5 "env"
 
 echo "✅ Deploy hotový!"

@@ -645,7 +645,7 @@ export class ERPNextService {
 
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
-      console.log(`Debug: Checking variants for ${item.name}, has_variants: ${item.has_variants}`);
+      
       if (Boolean(item.has_variants)) {
         console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);

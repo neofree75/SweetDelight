@@ -1289,8 +1289,19 @@ export class ERPNextService {
     }
   }
 
-  // Update user profile data in ERPNext (Customer + primary Contact)
-  async updateUserProfile(email: string, profileData: { firstName: string; lastName: string; email: string; mobile?: string }): Promise<{ success: boolean; message: string }> {
+  // Update user profile data in ERPNext (Customer + primary Contact + Address)
+  async updateUserProfile(email: string, profileData: { 
+    firstName: string; 
+    lastName: string; 
+    email: string; 
+    mobile?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    country?: string;
+  }): Promise<{ success: boolean; message: string }> {
     this.refreshClient();
     try {
       console.log('Updating user profile for:', email);
@@ -1436,6 +1447,19 @@ export class ERPNextService {
         
         if (contactUpdateResponse.status === 200) {
           console.log('Contact updated successfully with child doctypes');
+          
+          // Handle address update/creation if address data is provided
+          if (profileData.addressLine1 || profileData.city) {
+            await this.updateCustomerAddress(customerName, {
+              address_line1: profileData.addressLine1 || '',
+              address_line2: profileData.addressLine2 || '',
+              city: profileData.city || '',
+              state: profileData.state || '',
+              pincode: profileData.pincode || '',
+              country: profileData.country || 'Slovakia'
+            });
+          }
+          
           return {
             success: true,
             message: 'Profil bol úspešne aktualizovaný'
@@ -1504,6 +1528,91 @@ export class ERPNextService {
         success: false,
         message: 'Chyba pri aktualizácii profilu'
       };
+    }
+  }
+
+  // Create or update address for customer in ERPNext
+  private async updateCustomerAddress(customerName: string, addressData: {
+    address_line1: string;
+    address_line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  }): Promise<void> {
+    try {
+      console.log(`Updating address for customer: ${customerName}`);
+
+      // First, try to find existing primary address for this customer
+      let existingAddress = null;
+      try {
+        const customerResponse = await this.client.get(`/resource/Customer/${customerName}`);
+        const customer = customerResponse.data.data;
+        
+        if (customer.customer_primary_address) {
+          // Try to get the existing primary address
+          const addressResponse = await this.client.get(`/resource/Address/${customer.customer_primary_address}`);
+          if (addressResponse.data.data) {
+            existingAddress = addressResponse.data.data;
+            console.log('Found existing primary address:', existingAddress.name);
+          }
+        }
+      } catch (error) {
+        console.log('No existing primary address found, will create new one');
+      }
+
+      if (existingAddress) {
+        // Update existing address
+        console.log(`Updating existing address: ${existingAddress.name}`);
+        const addressUpdateData = {
+          address_line1: addressData.address_line1,
+          address_line2: addressData.address_line2,
+          city: addressData.city,
+          state: addressData.state,
+          pincode: addressData.pincode,
+          country: addressData.country
+        };
+
+        await this.client.put(`/resource/Address/${existingAddress.name}`, addressUpdateData);
+        console.log('Address updated successfully');
+        
+      } else {
+        // Create new address
+        console.log('Creating new address for customer:', customerName);
+        const newAddressData = {
+          address_title: `${customerName} - Adresa`,
+          address_line1: addressData.address_line1,
+          address_line2: addressData.address_line2,
+          city: addressData.city,
+          state: addressData.state,
+          pincode: addressData.pincode,
+          country: addressData.country,
+          is_primary_address: 1,
+          is_shipping_address: 1,
+          links: [
+            {
+              link_doctype: 'Customer',
+              link_name: customerName
+            }
+          ]
+        };
+
+        const createResponse = await this.client.post('/resource/Address', newAddressData);
+        if (createResponse.status === 200) {
+          const newAddressName = createResponse.data.data.name;
+          console.log('Address created successfully:', newAddressName);
+
+          // Update customer to set this as primary address
+          await this.client.put(`/resource/Customer/${customerName}`, {
+            customer_primary_address: newAddressName
+          });
+          console.log('Customer primary address updated');
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error updating customer address:', error);
+      // Don't throw error to prevent profile update from failing completely
     }
   }
 

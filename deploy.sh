@@ -16,6 +16,7 @@ echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 
 echo "🔨 Build frontendu (s .env.production)..."
+npm run build || { echo "❌ Build frontendu zlyhal"; exit
 
 echo "🔨 Build backendu..."
 npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || { echo "❌ Esbuild zlyhal"; exit 1; }

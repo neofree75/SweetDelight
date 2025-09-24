@@ -714,7 +714,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: firstName || '',
         lastName: lastName || '',
         email: email || userEmail,
-        mobile: mobile
+        mobile: mobile,
+        addressLine1: addressLine1,
+        addressLine2: addressLine2,
+        city: city,
+        state: state,
+        pincode: pincode,
+        country: country
       });
 
       if (!updateResult.success) {

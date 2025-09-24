@@ -15,11 +15,8 @@ git pull origin replit-agent || { echo "❌ Nepodarilo sa stiahnuť nové zmeny"
 echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 
-echo "🔨 Build frontendu (s .env.production)..."
-npm run build || { echo "❌ Build frontendu zlyhal"; exit
-
-echo "🔨 Build backendu..."
-npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || { echo "❌ Esbuild zlyhal"; exit 1; }
+echo "🔨 Build projektu..."
+NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
 
 echo "♻️ Reštartujem PM2 proces..."
 pm2 restart $APP_NAME || pm2 start dist/index.js --name $APP_NAME

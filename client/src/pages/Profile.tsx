@@ -194,6 +194,16 @@ export default function Profile({ user }: ProfileProps) {
       return;
     }
 
+    // Validácia adresy - ak je vyplnená adresa, mesto je povinné
+    if (editData.addressLine1 && !editData.city) {
+      toast({
+        title: "Chyba validácie",
+        description: "Ak vyplníte adresu, pole Mesto je povinné",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     try {

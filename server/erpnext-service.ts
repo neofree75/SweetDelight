@@ -1579,14 +1579,29 @@ export class ERPNextService {
       } else {
         // Create new address
         console.log('Creating new address for customer:', customerName);
+        
+        // Fallback for city if empty - extract from address_line1 or use default
+        let fallbackCity = addressData.city;
+        if (!fallbackCity && addressData.address_line1) {
+          // Try to extract city from address_line1 if it contains common Slovak city patterns
+          const cityMatches = addressData.address_line1.match(/\b(Bratislava|Košice|Prešov|Žilina|Banská Bystrica|Nitra|Trnava|Martin|Trenčín|Poprad|Prievidza|Zvolen|Považská Bystrica|Nové Zámky|Michalovce|Spišská Nová Ves|Komárno|Levice|Humenné|Bardejov|Liptovský Mikuláš|Ružomberok|Dolný Kubín|Rimavská Sobota|Topoľčany|Gbely|Senica|Dunajská Streda|Galanta|Šaľa|Senec|Pezinok|Modra|Bojnice|Bojničky)\b/i);
+          if (cityMatches) {
+            fallbackCity = cityMatches[0];
+            console.log(`Extracted city from address: ${fallbackCity}`);
+          } else {
+            fallbackCity = 'Neznáme';
+            console.log('Using default city: Neznáme');
+          }
+        }
+
         const newAddressData = {
           address_title: `${customerName} - Adresa`,
           address_line1: addressData.address_line1,
           address_line2: addressData.address_line2,
-          city: addressData.city,
+          city: fallbackCity || 'Neznáme',
           state: addressData.state,
           pincode: addressData.pincode,
-          country: addressData.country,
+          country: addressData.country || 'Slovakia',
           is_primary_address: 1,
           is_shipping_address: 1,
           links: [

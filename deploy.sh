@@ -16,10 +16,6 @@ echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 
 echo "🔨 Build frontendu (s .env.production)..."
-# vytvoríme dočasný .env.local len pre Vite
-cp .env.production .env.local
-NODE_ENV=production npx vite build --mode production || { echo "❌ Vite build zlyhal"; rm -f .env.local; exit 1; }
-rm -f .env.local
 
 echo "🔨 Build backendu..."
 npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || { echo "❌ Esbuild zlyhal"; exit 1; }

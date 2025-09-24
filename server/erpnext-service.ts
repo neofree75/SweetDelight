@@ -25,6 +25,7 @@ export class ERPNextService {
   private readonly VAT_CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre sadzbu DPH
   private customerCreationLocks: Map<string, Promise<string | null>> = new Map();
 
+
   constructor() {
     this.baseUrl = '';
     this.apiKey = '';
@@ -64,6 +65,23 @@ export class ERPNextService {
     this.baseUrl = process.env.ERPNEXT_URL || '';
     this.apiKey = process.env.ERPNEXT_API_KEY || '';
     this.apiSecret = process.env.ERPNEXT_API_SECRET || '';
+    
+    // Fallback check - if URL doesn't look like a URL, it might be incorrectly set
+    if (this.baseUrl && !this.baseUrl.startsWith('http')) {
+      console.error(`❌ ERPNEXT_URL "${this.baseUrl}" is not a valid URL. It should start with https://`);
+      console.error(`⚠️  Example correct format: https://your-erpnext-domain.com`);
+      console.error(`⚠️  Please update your ERPNEXT_URL secret to be a proper URL`);
+      this.baseUrl = ''; // Reset to empty to prevent invalid URL errors
+    }
+    
+    // Debug logging to see what values we're getting
+    console.log(`ERPNext Config Debug:
+      URL: "${this.baseUrl}"
+      API Key: "${this.apiKey ? this.apiKey.substring(0, 8) + '...' : 'NOT SET'}"
+      API Secret: "${this.apiSecret ? this.apiSecret.substring(0, 8) + '...' : 'NOT SET'}"
+      Full Base URL: "${this.baseUrl ? `${this.baseUrl}/api` : 'EMPTY'}"
+    `);
+    
     this.client = axios.create({
       baseURL: this.baseUrl ? `${this.baseUrl}/api` : '',
       headers: {
@@ -593,6 +611,7 @@ export class ERPNextService {
   // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
     this.refreshClient();
+    
     // Skontroluj cache
     if (this.productCache && 
         Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
@@ -602,6 +621,7 @@ export class ERPNextService {
     const items = await this.getItems();
     
     if (items.length === 0) {
+      console.log('No items found in ERPNext');
       return [];
     }
 

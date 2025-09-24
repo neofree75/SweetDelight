@@ -645,7 +645,7 @@ export class ERPNextService {
 
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
-      console.log(`Debug: Checking variants for ${item.name}, has_variants: ${item.has_variants}`);
+      
       if (Boolean(item.has_variants)) {
         console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);
@@ -732,7 +732,7 @@ export class ERPNextService {
       }
 
       // Calculate VAT information using rate from ERPNext tax template
-
+      const vatRate = await this.getDefaultVATRate();
       const priceWithoutVat = item.valuation_rate || 0;
       const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
 
@@ -1208,14 +1208,16 @@ export class ERPNextService {
         // Fallback: if no primary address, try to find first address for this customer
         if (!primaryAddress) {
           try {
-            // Use Dynamic Link instead of link_doctype/link_name which are no longer allowed
-            const addressListResponse = await this.client.get(`/resource/Address?filters=[["Dynamic Link.link_doctype","=","Customer"],["Dynamic Link.link_name","=","${customer.name}"]]&fields=["name","address_line1","address_line2","city","state","pincode","country"]&limit_page_length=1`);
+            // Try simpler query without Dynamic Link
+            const addressListResponse = await this.client.get(`/resource/Address?filters=[["customer","=","${customer.name}"]]&fields=["name","address_line1","address_line2","city","state","pincode","country"]&limit_page_length=1`);
             if (addressListResponse.data.data && addressListResponse.data.data.length > 0) {
               primaryAddress = addressListResponse.data.data[0];
               console.log('Fallback address found:', primaryAddress.name);
             }
           } catch (fallbackError) {
-            console.warn('Error fetching fallback address:', fallbackError);
+            console.log('Address query with customer field failed, trying generic search...');
+            // If customer field doesn't work, skip address loading to prevent errors
+            console.warn('Could not load address data. Address fields will be empty.');
           }
         }
 

@@ -15,11 +15,14 @@ git pull origin replit-agent || { echo "❌ Nepodarilo sa stiahnuť nové zmeny"
 echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 
-echo "🔨 Build projektu..."
-npm run build || { echo "❌ Build zlyhal"; exit 1; }
+echo "🔨 Build frontendu s .env.production..."
+NODE_ENV=production npx vite build --mode production || { echo "❌ Vite build zlyhal"; exit 1; }
+
+echo "🔨 Build backendu..."
+npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || { echo "❌ Esbuild zlyhal"; exit 1; }
 
 echo "♻️ Reštartujem PM2 proces..."
-pm2 restart $APP_NAME || pm2 start npm --name $APP_NAME -- run start
+pm2 restart $APP_NAME || pm2 start dist/index.js --name $APP_NAME
 
 echo "💾 Ukladám PM2 konfiguráciu..."
 pm2 save

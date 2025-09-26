@@ -1944,16 +1944,18 @@ export class ERPNextService {
         return null;
       }
 
-      // Get company information and bank account
-      const companyName = salesOrder.company || process.env.FALLBACK_COMPANY_NAME || 'DEMO - Glam cake s. r. o.';
+      // Get company information - MUST be from ERPNext
+      const companyName = salesOrder.company;
+      if (!companyName) {
+        console.error(`[qr-payment] No company name found in Sales Order ${salesOrderId}`);
+        return null;
+      }
       
-      // Try to get IBAN from ERPNext Company doctype
-      let iban = await this.getCompanyBankAccount(companyName);
-      
-      // If not found in ERPNext, use configured fallback IBAN
+      // Get IBAN from ERPNext Company doctype - MUST be from ERPNext
+      const iban = await this.getCompanyBankAccount(companyName);
       if (!iban) {
-        console.log(`[qr-payment] Using configured fallback IBAN for ${companyName}`);
-        iban = process.env.FALLBACK_IBAN || 'SK76 1100 0000 0029 2890 4436';
+        console.error(`[qr-payment] No IBAN found in ERPNext for company: ${companyName}`);
+        return null;
       }
       
       // Use Sales Order name as variable symbol (order number)

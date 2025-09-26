@@ -1505,31 +1505,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[qr-payment] CALLING: erpNextService.getQRPaymentDetails`);
 
-      // Try to get QR payment details from ERPNext
+      // Get QR payment details from ERPNext - NO FALLBACKS ALLOWED
       const qrPaymentDetails = await erpNextService.getQRPaymentDetails(salesOrderId);
       
-      if (qrPaymentDetails) {
-        console.log(`[qr-payment] SUCCESS: ERPNext data found`);
-        return res.json({
-          success: true,
-          data: qrPaymentDetails
+      if (!qrPaymentDetails) {
+        console.log(`[qr-payment] ERROR: No QR payment details found in ERPNext for Sales Order: ${salesOrderId}`);
+        return res.status(404).json({ 
+          error: "QR payment details not found",
+          message: "Sales Order not found in ERPNext or bank details not configured",
+          requiresERPNext: true
         });
       }
 
-      // Fallback: use environment variables for bank details when ERPNext data not available
-      console.log(`[qr-payment] ERPNext data not available, using fallback bank details for Sales Order: ${salesOrderId}`);
-      
-      const fallbackDetails = {
-        iban: process.env.FALLBACK_IBAN || 'SK76 1100 0000 0029 2890 4436',
-        company_name: process.env.FALLBACK_COMPANY_NAME || 'DEMO - Glam cake s. r. o.',
-        variable_symbol: salesOrderId,
-        qr_code: null // Will trigger frontend QR generation
-      };
-
-      console.log(`[qr-payment] SUCCESS: Sending fallback response`);
+      console.log(`[qr-payment] SUCCESS: ERPNext data found`);
       res.json({
         success: true,
-        data: fallbackDetails
+        data: qrPaymentDetails
       });
 
     } catch (error: any) {

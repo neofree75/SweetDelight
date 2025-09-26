@@ -41,7 +41,10 @@ interface AccountProps {
 
 export default function Account({ user }: AccountProps) {
   const [, setLocation] = useLocation();
-  const [currentSection, setCurrentSection] = useState('profil');
+  // Check URL parameter for initial section
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialSection = urlParams.get('section') || 'profil';
+  const [currentSection, setCurrentSection] = useState(initialSection);
 
   // Presmeruj ak nie je prihlásený
   useEffect(() => {

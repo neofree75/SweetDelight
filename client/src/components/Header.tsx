@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, User } from 'lucide-react';
+import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, User, FileText } from 'lucide-react';
 import logo from '@assets/logo_1757937077215.png';
 
 interface User {
@@ -81,6 +81,17 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
                     >
                       <User className="h-4 w-4" />
                       Môj účet
+                    </Button>
+                  </Link>
+                  <Link href="/moj-ucet?section=objednavky">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      data-testid="button-orders"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Moje objednávky
                     </Button>
                   </Link>
                   <Button
@@ -184,6 +195,18 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
                       >
                         <User className="h-4 w-4" />
                         Môj účet
+                      </Button>
+                    </Link>
+                    <Link href="/moj-ucet?section=objednavky">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2 w-full justify-start"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        data-testid="mobile-button-orders"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Moje objednávky
                       </Button>
                     </Link>
                     <Button

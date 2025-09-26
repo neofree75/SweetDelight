@@ -45,7 +45,9 @@ echo "📝 Nastavujem environment variables..."
 # Načítaj .env súbor ak existuje
 if [ -f "$APP_DIR/.env" ]; then
     echo "✅ Našiel som .env súbor"
-    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
+    set -a
+    source "$APP_DIR/.env"
+    set +a
 else
     echo "⚠️  .env súbor sa nenašiel v $APP_DIR"
 fi

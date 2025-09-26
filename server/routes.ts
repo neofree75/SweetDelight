@@ -1496,29 +1496,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { salesOrderId } = req.params;
       
+      console.log(`[qr-payment] START: API call for Sales Order: ${salesOrderId}`);
+      
       if (!salesOrderId) {
+        console.log(`[qr-payment] ERROR: No Sales Order ID provided`);
         return res.status(400).json({ error: "Sales Order ID is required" });
       }
 
-      console.log(`[qr-payment] API call for Sales Order: ${salesOrderId}`);
+      console.log(`[qr-payment] CALLING: erpNextService.getQRPaymentDetails`);
 
       // Get QR payment details from ERPNext
       const qrPaymentDetails = await erpNextService.getQRPaymentDetails(salesOrderId);
       
+      console.log(`[qr-payment] RESULT:`, qrPaymentDetails);
+      
       if (!qrPaymentDetails) {
+        console.log(`[qr-payment] ERROR: No QR payment details found`);
         return res.status(404).json({ 
           error: "QR payment details not found",
           message: "Sales Order not found or QR payment data unavailable"
         });
       }
 
+      console.log(`[qr-payment] SUCCESS: Sending response`);
       res.json({
         success: true,
         data: qrPaymentDetails
       });
 
     } catch (error: any) {
-      console.error('[qr-payment] Error fetching QR payment details:', error);
+      console.error('[qr-payment] EXCEPTION: Error fetching QR payment details:', error);
       res.status(500).json({ 
         error: "Failed to fetch QR payment details",
         message: error.message 

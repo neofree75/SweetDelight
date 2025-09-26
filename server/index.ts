@@ -13,7 +13,7 @@ const app = express();
 app.use((req, res, next) => {
   const origin = req.get('Origin');
   
-  // Default allowed origins with environment override
+  // Default allowed origins
   const defaultOrigins = [
     'https://bakery.erpnext.sk',
     'http://bakery.erpnext.sk', 
@@ -23,14 +23,29 @@ app.use((req, res, next) => {
     'http://localhost:5001',
     'http://localhost:3000'
   ];
-  
+
+  // ✅ Stripe domény musia byť povolené
+  const stripeOrigins = [
+    'https://checkout.stripe.com',
+    'https://js.stripe.com'
+  ];
+
+  const baseAllowlist = [...defaultOrigins, ...stripeOrigins];
+
+  // Ak máš v .env vlastný CORS_ORIGINS, použijeme tie, inak základný zoznam
   const allowedOrigins = process.env.CORS_ORIGINS 
     ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-    : defaultOrigins;
+    : baseAllowlist;
   
+  // Povoľ ak sedí origin
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Vary', 'Origin');
+  }
+
+  // Povoľ webhooky bez Origin (Stripe webhooks často nemajú Origin hlavičku)
+  if (!origin && req.originalUrl.startsWith('/webhook')) {
+    res.header('Access-Control-Allow-Origin', '*');
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -40,6 +55,7 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
+  
   next();
 });
 

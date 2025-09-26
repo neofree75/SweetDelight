@@ -1889,6 +1889,56 @@ export class ERPNextService {
       return [];
     }
   }
+
+  // Get QR payment details for bank transfer payments
+  async getQRPaymentDetails(salesOrderId: string): Promise<{
+    qr_code?: string;
+    iban: string;
+    company_name: string;
+    variable_symbol: string;
+  } | null> {
+    this.refreshClient();
+    try {
+      console.log(`[qr-payment] Fetching QR payment details for Sales Order: ${salesOrderId}`);
+      
+      // Get the Sales Order to access QR code and company details
+      const salesOrder = await this.getSalesOrderById(salesOrderId);
+      if (!salesOrder) {
+        console.error(`[qr-payment] Sales Order ${salesOrderId} not found`);
+        return null;
+      }
+
+      // Company information - in a real scenario this would come from ERPNext Company doctype
+      // For now, we'll use the configured company name and hardcoded IBAN
+      const companyName = salesOrder.company || 'DEMO - Glam cake s. r. o.';
+      const iban = 'SK89 1100 0000 0026 2957 7541'; // Demo IBAN for Marsela Bakery
+      
+      // Use Sales Order name as variable symbol (order number)
+      const variableSymbol = salesOrder.name;
+
+      // Get QR code from Sales Order custom field (if available)
+      // In ERPNext, this would typically be stored in a custom field like 'custom_qr_code'
+      const qrCode = salesOrder.custom_qr_code || undefined;
+
+      console.log(`[qr-payment] Generated payment details for ${salesOrderId}:`, {
+        company_name: companyName,
+        iban: iban,
+        variable_symbol: variableSymbol,
+        qr_code: qrCode ? 'Available' : 'Not available'
+      });
+
+      return {
+        qr_code: qrCode,
+        iban: iban,
+        company_name: companyName,
+        variable_symbol: variableSymbol
+      };
+      
+    } catch (error) {
+      console.error(`[qr-payment] Error fetching QR payment details for ${salesOrderId}:`, error);
+      return null;
+    }
+  }
 }
 
 export const erpNextService = new ERPNextService();

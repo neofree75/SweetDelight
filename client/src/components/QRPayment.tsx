@@ -34,6 +34,7 @@ export default function QRPayment({
   // Fetch QR payment details from ERPNext
   const { data: qrPaymentData, isLoading: qrLoading, error: qrError } = useQuery({
     queryKey: ['/api/qr-payment', salesOrderId],
+    queryFn: () => apiRequest(`/api/qr-payment/${salesOrderId}`),
     enabled: !!salesOrderId,
     staleTime: 300000, // 5 minutes cache
     retry: 3

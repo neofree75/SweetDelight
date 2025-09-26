@@ -153,8 +153,8 @@ export default function QRPayment({
 
   // Generate QR code when payment data becomes available
   useEffect(() => {
-    if (qrPaymentData && !qrPaymentData.qr_code && !generatedQRCode) {
-      generateSlovakQRCode(qrPaymentData);
+    if (qrPaymentData?.data && !qrPaymentData.data.qr_code && !generatedQRCode) {
+      generateSlovakQRCode(qrPaymentData.data);
     }
   }, [qrPaymentData, amount, salesOrderId, generatedQRCode]);
 

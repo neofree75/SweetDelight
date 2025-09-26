@@ -1890,6 +1890,42 @@ export class ERPNextService {
     }
   }
 
+  // Get company's bank account IBAN
+  async getCompanyBankAccount(companyName: string): Promise<string | null> {
+    this.refreshClient();
+    try {
+      // Try to get bank account information from Company doctype
+      const response = await this.client.get('/resource/Company/' + encodeURIComponent(companyName));
+      const company = response.data.data;
+      
+      // Check if company has bank account information
+      if (company.default_bank_account) {
+        try {
+          // Get bank account details
+          const bankResponse = await this.client.get('/resource/Bank%20Account/' + encodeURIComponent(company.default_bank_account));
+          const bankAccount = bankResponse.data.data;
+          if (bankAccount.bank_account_no) {
+            console.log(`[qr-payment] Found company IBAN: ${bankAccount.bank_account_no}`);
+            return bankAccount.bank_account_no;
+          }
+        } catch (bankError) {
+          console.warn(`[qr-payment] Could not fetch bank account details:`, bankError);
+        }
+      }
+
+      // Alternative: Check for custom field with IBAN directly on company
+      if (company.custom_iban) {
+        console.log(`[qr-payment] Found custom IBAN field: ${company.custom_iban}`);
+        return company.custom_iban;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn(`[qr-payment] Could not fetch company bank details:`, error);
+      return null;
+    }
+  }
+
   // Get QR payment details for bank transfer payments
   async getQRPaymentDetails(salesOrderId: string): Promise<{
     qr_code?: string;
@@ -1908,10 +1944,17 @@ export class ERPNextService {
         return null;
       }
 
-      // Company information - in a real scenario this would come from ERPNext Company doctype
-      // For now, we'll use the configured company name and hardcoded IBAN
+      // Get company information and bank account
       const companyName = salesOrder.company || 'DEMO - Glam cake s. r. o.';
-      const iban = 'SK89 1100 0000 0026 2957 7541'; // Demo IBAN for Marsela Bakery
+      
+      // Try to get IBAN from ERPNext Company doctype
+      let iban = await this.getCompanyBankAccount(companyName);
+      
+      // If not found in ERPNext, use the correct IBAN you provided
+      if (!iban) {
+        console.log(`[qr-payment] Using configured IBAN for ${companyName}`);
+        iban = 'SK76 1100 0000 0029 2890 4436'; // Correct IBAN for DEMO - Glam cake s. r. o.
+      }
       
       // Use Sales Order name as variable symbol (order number)
       const variableSymbol = salesOrder.name;

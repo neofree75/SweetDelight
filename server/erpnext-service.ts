@@ -1919,6 +1919,54 @@ export class ERPNextService {
         return company.custom_iban;
       }
 
+      // Try to search for bank accounts by company
+      try {
+        console.log(`[qr-payment] Searching for bank accounts for company: ${companyName}`);
+        const searchResponse = await this.client.get('/resource/Bank%20Account', {
+          params: {
+            filters: JSON.stringify([['company', '=', companyName]]),
+            fields: JSON.stringify(['name', 'bank_account_no', 'company', 'account_name'])
+          }
+        });
+        
+        const bankAccounts = searchResponse.data.data || [];
+        console.log(`[qr-payment] Found ${bankAccounts.length} bank accounts for company ${companyName}:`, bankAccounts);
+        
+        // Use the first bank account with an IBAN
+        for (const account of bankAccounts) {
+          if (account.bank_account_no) {
+            console.log(`[qr-payment] Using bank account: ${account.name} with IBAN: ${account.bank_account_no}`);
+            return account.bank_account_no;
+          }
+        }
+      } catch (searchError) {
+        console.warn(`[qr-payment] Could not search bank accounts:`, searchError);
+      }
+
+      // Try specific bank account names for DEMO - Glam cake s. r. o.
+      const bankAccountNames = [
+        'DEMO TB',  // From user's screenshot
+        '221 - 221 - Bankové účty - D-Gcsro',  // Original attempt
+        'DEMO TB - Tatra Banka, a.s.'  // Alternative
+      ];
+
+      for (const accountName of bankAccountNames) {
+        try {
+          console.log(`[qr-payment] Trying bank account: ${accountName}`);
+          const bankResponse = await this.client.get('/resource/Bank%20Account/' + encodeURIComponent(accountName));
+          const bankAccount = bankResponse.data.data;
+          
+          // Check if this bank account belongs to our company
+          if (bankAccount.company === companyName && bankAccount.bank_account_no) {
+            console.log(`[qr-payment] Found matching bank account: ${accountName} with IBAN: ${bankAccount.bank_account_no}`);
+            return bankAccount.bank_account_no;
+          }
+        } catch (bankError) {
+          console.log(`[qr-payment] Bank account ${accountName} not found, trying next...`);
+        }
+      }
+
+      console.error(`[qr-payment] No bank account found for company: ${companyName}`);
       return null;
     } catch (error) {
       console.warn(`[qr-payment] Could not fetch company bank details:`, error);

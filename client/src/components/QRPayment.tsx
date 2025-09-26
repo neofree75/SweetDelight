@@ -35,41 +35,36 @@ export default function QRPayment({
   const [copyStates, setCopyStates] = useState<Record<string, boolean>>({});
   const [generatedQRCode, setGeneratedQRCode] = useState<string | null>(null);
 
-  // Fetch QR payment details from ERPNext (with fallback for production)
+  // Fetch QR payment details (backend handles ERPNext + fallback automatically)
   const { data: qrPaymentData, isLoading: qrLoading, error: qrError } = useQuery({
     queryKey: ['/api/qr-payment', salesOrderId],
     queryFn: async () => {
-      try {
-        const response = await fetch(`/api/qr-payment/${salesOrderId}`);
-        
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          console.warn('QR Payment API not available on production, using fallback data');
-          throw new Error('API endpoint not available');
-        }
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch QR payment details: ${response.status}`);
-        }
-        return response.json();
-      } catch (error) {
-        console.warn('QR Payment API call failed, using fallback data:', error);
-        // Fallback data for production environment
+      const response = await fetch(`/api/qr-payment/${salesOrderId}`);
+      
+      // Check if response is JSON (for production compatibility)
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('QR Payment API not available, using environment variables');
+        // Final fallback if API endpoint is completely missing
         return {
           success: true,
           data: {
             iban: 'SK76 1100 0000 0029 2890 4436',
             company_name: 'DEMO - Glam cake s. r. o.',
             variable_symbol: salesOrderId,
-            qr_code: null // Will trigger frontend QR generation
+            qr_code: null
           }
         };
       }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch QR payment details: ${response.status}`);
+      }
+      return response.json();
     },
     enabled: !!salesOrderId,
     staleTime: 300000, // 5 minutes cache
-    retry: 1 // Reduce retries for faster fallback
+    retry: 2
   });
 
   useEffect(() => {

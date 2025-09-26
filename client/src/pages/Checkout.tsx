@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { CalendarDays, Clock, CreditCard, Banknote, ShoppingBag, Loader2 } from 'lucide-react';
+import { CalendarDays, Clock, CreditCard, Banknote, QrCode, ShoppingBag, Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
-import { calculateDeposit, getDepositReason, getPaymentOptions } from '@/lib/deposit-utils';
+import { calculateDeposit, getDepositReason, getPaymentOptions, getPaymentMethods } from '@/lib/deposit-utils';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { CartItem } from '@shared/schema';
@@ -23,7 +23,7 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [couponCode, setCouponCode] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('qr_transfer');
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -422,20 +422,24 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                   onValueChange={setPaymentMethod}
                   data-testid="payment-method-group"
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card" className="flex items-center gap-2 cursor-pointer">
-                      <CreditCard className="h-4 w-4" />
-                      Platobná karta
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cash" id="cash" />
-                    <Label htmlFor="cash" className="flex items-center gap-2 cursor-pointer">
-                      <Banknote className="h-4 w-4" />
-                      Hotovosť pri prevzatí
-                    </Label>
-                  </div>
+                  {getPaymentMethods().map((method) => {
+                    const IconComponent = method.icon === 'qr_code' ? QrCode : 
+                                        method.icon === 'credit_card' ? CreditCard : 
+                                        Banknote;
+                    
+                    return (
+                      <div key={method.id} className="flex items-start space-x-2">
+                        <RadioGroupItem value={method.id} id={method.id} className="mt-1" />
+                        <Label htmlFor={method.id} className="cursor-pointer flex-1">
+                          <div className="flex items-center gap-2">
+                            <IconComponent className="h-4 w-4" />
+                            <span className="font-medium">{method.label}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{method.description}</p>
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </RadioGroup>
               </CardContent>
             </Card>
@@ -447,7 +451,7 @@ export default function Checkout({ cartItems }: CheckoutProps) {
               onClick={handleSubmitOrder}
               data-testid="button-submit-order"
             >
-              {paymentMethod === 'card' ? 'Pokračovať na platbu' : 'Skontrolovať a objednať'}
+              {paymentMethod === 'card' || paymentMethod === 'qr_transfer' ? 'Pokračovať na platbu' : 'Skontrolovať a objednať'}
             </Button>
           </div>
         </div>

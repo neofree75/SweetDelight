@@ -115,3 +115,32 @@ export function getPaymentOptions(depositCalculation: DepositCalculation) {
     }
   ];
 }
+
+/**
+ * Get payment methods available for the user
+ */
+export function getPaymentMethods() {
+  return [
+    {
+      id: 'qr_transfer',
+      label: 'Platba QR kódom / Prevodom',
+      description: 'Platba bankovým prevodom pomocou QR kódu',
+      icon: 'qr_code',
+      default: true
+    },
+    {
+      id: 'card',
+      label: 'Platba kartou',
+      description: 'Online platba debetnou alebo kreditnou kartou',
+      icon: 'credit_card',
+      default: false
+    },
+    {
+      id: 'cash',
+      label: 'Dobierka',
+      description: 'Platba v hotovosti pri doručení',
+      icon: 'cash',
+      default: false
+    }
+  ];
+}

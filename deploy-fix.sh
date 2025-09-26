@@ -25,7 +25,16 @@ npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 echo "🧹 Čistím starý build..."
 rm -rf dist/*
 
-echo "🔨 Build projektu..."
+echo "📝 Načítavam environment variables pre build..."
+# Načítaj .env súbor pre Vite build (VITE_ variables)
+if [ -f "$APP_DIR/.env" ]; then
+    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
+    echo "✅ Environment variables načítané"
+else
+    echo "⚠️ .env súbor sa nenašiel!"
+fi
+
+echo "🔨 Build projektu s environment variables..."
 NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
 
 echo "🔎 Kontrolujem proces na porte $PORT..."

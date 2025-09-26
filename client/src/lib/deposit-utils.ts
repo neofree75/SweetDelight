@@ -134,13 +134,6 @@ export function getPaymentMethods() {
       description: 'Online platba debetnou alebo kreditnou kartou',
       icon: 'credit_card',
       default: false
-    },
-    {
-      id: 'cash',
-      label: 'Dobierka',
-      description: 'Platba v hotovosti pri doručení',
-      icon: 'cash',
-      default: false
     }
   ];
 }

@@ -7,7 +7,8 @@ import { Loader2, QrCode, Building, CreditCard, Copy, CheckCircle, ExternalLink 
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/format-price';
-import { CurrencyCode, encode, PaymentOptions } from 'bysquare';
+// @ts-ignore - Package has no TypeScript types
+import generateEPCQrCode from 'sepa-payment-qr-code';
 import QRCode from 'qrcode';
 
 interface QRPaymentProps {
@@ -85,50 +86,46 @@ export default function QRPayment({
     return remainder === 1;
   };
 
-  // Generate Slovak PAY by square QR code when payment data is available
-  const generateSlovakQRCode = async (paymentData: any) => {
+  // Generate EPC QR code for European payments
+  const generateEPCQRCode = async (paymentData: any) => {
     try {
-      // Prepare payment data for PAY by square
-      let rawIban = paymentData.iban?.replace(/\s/g, '') || '';
+      // Prepare payment data for EPC format
+      let cleanIban = paymentData.iban?.replace(/\s/g, '') || '';
       const variableSymbol = paymentData.variable_symbol || salesOrderId;
       
-      // Check if provided IBAN is valid, if not use a known valid Slovak IBAN for demo
-      if (!rawIban || !validateSlovakIBAN(rawIban)) {
-        console.warn(`Invalid IBAN provided (${rawIban}), using demo IBAN for QR code generation`);
-        // This is a known valid Slovak IBAN for testing (VUB bank demo IBAN)
-        rawIban = 'SK3112000000198742637541';
+      // Check if provided IBAN is valid, if not use the correct IBAN
+      if (!cleanIban || !validateSlovakIBAN(cleanIban)) {
+        console.warn(`Invalid IBAN provided (${cleanIban}), using configured IBAN for EPC QR code generation`);
+        cleanIban = 'SK7611000000002928904436';
       }
       
       // Debug logging
-      console.log('QR Code generation debug:', {
+      console.log('EPC QR Code generation debug:', {
         originalIban: paymentData.iban,
-        cleanIban: rawIban,
-        isValid: validateSlovakIBAN(rawIban),
-        ibanLength: rawIban.length,
+        cleanIban: cleanIban,
+        isValid: validateSlovakIBAN(cleanIban),
+        ibanLength: cleanIban.length,
         variableSymbol,
         amount,
         beneficiary: paymentData.company_name
       });
 
       // Validate IBAN format (Slovak IBAN should be 24 characters, starting with SK)
-      if (!rawIban.startsWith('SK') || rawIban.length !== 24) {
-        throw new Error(`Invalid Slovak IBAN format: ${rawIban} (length: ${rawIban.length})`);
+      if (!cleanIban.startsWith('SK') || cleanIban.length !== 24) {
+        throw new Error(`Invalid Slovak IBAN format: ${cleanIban} (length: ${cleanIban.length})`);
       }
       
-      // Generate PAY by square encoded string
-      const qrString = encode({
-        payments: [{
-          type: PaymentOptions.PaymentOrder,
-          amount: amount,
-          variableSymbol: variableSymbol,
-          currencyCode: CurrencyCode.EUR,
-          bankAccounts: [{ iban: rawIban }],
-          beneficiary: paymentData.company_name || 'DEMO - Glam cake s. r. o.'
-        }]
+      // Generate EPC QR code content
+      const epcQrText = generateEPCQrCode({
+        name: paymentData.company_name || 'DEMO - Glam cake s. r. o.',
+        iban: cleanIban,
+        amount: amount,
+        unstructuredReference: `Objednavka ${variableSymbol}`,
+        information: 'Marsela Bakery - Platba za objednavku'
       });
 
-      // Generate QR code image from the encoded string
-      const qrCodeDataURL = await QRCode.toDataURL(qrString, {
+      // Generate QR code image from the EPC text
+      const qrCodeDataURL = await QRCode.toDataURL(epcQrText, {
         width: 256,
         margin: 2,
         color: {
@@ -141,7 +138,7 @@ export default function QRPayment({
       setGeneratedQRCode(qrCodeDataURL);
       return qrCodeDataURL;
     } catch (error) {
-      console.error('Error generating Slovak QR code:', error);
+      console.error('Error generating EPC QR code:', error);
       toast({
         title: 'Chyba pri generovaní QR kódu',
         description: 'Nepodarilo sa vygenerovať QR kód pre platbu',
@@ -154,7 +151,7 @@ export default function QRPayment({
   // Generate QR code when payment data becomes available
   useEffect(() => {
     if (qrPaymentData?.data && !qrPaymentData.data.qr_code && !generatedQRCode) {
-      generateSlovakQRCode(qrPaymentData.data);
+      generateEPCQRCode(qrPaymentData.data);
     }
   }, [qrPaymentData, amount, salesOrderId, generatedQRCode]);
 
@@ -296,7 +293,7 @@ export default function QRPayment({
             ) : generatedQRCode ? (
               <img 
                 src={generatedQRCode} 
-                alt="Slovenský PAY by square QR kód pre platbu" 
+                alt="EPC QR kód pre platbu" 
                 className="w-48 h-48 object-contain"
                 data-testid="img-generated-qr-code"
               />
@@ -326,7 +323,7 @@ export default function QRPayment({
             </p>
             {generatedQRCode && !qr_code && (
               <p className="text-xs text-green-600 font-medium">
-                ✓ QR kód vygenerovaný podľa slovenského štandardu PAY by square
+                ✓ QR kód vygenerovaný podľa európskeho štandardu EPC
               </p>
             )}
           </div>

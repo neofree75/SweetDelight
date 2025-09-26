@@ -3,10 +3,11 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, CreditCard, Banknote, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, CreditCard, Banknote, QrCode, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 import { calculateDeposit, getPaymentOptions } from '@/lib/deposit-utils';
 import StripeCheckout from '@/components/StripeCheckout';
+import QRPayment from '@/components/QRPayment';
 
 interface CartItem {
   id: string;
@@ -146,7 +147,11 @@ export default function Payment() {
                   <div className="space-y-2">
                     <p><strong>Dátum:</strong> {checkoutData?.deliveryDate}</p>
                     <p><strong>Čas:</strong> {checkoutData?.deliveryTime}</p>
-                    <p><strong>Platobná metóda:</strong> {checkoutData?.paymentMethod === 'card' ? 'Platobná karta' : 'Hotovosť pri prevzatí'}</p>
+                    <p><strong>Platobná metóda:</strong> {
+                      checkoutData?.paymentMethod === 'card' ? 'Platobná karta' : 
+                      checkoutData?.paymentMethod === 'qr_transfer' ? 'Platba QR kódom / Prevodom' :
+                      'Hotovosť pri prevzatí'
+                    }</p>
                   </div>
                 </CardContent>
               </Card>
@@ -160,6 +165,15 @@ export default function Payment() {
                   paymentMode={amounts.mode}
                   amount={amounts.payNow}
                   currency="eur"
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                />
+              ) : checkoutData?.paymentMethod === 'qr_transfer' ? (
+                <QRPayment
+                  salesOrderId={salesOrderId}
+                  paymentMode={amounts.mode}
+                  amount={amounts.payNow}
+                  currency="EUR"
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />

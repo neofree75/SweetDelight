@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy script pre SweetDelight s fix pre Environment Variables
+# Deploy script pre SweetDelight
 
 APP_NAME="SweetDelight"
 APP_DIR="/var/www/SweetDelight"
@@ -41,32 +41,13 @@ fi
 echo "🗑️ Mažem starý PM2 proces..."
 pm2 delete $APP_NAME || true
 
-echo "📝 Nastavujem environment variables..."
-# Načítaj .env súbor ak existuje
-if [ -f "$APP_DIR/.env" ]; then
-    echo "✅ Našiel som .env súbor"
-    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
-else
-    echo "⚠️  .env súbor sa nenašiel v $APP_DIR"
-fi
-
-echo "🚀 Spúšťam $APP_NAME cez PM2 s environment variables..."
-pm2 start dist/index.js --name $APP_NAME --cwd $APP_DIR --env production
+echo "🚀 Spúšťam $APP_NAME cez PM2..."
+pm2 start dist/index.js --name $APP_NAME --cwd $APP_DIR
 
 echo "💾 Ukladám PM2 konfiguráciu..."
 pm2 save
 
 echo "🔍 Kontrolujem načítané env hodnoty..."
-pm2 show $APP_NAME
-
-echo "🔍 Testovanie API endpointu..."
-sleep 3
-curl -f http://localhost:$PORT/api/products > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-    echo "✅ API endpoint funguje!"
-else
-    echo "❌ API endpoint nefunguje, kontroluj logy:"
-    pm2 logs $APP_NAME --lines 10
-fi
+pm2 show $APP_NAME | grep -A 5 "env"
 
 echo "✅ Deploy hotový!"

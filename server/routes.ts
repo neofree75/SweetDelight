@@ -1491,6 +1491,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get QR payment details for bank transfer
+  app.get("/api/qr-payment/:salesOrderId", async (req, res) => {
+    try {
+      const { salesOrderId } = req.params;
+      
+      if (!salesOrderId) {
+        return res.status(400).json({ error: "Sales Order ID is required" });
+      }
+
+      console.log(`[qr-payment] API call for Sales Order: ${salesOrderId}`);
+
+      // Get QR payment details from ERPNext
+      const qrPaymentDetails = await erpNextService.getQRPaymentDetails(salesOrderId);
+      
+      if (!qrPaymentDetails) {
+        return res.status(404).json({ 
+          error: "QR payment details not found",
+          message: "Sales Order not found or QR payment data unavailable"
+        });
+      }
+
+      res.json({
+        success: true,
+        data: qrPaymentDetails
+      });
+
+    } catch (error: any) {
+      console.error('[qr-payment] Error fetching QR payment details:', error);
+      res.status(500).json({ 
+        error: "Failed to fetch QR payment details",
+        message: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

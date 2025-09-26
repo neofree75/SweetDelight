@@ -1945,15 +1945,15 @@ export class ERPNextService {
       }
 
       // Get company information and bank account
-      const companyName = salesOrder.company || 'DEMO - Glam cake s. r. o.';
+      const companyName = salesOrder.company || process.env.FALLBACK_COMPANY_NAME || 'DEMO - Glam cake s. r. o.';
       
       // Try to get IBAN from ERPNext Company doctype
       let iban = await this.getCompanyBankAccount(companyName);
       
-      // If not found in ERPNext, use the correct IBAN you provided
+      // If not found in ERPNext, use configured fallback IBAN
       if (!iban) {
-        console.log(`[qr-payment] Using configured IBAN for ${companyName}`);
-        iban = 'SK76 1100 0000 0029 2890 4436'; // Correct IBAN for DEMO - Glam cake s. r. o.
+        console.log(`[qr-payment] Using configured fallback IBAN for ${companyName}`);
+        iban = process.env.FALLBACK_IBAN || 'SK76 1100 0000 0029 2890 4436';
       }
       
       // Use Sales Order name as variable symbol (order number)

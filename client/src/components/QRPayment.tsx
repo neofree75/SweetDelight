@@ -35,36 +35,28 @@ export default function QRPayment({
   const [copyStates, setCopyStates] = useState<Record<string, boolean>>({});
   const [generatedQRCode, setGeneratedQRCode] = useState<string | null>(null);
 
-  // Fetch QR payment details (backend handles ERPNext + fallback automatically)
+  // Fetch QR payment details from ERPNext ONLY - no fallbacks
   const { data: qrPaymentData, isLoading: qrLoading, error: qrError } = useQuery({
     queryKey: ['/api/qr-payment', salesOrderId],
     queryFn: async () => {
       const response = await fetch(`/api/qr-payment/${salesOrderId}`);
       
-      // Check if response is JSON (for production compatibility)
+      // Check if response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        console.warn('QR Payment API not available, using environment variables');
-        // Final fallback if API endpoint is completely missing
-        return {
-          success: true,
-          data: {
-            iban: 'SK76 1100 0000 0029 2890 4436',
-            company_name: 'DEMO - Glam cake s. r. o.',
-            variable_symbol: salesOrderId,
-            qr_code: null
-          }
-        };
+        throw new Error('QR Payment API endpoint not available on this server');
       }
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch QR payment details: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API Error: ${response.status}`);
       }
+      
       return response.json();
     },
     enabled: !!salesOrderId,
     staleTime: 300000, // 5 minutes cache
-    retry: 2
+    retry: 1 // Reduced retries since we don't want fallbacks
   });
 
   useEffect(() => {
@@ -255,9 +247,13 @@ export default function QRPayment({
         <CardContent>
           <div className="text-center p-8">
             <p className="text-red-600 mb-4">
-              Nepodarilo sa načítať platobné údaje. Prosím kontaktujte nás.
+              Nepodarilo sa načítať platobné údaje z ERPNext systému.
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {qrError?.message || 'Platobné údaje sa musia načítať z ERPNext systému.'}
             </p>
             <div className="text-sm text-muted-foreground">
+              <p>Kontaktujte nás pre dokončenie objednávky:</p>
               <p>Email: marsela@bakery.sk</p>
               <p>Telefón: +421 123 456 789</p>
             </div>

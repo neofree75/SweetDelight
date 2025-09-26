@@ -149,7 +149,7 @@ export default function Payment() {
                     <p><strong>Čas:</strong> {checkoutData?.deliveryTime}</p>
                     <p><strong>Platobná metóda:</strong> {
                       checkoutData?.paymentMethod === 'card' ? 'Platobná karta' : 
-                      checkoutData?.paymentMethod === 'qr_transfer' ? 'Platba QR kódom / Prevodom' :
+                      (checkoutData?.paymentMethod === 'qr_transfer' || checkoutData?.paymentMethod === 'bank_transfer') ? 'Platba QR kódom / Prevodom' :
                       'Hotovosť pri prevzatí'
                     }</p>
                   </div>
@@ -168,7 +168,7 @@ export default function Payment() {
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />
-              ) : checkoutData?.paymentMethod === 'qr_transfer' ? (
+              ) : (checkoutData?.paymentMethod === 'qr_transfer' || checkoutData?.paymentMethod === 'bank_transfer') ? (
                 <QRPayment
                   salesOrderId={salesOrderId}
                   paymentMode={amounts.mode}

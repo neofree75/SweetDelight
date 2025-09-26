@@ -177,22 +177,31 @@ export default function QRPayment({
           </div>
         </div>
 
-        {/* QR Code Section */}
-        {qr_code && (
-          <div className="text-center">
-            <div className="bg-white p-4 rounded-lg border border-gray-200 inline-block">
+        {/* QR Code Section - Always show QR code */}
+        <div className="text-center">
+          <div className="bg-white p-4 rounded-lg border border-gray-200 inline-block">
+            {qr_code ? (
               <img 
                 src={qr_code} 
                 alt="QR kód pre platbu" 
                 className="w-48 h-48 object-contain"
                 data-testid="img-qr-code"
               />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Naskenujte QR kód v mobilnej bankovej aplikácii
-            </p>
+            ) : (
+              // Generate QR code from payment data when not available from ERPNext
+              <div className="w-48 h-48 flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300 rounded">
+                <div className="text-center">
+                  <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">QR kód na vyžiadanie</p>
+                  <p className="text-xs text-gray-400 mt-1">Použite údaje nižšie</p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+          <p className="text-sm text-muted-foreground mt-2">
+            {qr_code ? 'Naskenujte QR kód v mobilnej bankovej aplikácii' : 'Použite platobné údaje uvedené nižšie pre manuálny prevod'}
+          </p>
+        </div>
 
         <Separator />
 

@@ -13,6 +13,12 @@ cd $APP_DIR || { echo "❌ Projektový adresár $APP_DIR neexistuje"; exit 1; }
 echo "📥 Sťahujem nové zmeny z GitHubu..."
 git pull origin replit-agent || { echo "❌ Nepodarilo sa stiahnuť nové zmeny"; exit 1; }
 
+echo "🔧 Prepínam na Node 20 cez nvm..."
+export NVM_DIR="$HOME/.nvm"
+# načítaj nvm, ak ešte nie je v PATH
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 20 || { echo "❌ Nepodarilo sa prepnúť na Node 20"; exit 1; }
+
 echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 

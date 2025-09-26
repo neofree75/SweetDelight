@@ -62,7 +62,7 @@ export default function Payment() {
   };
 
   const handleBackToCheckout = () => {
-    setLocation('/objednavka');
+    setLocation('/checkout');
   };
 
   const handleContinueWithCash = () => {

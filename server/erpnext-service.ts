@@ -1904,9 +1904,10 @@ export class ERPNextService {
           // Get bank account details
           const bankResponse = await this.client.get('/resource/Bank%20Account/' + encodeURIComponent(company.default_bank_account));
           const bankAccount = bankResponse.data.data;
-          if (bankAccount.bank_account_no) {
-            console.log(`[qr-payment] Found company IBAN: ${bankAccount.bank_account_no}`);
-            return bankAccount.bank_account_no;
+          if (bankAccount.iban || bankAccount.bank_account_no) {
+            const ibanValue = bankAccount.iban || bankAccount.bank_account_no;
+            console.log(`[qr-payment] Found company IBAN: ${ibanValue}`);
+            return ibanValue;
           }
         } catch (bankError) {
           console.warn(`[qr-payment] Could not fetch bank account details:`, bankError);
@@ -1925,7 +1926,7 @@ export class ERPNextService {
         const searchResponse = await this.client.get('/resource/Bank%20Account', {
           params: {
             filters: JSON.stringify([['company', '=', companyName]]),
-            fields: JSON.stringify(['name', 'bank_account_no', 'company', 'account_name'])
+            fields: JSON.stringify(['name', 'bank_account_no', 'iban', 'company', 'account_name'])
           }
         });
         
@@ -1934,9 +1935,10 @@ export class ERPNextService {
         
         // Use the first bank account with an IBAN
         for (const account of bankAccounts) {
-          if (account.bank_account_no) {
-            console.log(`[qr-payment] Using bank account: ${account.name} with IBAN: ${account.bank_account_no}`);
-            return account.bank_account_no;
+          if (account.iban || account.bank_account_no) {
+            const ibanValue = account.iban || account.bank_account_no;
+            console.log(`[qr-payment] Using bank account: ${account.name} with IBAN: ${ibanValue}`);
+            return ibanValue;
           }
         }
       } catch (searchError) {
@@ -1957,9 +1959,10 @@ export class ERPNextService {
           const bankAccount = bankResponse.data.data;
           
           // Check if this bank account belongs to our company
-          if (bankAccount.company === companyName && bankAccount.bank_account_no) {
-            console.log(`[qr-payment] Found matching bank account: ${accountName} with IBAN: ${bankAccount.bank_account_no}`);
-            return bankAccount.bank_account_no;
+          if (bankAccount.company === companyName && (bankAccount.iban || bankAccount.bank_account_no)) {
+            const ibanValue = bankAccount.iban || bankAccount.bank_account_no;
+            console.log(`[qr-payment] Found matching bank account: ${accountName} with IBAN: ${ibanValue}`);
+            return ibanValue;
           }
         } catch (bankError) {
           console.log(`[qr-payment] Bank account ${accountName} not found, trying next...`);

@@ -33,7 +33,7 @@ export function Orders() {
   const [newStatus, setNewStatus] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   
-  const { data, isLoading, error } = useQuery<OrdersResponse>({
+  const { data, isLoading, error, refetch } = useQuery<OrdersResponse>({
     queryKey: ['/api/user-orders'],
     staleTime: 0, // Vždy považuj dáta za zastarané
     refetchOnMount: true, // Vždy refreshuj keď sa komponent načíta
@@ -118,7 +118,7 @@ export function Orders() {
 
       if (result.success) {
         // Refresh the orders data
-        window.location.reload();
+        await refetch();
       } else {
         alert(`Chyba: ${result.error || 'Nepodarilo sa zmeniť stav objednávky'}`);
       }

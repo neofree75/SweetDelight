@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Test script pre kontrolu login response na serveri
-const axios = require('axios');
+import axios from 'axios';
 
 const SERVER_URL = process.argv[2] || 'http://localhost:5001';
 

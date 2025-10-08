@@ -1181,7 +1181,12 @@ export class ERPNextService {
   async getUserProfile(email: string): Promise<{ success: boolean; data?: any; message: string }> {
     this.refreshClient();
     try {
-      console.log('Getting user profile for:', email);
+      console.log(`[getUserProfile] Starting profile fetch for: ${email}`);
+      console.log(`[getUserProfile] ERPNext client configured:`, { 
+        hasUrl: !!process.env.ERP_NEXT_URL, 
+        hasApiKey: !!process.env.ERP_NEXT_API_KEY,
+        hasApiSecret: !!process.env.ERP_NEXT_API_SECRET 
+      });
       
       // Get basic customer data from ERPNext with primary address
       const customerFields = [
@@ -1363,9 +1368,17 @@ export class ERPNextService {
         }
       }
     } catch (error) {
+      console.log(`[getUserProfile] Error occurred for ${email}:`, error);
       this.logError('Error getting user profile from ERPNext:', error);
       
       if (axios.isAxiosError(error)) {
+        console.log(`[getUserProfile] Axios error details:`, {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          url: error.config?.url,
+          message: error.message
+        });
+        
         if (error.response?.status === 404) {
           return {
             success: false,

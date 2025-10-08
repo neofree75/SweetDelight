@@ -464,7 +464,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       session.user = loginResult.data;
 
       // Get complete user profile with admin status
+      console.log(`[login] Fetching user profile for: ${email}`);
       const profileResult = await erpNextService.getUserProfile(email);
+      console.log(`[login] Profile result:`, { success: profileResult.success, hasData: !!profileResult.data, message: profileResult.message });
+      
       if (profileResult.success && profileResult.data) {
         // Merge login data with profile data (including admin status)
         const completeUserData = {
@@ -473,6 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         session.user = completeUserData;
         
+        console.log(`[login] Returning complete user data with admin status:`, { isAdmin: completeUserData.isAdmin, userType: completeUserData.userType });
         res.json({
           success: true,
           user: completeUserData,
@@ -480,6 +484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } else {
         // Fallback if profile fetch fails
+        console.log(`[login] Profile fetch failed, using fallback data. Error:`, profileResult.message);
         res.json({
           success: true,
           user: session.user,

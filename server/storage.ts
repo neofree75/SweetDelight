@@ -1,4 +1,4 @@
-import { type Product, type Order, type CartItem } from "@shared/schema";
+import { type Product, type Order, type CartItem, type GalleryImage, type InsertGalleryImage, type UpdateGalleryImage } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // Since we're using ERPNext as the primary data store,
@@ -15,15 +15,96 @@ export interface IStorage {
   createTempOrder(order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order>;
   getTempOrder(orderId: string): Promise<Order | undefined>;
   updateOrderStatus(orderId: string, status: Order['status']): Promise<void>;
+  
+  // Gallery management
+  getGalleryImages(): Promise<GalleryImage[]>;
+  getGalleryImage(id: string): Promise<GalleryImage | undefined>;
+  createGalleryImage(imageData: InsertGalleryImage, imageUrl: string): Promise<GalleryImage>;
+  updateGalleryImage(id: string, updates: UpdateGalleryImage): Promise<GalleryImage | undefined>;
+  deleteGalleryImage(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private carts: Map<string, CartItem[]>;
   private orders: Map<string, Order>;
+  private galleryImages: Map<string, GalleryImage>;
 
   constructor() {
     this.carts = new Map();
     this.orders = new Map();
+    this.galleryImages = new Map();
+    
+    // Add demo gallery images
+    this.initializeDemoImages();
+  }
+
+  private initializeDemoImages() {
+    const demoImages: GalleryImage[] = [
+      {
+        id: 'demo-1',
+        title: 'Naša cukráreň',
+        description: 'Krásna cukráreň s útulným interiérom a čerstvými výrobkami',
+        imageUrl: '/attached_assets/generated_images/Elegant_pastry_shop_interior_new.png',
+        category: 'prevadzka',
+        uploadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+        uploadedBy: 'admin@marselabakery.sk',
+        isPublic: true
+      },
+      {
+        id: 'demo-2',
+        title: 'Čokoládové éclairs',
+        description: 'Čerstvé éclairs s belgickou čokoládou a smotanou',
+        imageUrl: '/attached_assets/generated_images/Chocolate_éclair_product_e07f4a3d.png',
+        category: 'produkty',
+        uploadedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+        uploadedBy: 'admin@marselabakery.sk',
+        isPublic: true
+      },
+      {
+        id: 'demo-3',
+        title: 'Zlatý croissant',
+        description: 'Voňavý máslový croissant s krištáľovou kôrkou',
+        imageUrl: '/attached_assets/generated_images/Golden_butter_croissant_3113f28f.png',
+        category: 'produkty',
+        uploadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+        uploadedBy: 'admin@marselabakery.sk',
+        isPublic: true
+      },
+      {
+        id: 'demo-4',
+        title: 'Pastelové macarons',
+        description: 'Delikátne macarons v pastelových farbách s ovocnou náplňou',
+        imageUrl: '/attached_assets/generated_images/Pastel_colored_macarons_d19a6f3c.png',
+        category: 'produkty',
+        uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        uploadedBy: 'admin@marselabakery.sk',
+        isPublic: true
+      },
+      {
+        id: 'demo-5',
+        title: 'Jahodový koláč',
+        description: 'Čerstvý ovocný koláč s jahodami a vanilkovým krémom',
+        imageUrl: '/attached_assets/generated_images/Strawberry_fruit_tart_25e81086.png',
+        category: 'produkty',
+        uploadedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+        uploadedBy: 'admin@marselabakery.sk',
+        isPublic: true
+      },
+      {
+        id: 'demo-6',
+        title: 'Vystavenie v cukrárni',
+        description: 'Vitrína plná čerstvých cukrárenských výrobkov',
+        imageUrl: '/attached_assets/generated_images/Bakery_display_case_hero_a86779fc.png',
+        category: 'prevadzka',
+        uploadedAt: new Date().toISOString(), // today
+        uploadedBy: 'admin@marselabakery.sk',
+        isPublic: true
+      }
+    ];
+
+    demoImages.forEach(image => {
+      this.galleryImages.set(image.id, image);
+    });
   }
 
   async getCartItems(sessionId: string): Promise<CartItem[]> {
@@ -60,6 +141,51 @@ export class MemStorage implements IStorage {
       order.status = status;
       this.orders.set(orderId, order);
     }
+  }
+
+  // Gallery management methods
+  async getGalleryImages(): Promise<GalleryImage[]> {
+    return Array.from(this.galleryImages.values()).sort((a, b) => 
+      new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    );
+  }
+
+  async getGalleryImage(id: string): Promise<GalleryImage | undefined> {
+    return this.galleryImages.get(id);
+  }
+
+  async createGalleryImage(imageData: InsertGalleryImage, imageUrl: string): Promise<GalleryImage> {
+    const id = randomUUID();
+    const galleryImage: GalleryImage = {
+      id,
+      title: imageData.title,
+      description: imageData.description,
+      imageUrl,
+      category: imageData.category,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: imageData.uploadedBy,
+      isPublic: imageData.isPublic
+    };
+    this.galleryImages.set(id, galleryImage);
+    return galleryImage;
+  }
+
+  async updateGalleryImage(id: string, updates: UpdateGalleryImage): Promise<GalleryImage | undefined> {
+    const existingImage = this.galleryImages.get(id);
+    if (!existingImage) {
+      return undefined;
+    }
+
+    const updatedImage: GalleryImage = {
+      ...existingImage,
+      ...updates
+    };
+    this.galleryImages.set(id, updatedImage);
+    return updatedImage;
+  }
+
+  async deleteGalleryImage(id: string): Promise<boolean> {
+    return this.galleryImages.delete(id);
   }
 }
 

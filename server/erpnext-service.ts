@@ -1137,6 +1137,46 @@ export class ERPNextService {
     }
   }
 
+  // Check if user is System User (admin) in ERPNext
+  async isSystemUser(email: string): Promise<{ success: boolean; isSystemUser: boolean; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('Checking if user is System User:', email);
+      
+      // Get User doctype data to check user_type
+      const userFields = ["name", "email", "user_type", "enabled"];
+      
+      const userResponse = await this.client.get(`/resource/User?filters=[["email","=","${email}"]]&fields=${JSON.stringify(userFields)}`);
+      
+      if (userResponse.data.data && userResponse.data.data.length > 0) {
+        const user = userResponse.data.data[0];
+        const isSystemUser = user.user_type === 'System User' && user.enabled === 1;
+        
+        console.log(`User ${email} is System User: ${isSystemUser} (user_type: ${user.user_type}, enabled: ${user.enabled})`);
+        
+        return {
+          success: true,
+          isSystemUser,
+          message: isSystemUser ? 'User is System User (admin)' : 'User is not System User'
+        };
+      } else {
+        console.log(`User ${email} not found in User doctype`);
+        return {
+          success: false,
+          isSystemUser: false,
+          message: 'User not found in ERPNext User doctype'
+        };
+      }
+    } catch (error: any) {
+      console.error('Error checking System User status:', error.message);
+      return {
+        success: false,
+        isSystemUser: false,
+        message: `Failed to check user type: ${error.message}`
+      };
+    }
+  }
+
   // Get user profile data from ERPNext (Customer + primary Contact)
   async getUserProfile(email: string): Promise<{ success: boolean; data?: any; message: string }> {
     this.refreshClient();
@@ -1153,6 +1193,7 @@ export class ERPNextService {
       const customerResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(customerFields)}`);
       
       if (customerResponse.data.data && customerResponse.data.data.length > 0) {
+        // User found in Customer doctype
         const customer = customerResponse.data.data[0];
         
         // Get primary contact data for mobile number and other contact details
@@ -1221,6 +1262,10 @@ export class ERPNextService {
           }
         }
 
+        // Check if user is System User (admin)
+        const systemUserCheck = await this.isSystemUser(email);
+        const isAdmin = systemUserCheck.success && systemUserCheck.isSystemUser;
+
         return {
           success: true,
           data: {
@@ -1254,15 +1299,68 @@ export class ERPNextService {
             
             // Interiálne IDs pre aktualizácie
             contactId: contactData?.name || '',
-            addressId: primaryAddress?.name || ''
+            addressId: primaryAddress?.name || '',
+            
+            // Admin práva
+            isAdmin: isAdmin,
+            userType: systemUserCheck.success ? (isAdmin ? 'System User' : 'Website User') : 'Unknown'
           },
-          message: 'Profil načítaný úspešne'
+          message: `Profil načítaný úspešne${isAdmin ? ' (Admin)' : ''}`
         };
       } else {
-        return {
-          success: false,
-          message: 'Používateľ nebol nájdený'
-        };
+        // User not found in Customer doctype, try User doctype (System User)
+        console.log('User not found in Customer doctype, checking User doctype for:', email);
+        
+        const userFields = ["name", "email", "user_type", "enabled", "full_name"];
+        const userResponse = await this.client.get(`/resource/User?filters=[["email","=","${email}"]]&fields=${JSON.stringify(userFields)}`);
+        
+        if (userResponse.data.data && userResponse.data.data.length > 0) {
+          const user = userResponse.data.data[0];
+          console.log('User found in User doctype:', user);
+          
+          // Check if user is System User (admin)
+          const systemUserCheck = await this.isSystemUser(email);
+          const isAdmin = systemUserCheck.success && systemUserCheck.isSystemUser;
+          
+          return {
+            success: true,
+            data: {
+              // Basic info from User doctype
+              customerId: user.name || '',
+              customerName: user.full_name || user.email || email,
+              firstName: user.full_name ? user.full_name.split(' ')[0] : '',
+              lastName: user.full_name ? user.full_name.split(' ').slice(1).join(' ') : '',
+              email: user.email || email,
+              
+              // Empty fields for System Users (they don't have customer data)
+              mobile: '',
+              phone: '',
+              addressLine1: '',
+              addressLine2: '',
+              city: '',
+              state: '',
+              pincode: '',
+              country: '',
+              customerGroup: '',
+              territory: '',
+              customerType: '',
+              created: '',
+              modified: '',
+              contactId: '',
+              addressId: '',
+              
+              // Admin rights
+              isAdmin: isAdmin,
+              userType: systemUserCheck.success ? (isAdmin ? 'System User' : 'Website User') : 'Unknown'
+            },
+            message: `System User profil načítaný úspešne${isAdmin ? ' (Admin)' : ''}`
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Používateľ nebol nájdený ani v Customer, ani v User doctype'
+          };
+        }
       }
     } catch (error) {
       this.logError('Error getting user profile from ERPNext:', error);

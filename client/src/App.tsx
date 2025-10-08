@@ -27,6 +27,7 @@ import Account from "@/pages/Account";
 import TermsOfService from "@/pages/TermsOfService";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import ForgotPassword from "@/pages/ForgotPassword";
+import Gallery from "@/pages/Gallery";
 import NotFound from "@/pages/not-found";
 
 interface User {
@@ -35,6 +36,7 @@ interface User {
   id?: string;
   firstName?: string;
   lastName?: string;
+  isAdmin?: boolean;
 }
 
 function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user }: { 
@@ -93,6 +95,9 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       </Route>
       <Route path="/o-nas" component={About} />
       <Route path="/kontakt" component={Contact} />
+      <Route path="/fotogaleria">
+        <Gallery user={user} />
+      </Route>
       <Route path="/obchodne-podmienky" component={TermsOfService} />
       <Route path="/ochrana-osobnych-udajov" component={PrivacyPolicy} />
       <Route component={NotFound} />
@@ -129,7 +134,8 @@ function App() {
             const userData = {
               email: data.data.email || '',
               name: data.data.customerName || data.data.name || '',
-              id: data.data.customerId || ''
+              id: data.data.customerId || '',
+              isAdmin: data.data.isAdmin || false // Get admin status from ERPNext
             };
             setUser(userData);
             console.log('Session restored for user:', userData);

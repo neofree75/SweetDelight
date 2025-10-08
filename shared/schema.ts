@@ -309,3 +309,33 @@ export const insertOrderSchema = orderSchema.omit({ id: true, createdAt: true, s
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+
+// Gallery Image schema
+export const galleryImageSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  imageUrl: z.string(),
+  category: z.enum(['prevadzka', 'produkty', 'udalosti', 'timy']),
+  uploadedAt: z.string(),
+  uploadedBy: z.string(),
+  isPublic: z.boolean().default(true)
+});
+
+export const insertGalleryImageSchema = z.object({
+  title: z.string().min(1, "Názov je povinný"),
+  description: z.string().optional(),
+  category: z.enum(['prevadzka', 'produkty', 'udalosti', 'timy']).default('prevadzka'),
+  uploadedBy: z.string(),
+  isPublic: z.boolean().default(true)
+});
+
+export const updateGalleryImageSchema = z.object({
+  title: z.string().min(1, "Názov je povinný").optional(),
+  description: z.string().optional(),
+  category: z.enum(['prevadzka', 'produkty', 'udalosti', 'timy']).optional()
+});
+
+export type GalleryImage = z.infer<typeof galleryImageSchema>;
+export type InsertGalleryImage = z.infer<typeof insertGalleryImageSchema>;
+export type UpdateGalleryImage = z.infer<typeof updateGalleryImageSchema>;

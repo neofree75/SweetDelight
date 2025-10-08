@@ -10,13 +10,18 @@ import {
   cartItemSchema,
   userOrderSchema,
   invoiceSchema,
+  insertGalleryImageSchema,
+  updateGalleryImageSchema,
   type CartItem,
   type Product,
   type ERPNextCustomer,
   type ERPNextSalesOrder,
   type UserOrder,
   type Invoice,
-  type InsertOrder 
+  type InsertOrder,
+  type GalleryImage,
+  type InsertGalleryImage,
+  type UpdateGalleryImage
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -458,11 +463,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const session = req.session as Session & { user?: any };
       session.user = loginResult.data;
 
-      res.json({
-        success: true,
-        user: session.user,
-        message: loginResult.message
-      });
+      // Get complete user profile with admin status
+      const profileResult = await erpNextService.getUserProfile(email);
+      if (profileResult.success && profileResult.data) {
+        // Merge login data with profile data (including admin status)
+        const completeUserData = {
+          ...session.user,
+          ...profileResult.data
+        };
+        session.user = completeUserData;
+        
+        res.json({
+          success: true,
+          user: completeUserData,
+          message: loginResult.message
+        });
+      } else {
+        // Fallback if profile fetch fails
+        res.json({
+          success: true,
+          user: session.user,
+          message: loginResult.message
+        });
+      }
 
     } catch (error) {
       console.error("Error during login:", error);
@@ -1529,6 +1552,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to fetch QR payment details",
         message: error.message 
       });
+    }
+  });
+
+  // Gallery API endpoints
+  // Get all gallery images
+  app.get("/api/gallery", async (req, res) => {
+    try {
+      const images = await storage.getGalleryImages();
+      res.json({ images });
+    } catch (error) {
+      console.error("Error fetching gallery images:", error);
+      res.status(500).json({ error: "Failed to fetch gallery images" });
+    }
+  });
+
+  // Get single gallery image
+  app.get("/api/gallery/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const image = await storage.getGalleryImage(id);
+      
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+      
+      res.json({ image });
+    } catch (error) {
+      console.error("Error fetching gallery image:", error);
+      res.status(500).json({ error: "Failed to fetch gallery image" });
+    }
+  });
+
+  // Upload new gallery image (Admin only)
+  app.post("/api/gallery", (req, res, next) => {
+    // Get multer instance from app locals
+    const upload = (req as any).app.locals.upload;
+    upload.single('image')(req, res, next);
+  }, async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check if user is System User (admin) in ERPNext
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        console.log(`[gallery-upload] Access denied for user: ${userEmail} (not System User)`);
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can upload images to gallery"
+        });
+      }
+      
+      console.log(`[gallery-upload] System User: ${userEmail} uploading image`);
+      
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ error: "Image file is required" });
+      }
+      
+      const { title, description, category } = req.body;
+      
+      // Validate required fields
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      // Use the uploaded file path
+      const imageUrl = `/uploads/gallery/${req.file.filename}`;
+      console.log(`[gallery-upload] File saved: ${req.file.filename}`);
+      
+      const imageData: InsertGalleryImage = {
+        title,
+        description: description || '',
+        category: category || 'prevadzka',
+        uploadedBy: userEmail,
+        isPublic: true
+      };
+
+      const galleryImage = await storage.createGalleryImage(imageData, imageUrl);
+      res.status(201).json({ image: galleryImage });
+      
+    } catch (error) {
+      console.error("Error uploading gallery image:", error);
+      
+      // Handle multer errors
+      if (error instanceof Error && error.message === 'Only image files are allowed!') {
+        return res.status(400).json({ error: "Only image files are allowed" });
+      }
+      
+      res.status(500).json({ error: "Failed to upload gallery image" });
+    }
+  });
+
+  // Update gallery image (Admin only)
+  app.put("/api/gallery/:id", (req, res, next) => {
+    // Get multer instance from app locals
+    const upload = (req as any).app.locals.upload;
+    upload.single('image')(req, res, next);
+  }, async (req, res) => {
+    try {
+      // Check if user is authenticated and is System User (admin)
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check if user is System User (admin) in ERPNext
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        console.log(`[gallery-edit] Access denied for user: ${userEmail} (not System User)`);
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can edit gallery images"
+        });
+      }
+
+      const { id } = req.params;
+      
+      // Check if new image file was uploaded
+      if (req.file) {
+        // New image uploaded - update with new file
+        const { title, description, category } = req.body;
+        const newImageUrl = `/uploads/gallery/${req.file.filename}`;
+        
+        // Update image with new file
+        const updates = {
+          title: title || '',
+          description: description || '',
+          category: category || 'prevadzka'
+        };
+        
+        const updatedImage = await storage.updateGalleryImage(id, updates);
+        if (!updatedImage) {
+          return res.status(404).json({ error: "Image not found" });
+        }
+        
+        // Update the image URL to point to new file
+        updatedImage.imageUrl = newImageUrl;
+        
+        res.json({ image: updatedImage });
+      } else {
+        // No new image - just update metadata
+        const updates = updateGalleryImageSchema.parse(req.body);
+        const updatedImage = await storage.updateGalleryImage(id, updates);
+        
+        if (!updatedImage) {
+          return res.status(404).json({ error: "Image not found" });
+        }
+        
+        res.json({ image: updatedImage });
+      }
+    } catch (error) {
+      console.error("Error updating gallery image:", error);
+      res.status(500).json({ error: "Failed to update gallery image" });
+    }
+  });
+
+  // Delete gallery image (Admin only)
+  app.delete("/api/gallery/:id", async (req, res) => {
+    try {
+      // Check if user is authenticated and is System User (admin)
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check if user is System User (admin) in ERPNext
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        console.log(`[gallery-delete] Access denied for user: ${userEmail} (not System User)`);
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can delete gallery images"
+        });
+      }
+
+      const { id } = req.params;
+      const deleted = await storage.deleteGalleryImage(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting gallery image:", error);
+      res.status(500).json({ error: "Failed to delete gallery image" });
     }
   });
 

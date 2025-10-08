@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Receipt, FileText, Calendar, Download, ChevronLeft, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
+import { Receipt, FileText, Calendar, Download, ChevronLeft, ChevronRight, AlertCircle, Loader2, User, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
@@ -10,12 +11,14 @@ import type { Invoice } from "@shared/schema";
 
 interface InvoicesResponse {
   invoices: Invoice[];
+  isAdminView?: boolean;
 }
 
 const ITEMS_PER_PAGE = 10;
 
 export function Invoices() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Načítaj faktúry z API
   const { data: invoicesResponse, isLoading, error } = useQuery<InvoicesResponse>({
@@ -62,13 +65,92 @@ export function Invoices() {
       </div>
     );
   }
+
+  // Filter invoices based on search query
+  const filteredInvoices = invoices.filter(invoice => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      invoice.id.toLowerCase().includes(query) ||
+      invoice.status.toLowerCase().includes(query) ||
+      (invoice.customer && invoice.customer.toLowerCase().includes(query))
+    );
+  });
+
+  // Reset to first page when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery("");
+    setCurrentPage(1);
+  };
+
+  // Show no results message when search returns empty
+  if (searchQuery && filteredInvoices.length === 0) {
+    return (
+      <div className="space-y-6" data-testid="invoices-list">
+        <div className="flex items-center gap-2 mb-6">
+          <Receipt className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold text-foreground">
+            {invoicesResponse?.isAdminView ? `Všetky faktúry (${invoices.length})` : `Moje faktúry (${invoices.length})`}
+          </h2>
+          {invoicesResponse?.isAdminView && (
+            <Badge variant="secondary" className="ml-2">
+              Admin pohľad
+            </Badge>
+          )}
+        </div>
+
+        {/* Search input */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Hľadať podľa ID, zákazníka, statusu..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSearch}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center py-12" data-testid="no-search-results">
+          <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            Nenašli sa žiadne faktúry
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            Pre vyhľadávanie "{searchQuery}" sa nenašli žiadne výsledky.
+          </p>
+          <Button onClick={clearSearch} variant="outline">
+            Vymazať vyhľadávanie
+          </Button>
+        </div>
+      </div>
+    );
+  }
   
   // Pagination calculations
-  const totalInvoices = invoices.length;
+  const totalInvoices = filteredInvoices.length;
   const totalPages = Math.ceil(totalInvoices / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedInvoices = invoices.slice(startIndex, endIndex);
+  const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
   
   // Show pagination only if more than ITEMS_PER_PAGE invoices
   const showPagination = totalInvoices > ITEMS_PER_PAGE;
@@ -112,8 +194,41 @@ export function Invoices() {
       <div className="flex items-center gap-2 mb-6">
         <Receipt className="h-5 w-5 text-primary" />
         <h2 className="text-xl font-semibold text-foreground">
-          Moje faktúry ({totalInvoices})
+          {invoicesResponse?.isAdminView ? `Všetky faktúry (${invoices.length})` : `Moje faktúry (${invoices.length})`}
         </h2>
+        {invoicesResponse?.isAdminView && (
+          <Badge variant="secondary" className="ml-2">
+            Admin pohľad
+          </Badge>
+        )}
+      </div>
+
+      {/* Search input */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Hľadať podľa ID, zákazníka, statusu..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {searchQuery && (
+          <div className="text-sm text-muted-foreground">
+            {totalInvoices} z {invoices.length} faktúr
+          </div>
+        )}
       </div>
 
       {/* Skutočné faktúry */}
@@ -122,9 +237,17 @@ export function Invoices() {
           <Card key={invoice.id} className="hover-elevate" data-testid={`invoice-${invoice.id}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-foreground">
-                  Faktúra {invoice.id}
-                </CardTitle>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Faktúra {invoice.id}
+                  </CardTitle>
+                  {invoicesResponse?.isAdminView && invoice.customer && (
+                    <div className="mt-1 flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 font-medium">
+                      <User className="h-3 w-3" />
+                      <span>{invoice.customer}</span>
+                    </div>
+                  )}
+                </div>
                 <Badge 
                   variant={getStatusColor(invoice.status)}
                   data-testid={`invoice-status-${invoice.id}`}

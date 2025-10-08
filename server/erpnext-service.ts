@@ -2001,6 +2001,91 @@ export class ERPNextService {
     }
   }
 
+  // Get all sales orders (for admin users)
+  async getAllSalesOrders(): Promise<any[]> {
+    this.refreshClient();
+    try {
+      console.log('[admin-orders] Fetching all sales orders');
+      
+      const response = await this.client.get('/resource/Sales%20Order', {
+        params: {
+          fields: JSON.stringify([
+            'name', 'status', 'workflow_state', 'customer', 'customer_name', 
+            'transaction_date', 'delivery_date', 'total', 'grand_total', 
+            'currency', 'items', 'creation', 'modified_by'
+          ]),
+          order_by: 'creation desc',
+          limit_page_length: 200 // Viac objednávok pre admina
+        }
+      });
+
+      // Načítaj podrobnosti objednávok vrátane položiek
+      const ordersWithItems = await Promise.all(
+        response.data.data.map(async (order: any) => {
+          try {
+            // Načítaj podrobnosti objednávky vrátane položiek
+            const orderDetails = await this.client.get(`/resource/Sales%20Order/${order.name}`);
+            return orderDetails.data.data;
+          } catch (error) {
+            console.error(`Error fetching order details for ${order.name}:`, error);
+            return order; // Vráť základné údaje ak sa nepodarí načítať podrobnosti
+          }
+        })
+      );
+
+      console.log(`[admin-orders] Found ${ordersWithItems.length} total orders`);
+      return ordersWithItems;
+    } catch (error) {
+      console.error('Error fetching all sales orders from ERPNext:', error);
+      return [];
+    }
+  }
+
+  // Get all sales invoices (for admin users)
+  async getAllSalesInvoices(): Promise<ERPNextSalesInvoice[]> {
+    this.refreshClient();
+    try {
+      console.log('[admin-invoices] Fetching all sales invoices');
+      
+      const response = await this.client.get('/resource/Sales%20Invoice', {
+        params: {
+          fields: JSON.stringify([
+            'name',
+            'customer', 
+            'posting_date',
+            'due_date',
+            'grand_total',
+            'outstanding_amount',
+            'status',
+            'currency',
+            'creation',
+            'modified_by'
+          ]),
+          order_by: 'posting_date desc', // Najnovšie faktúry navrchu
+          limit_page_length: 200 // Viac faktúr pre admina
+        }
+      });
+
+      const invoices = response.data.data || [];
+      console.log(`[admin-invoices] Found ${invoices.length} total invoices`);
+      
+      return invoices.map((invoice: any) => ({
+        name: invoice.name,
+        customer: invoice.customer,
+        posting_date: invoice.posting_date,
+        due_date: invoice.due_date,
+        grand_total: parseFloat(invoice.grand_total) || 0,
+        outstanding_amount: parseFloat(invoice.outstanding_amount) || 0,
+        status: invoice.status,
+        currency: invoice.currency || 'EUR'
+      }));
+      
+    } catch (error) {
+      console.error('Error fetching all sales invoices from ERPNext:', error);
+      return [];
+    }
+  }
+
   // Get company's bank account IBAN
   async getCompanyBankAccount(companyName: string): Promise<string | null> {
     this.refreshClient();
@@ -2144,6 +2229,37 @@ export class ERPNextService {
     } catch (error) {
       console.error(`[qr-payment] Error fetching QR payment details for ${salesOrderId}:`, error);
       return null;
+    }
+  }
+
+  // Update order status in ERPNext
+  async updateOrderStatus(orderId: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
+    this.refreshClient();
+    try {
+      console.log(`[update-order-status] Updating order ${orderId} to status: ${newStatus}`);
+      
+      // First get the current order to check if it exists
+      const orderResponse = await this.client.get(`/resource/Sales%20Order/${orderId}`);
+      
+      if (!orderResponse.data.data) {
+        return { success: false, error: 'Objednávka nebola nájdená' };
+      }
+
+      // Update the workflow_state field
+      const updateData = {
+        workflow_state: newStatus
+      };
+
+      await this.client.put(`/resource/Sales%20Order/${orderId}`, updateData);
+      
+      console.log(`[update-order-status] Successfully updated order ${orderId} to status: ${newStatus}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Nepodarilo sa zmeniť stav objednávky' 
+      };
     }
   }
 }

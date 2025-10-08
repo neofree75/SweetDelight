@@ -287,6 +287,7 @@ export const invoiceSchema = z.object({
   outstandingAmount: z.number(), // Zostávajúca suma na úhradu
   currency: z.string(),
   status: z.string(), // Stav faktúry
+  customer: z.string().optional(), // Názov zákazníka (pre admin pohľad)
 });
 
 // All type exports

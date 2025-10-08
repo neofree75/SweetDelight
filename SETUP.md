@@ -52,7 +52,7 @@ npm run dev
 ```
 
 ### 3. Testovanie
-Aplikácia bude dostupná na `http://localhost:5000`
+Aplikácia bude dostupná na `http://localhost:5001`
 
 Pri štarte sa automaticky skontroluje ERPNext konfigurácia a vypíšu sa prípadné chyby.
 
@@ -115,7 +115,7 @@ server {
     server_name _;
 
     location / {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://127.0.0.1:5001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

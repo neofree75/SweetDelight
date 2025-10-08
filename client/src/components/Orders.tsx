@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, Calendar, CreditCard, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, Package, Calendar, CreditCard, FileText, ChevronLeft, ChevronRight, User, Search, X, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { UserOrder } from "@shared/schema";
@@ -16,14 +19,19 @@ interface OrdersResponse {
     id: string;
     name: string;
     email: string;
-  };
+  } | null;
+  isAdminView?: boolean;
 }
 
 const ITEMS_PER_PAGE = 10;
 
 export function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
+  const [editingOrder, setEditingOrder] = useState<string | null>(null);
+  const [newStatus, setNewStatus] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
   
   const { data, isLoading, error } = useQuery<OrdersResponse>({
     queryKey: ['/api/user-orders'],
@@ -68,12 +76,129 @@ export function Orders() {
     );
   }
 
+  // Filter orders based on search query
+  const filteredOrders = data.orders.filter(order => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      order.id.toLowerCase().includes(query) ||
+      order.status.toLowerCase().includes(query) ||
+      (order.customerName && order.customerName.toLowerCase().includes(query)) ||
+      (order.customer && order.customer.toLowerCase().includes(query))
+    );
+  });
+
+  // Reset to first page when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery("");
+    setCurrentPage(1);
+  };
+
+  // Update order status
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+        credentials: 'include',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh the orders data
+        window.location.reload();
+      } else {
+        alert(`Chyba: ${result.error || 'Nepodarilo sa zmeniť stav objednávky'}`);
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Chyba pri zmene stavu objednávky');
+    } finally {
+      setIsUpdating(false);
+      setEditingOrder(null);
+      setNewStatus("");
+    }
+  };
+
+  // Open edit dialog
+  const openEditDialog = (orderId: string, currentStatus: string) => {
+    setEditingOrder(orderId);
+    setNewStatus(currentStatus);
+  };
+
+  // Show no results message when search returns empty
+  if (searchQuery && filteredOrders.length === 0) {
+    return (
+      <div className="space-y-6" data-testid="orders-list">
+        <div className="flex items-center gap-2 mb-6">
+          <Package className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold text-foreground">
+            {data.isAdminView ? `Všetky objednávky (${data.orders.length})` : `Moje objednávky (${data.orders.length})`}
+          </h2>
+          {data.isAdminView && (
+            <Badge variant="secondary" className="ml-2">
+              Admin pohľad
+            </Badge>
+          )}
+        </div>
+
+        {/* Search input */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Hľadať podľa ID, zákazníka, statusu..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSearch}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center py-12" data-testid="no-search-results">
+          <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            Nenašli sa žiadne objednávky
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            Pre vyhľadávanie "{searchQuery}" sa nenašli žiadne výsledky.
+          </p>
+          <Button onClick={clearSearch} variant="outline">
+            Vymazať vyhľadávanie
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Pagination calculations
-  const totalOrders = data.orders.length;
+  const totalOrders = filteredOrders.length;
   const totalPages = Math.ceil(totalOrders / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedOrders = data.orders.slice(startIndex, endIndex);
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
   
   // Show pagination only if more than ITEMS_PER_PAGE orders
   const showPagination = totalOrders > ITEMS_PER_PAGE;
@@ -134,8 +259,41 @@ export function Orders() {
       <div className="flex items-center gap-2 mb-6">
         <Package className="h-5 w-5 text-primary" />
         <h2 className="text-xl font-semibold text-foreground">
-          Moje objednávky ({data.orders.length})
+          {data.isAdminView ? `Všetky objednávky (${data.orders.length})` : `Moje objednávky (${data.orders.length})`}
         </h2>
+        {data.isAdminView && (
+          <Badge variant="secondary" className="ml-2">
+            Admin pohľad
+          </Badge>
+        )}
+      </div>
+
+      {/* Search input */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Hľadať podľa ID, zákazníka, statusu..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {searchQuery && (
+          <div className="text-sm text-muted-foreground">
+            {totalOrders} z {data.orders.length} objednávok
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -143,15 +301,89 @@ export function Orders() {
           <Card key={order.id} className="hover-elevate" data-testid={`order-${order.id}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-foreground">
-                  Objednávka #{order.id}
-                </CardTitle>
-                <Badge 
-                  variant={getStatusColor(order.status)}
-                  data-testid={`order-status-${order.id}`}
-                >
-                  {order.status}
-                </Badge>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Objednávka #{order.id}
+                    <br />
+
+                  </CardTitle>
+              <div className="mt-1 flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 font-medium">
+                      <User className="h-3 w-3" />
+                      <span>{order.customerName || order.customer}</span>
+                    </div>
+
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={getStatusColor(order.status)}
+                    data-testid={`order-status-${order.id}`}
+                  >
+                    {order.status}
+                  </Badge>
+                  {data.isAdminView && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(order.id, order.status)}
+                          className="h-6 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Zmeniť stav objednávky</DialogTitle>
+                          <DialogDescription>
+                            Zmeňte stav objednávky #{order.id}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium">Aktuálny stav:</label>
+                            <Badge variant={getStatusColor(order.status)} className="ml-2">
+                              {order.status}
+                            </Badge>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Nový stav:</label>
+                            <Select value={newStatus} onValueChange={setNewStatus}>
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Vyberte nový stav" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Nová">Nová</SelectItem>
+                                <SelectItem value="Potvrdená">Potvrdená</SelectItem>
+                                <SelectItem value="V príprave">V príprave</SelectItem>
+                                <SelectItem value="Dokončená">Dokončená</SelectItem>
+                                <SelectItem value="Zrušená">Zrušená</SelectItem>
+                                <SelectItem value="Dodaná">Dodaná</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingOrder(null);
+                              setNewStatus("");
+                            }}
+                          >
+                            Zrušiť
+                          </Button>
+                          <Button
+                            onClick={() => updateOrderStatus(order.id, newStatus)}
+                            disabled={isUpdating || !newStatus || newStatus === order.status}
+                          >
+                            {isUpdating ? "Ukladám..." : "Uložiť zmenu"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
@@ -187,6 +419,12 @@ export function Orders() {
                   >
                     <div className="flex-1">
                       <h5 className="font-medium text-foreground">{item.itemName}</h5>
+                      {data?.isAdminView && (order.customer || order.customerName) && (
+                        <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">
+                          <User className="h-3 w-3" />
+                          <span>{order.customerName || order.customer}</span>
+                        </div>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         Kód: {item.itemCode}
                       </p>

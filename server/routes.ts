@@ -810,16 +810,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const userEmail = session.user.email;
-      console.log('[user-orders] Fetching orders for authenticated user:', userEmail);
+      const isAdmin = session.user.userType === "System User";
+      console.log('[user-orders] Fetching orders for authenticated user:', userEmail, 'userType:', session.user.userType, 'isAdmin:', isAdmin);
 
-      // Find customer by email first
-      const customer = await erpNextService.findCustomerByEmail(userEmail);
-      if (!customer) {
-        return res.json({ orders: [], customer: null });
+      let erpNextOrders: any[] = [];
+      let customer: any = null;
+
+      if (isAdmin) {
+        // System User - zobraz všetky objednávky
+        console.log('[user-orders] Admin user - fetching all orders');
+        erpNextOrders = await erpNextService.getAllSalesOrders();
+      } else {
+        // Obyčajný užívateľ - zobraz len svoje objednávky
+        customer = await erpNextService.findCustomerByEmail(userEmail);
+        if (!customer) {
+          return res.json({ orders: [], customer: null });
+        }
+        erpNextOrders = await erpNextService.getOrdersByCustomer(customer.customerId);
       }
-
-      // Získaj objednávky z ERPNext pre tohto zákazníka
-      const erpNextOrders = await erpNextService.getOrdersByCustomer(customer.customerId);
       
       // Mapuj ERPNext dáta na frontend formát
       const orders = erpNextOrders.map(order => {
@@ -844,7 +852,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      res.json({ orders, customer: { id: customer.customerId } });
+      res.json({ 
+        orders, 
+        customer: customer ? { id: customer.customerId } : null,
+        isAdminView: isAdmin 
+      });
     } catch (error) {
       console.error("Error fetching user orders:", error);
       res.status(500).json({ error: "Failed to fetch orders" });
@@ -861,17 +873,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const userEmail = session.user.email;
-      console.log(`[user-invoices] Fetching invoices for authenticated user: ${userEmail}`);
+      const isAdmin = session.user.userType === "System User";
+      console.log(`[user-invoices] Fetching invoices for authenticated user: ${userEmail}, userType: ${session.user.userType}, isAdmin: ${isAdmin}`);
 
-      // Find customer by email first
-      const customer = await erpNextService.findCustomerByEmail(userEmail);
-      if (!customer) {
-        console.log(`[user-invoices] No customer found for email: ${userEmail}`);
-        return res.json({ invoices: [] });
+      let erpInvoices: any[] = [];
+      let customer: any = null;
+
+      if (isAdmin) {
+        // System User - zobraz všetky faktúry
+        console.log('[user-invoices] Admin user - fetching all invoices');
+        erpInvoices = await erpNextService.getAllSalesInvoices();
+      } else {
+        // Obyčajný užívateľ - zobraz len svoje faktúry
+        customer = await erpNextService.findCustomerByEmail(userEmail);
+        if (!customer) {
+          console.log(`[user-invoices] No customer found for email: ${userEmail}`);
+          return res.json({ invoices: [] });
+        }
+        erpInvoices = await erpNextService.getSalesInvoicesForCustomer(customer.customerId);
       }
-
-      // Získaj faktúry z ERPNext pre tohto zákazníka
-      const erpInvoices = await erpNextService.getSalesInvoicesForCustomer(customer.customerId);
       
       // Transformuj ERPNext faktúry na frontend formát
       const invoices: Invoice[] = erpInvoices.map(erpInvoice => ({
@@ -882,11 +902,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: erpInvoice.grand_total,
         outstandingAmount: erpInvoice.outstanding_amount,
         currency: erpInvoice.currency,
-        status: erpInvoice.status
+        status: erpInvoice.status,
+        customer: erpInvoice.customer // Pridaj informáciu o zákazníkovi pre admin pohľad
       }));
       
       console.log(`[user-invoices] Returning ${invoices.length} invoices for user ${userEmail}`);
-      res.json({ invoices });
+      res.json({ 
+        invoices,
+        isAdminView: isAdmin 
+      });
     } catch (error) {
       console.error("Error fetching user invoices:", error);
       res.status(500).json({ error: "Failed to fetch invoices" });
@@ -1754,6 +1778,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating gallery image:", error);
       res.status(500).json({ error: "Failed to update gallery image" });
+    }
+  });
+
+  // PUT /api/orders/:id/status - Update order status (admin only)
+  app.put('/api/orders/:id/status', async (req, res) => {
+    try {
+      const session = req.session as any;
+      if (!session?.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      // Check if user is admin (System User)
+      const isAdmin = session.user.userType === "System User";
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: 'Status is required' });
+      }
+
+      console.log(`[update-order-status] Updating order ${id} to status: ${status}`);
+
+      // Update order status in ERPNext
+      const result = await erpNextService.updateOrderStatus(id, status);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: `Stav objednávky ${id} bol úspešne zmenený na ${status}`,
+          orderId: id,
+          newStatus: status
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          error: result.error || 'Nepodarilo sa zmeniť stav objednávky' 
+        });
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

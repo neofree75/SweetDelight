@@ -490,6 +490,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           keys: Object.keys(completeUserData || {})
         });
         
+        // Force session save
+        session.save((err) => {
+          if (err) {
+            console.log(`[login] Session save error:`, err);
+          } else {
+            console.log(`[login] Session saved successfully`);
+          }
+        });
+        
         res.json({
           success: true,
           user: completeUserData,
@@ -708,7 +717,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/profile", async (req, res) => {
     try {
       const session = req.session as Session & { user?: any };
+      console.log(`[profile] Session check:`, { 
+        hasSession: !!session, 
+        hasUser: !!session?.user,
+        sessionId: session?.id,
+        userEmail: session?.user?.email
+      });
+      
       if (!session.user) {
+        console.log(`[profile] No user in session, returning 401`);
         return res.status(401).json({ error: "Not authenticated" });
       }
 

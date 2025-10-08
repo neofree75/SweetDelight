@@ -115,7 +115,7 @@ app.use(session({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
   resave: false,
-  saveUninitialized: false, // Don't save empty sessions
+  saveUninitialized: true, // Save sessions even if not modified
   cookie: {
     secure: process.env.USE_HTTPS !== 'false' && process.env.NODE_ENV === 'production',
     httpOnly: true,

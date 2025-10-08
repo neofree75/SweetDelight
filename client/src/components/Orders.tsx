@@ -419,12 +419,7 @@ export function Orders() {
                   >
                     <div className="flex-1">
                       <h5 className="font-medium text-foreground">{item.itemName}</h5>
-                      {data?.isAdminView && (order.customer || order.customerName) && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">
-                          <User className="h-3 w-3" />
-                          <span>{order.customerName || order.customer}</span>
-                        </div>
-                      )}
+
                       <p className="text-sm text-muted-foreground">
                         Kód: {item.itemCode}
                       </p>

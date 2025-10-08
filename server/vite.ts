@@ -45,8 +45,9 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
+      const currentDir = import.meta.dirname || __dirname || process.cwd();
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        currentDir,
         "..",
         "client",
         "index.html",
@@ -68,7 +69,9 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  // Use __dirname fallback for compatibility
+  const currentDir = import.meta.dirname || __dirname || process.cwd();
+  const distPath = path.resolve(currentDir, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -79,7 +82,7 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // Serve uploaded files statically
-  const uploadsPath = path.resolve(import.meta.dirname, "..", "uploads");
+  const uploadsPath = path.resolve(currentDir, "..", "uploads");
   if (fs.existsSync(uploadsPath)) {
     app.use('/uploads', express.static(uploadsPath));
   }

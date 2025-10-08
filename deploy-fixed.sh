@@ -1,11 +1,11 @@
 #!/bin/bash
-# Deploy script pre SweetDelight s fix pre Environment Variables
+# Opravený deploy script pre SweetDelight
 
 APP_NAME="SweetDelight"
 APP_DIR="/var/www/SweetDelight"
 PORT=5001
 
-echo "🚀 Deploy začína pre $APP_NAME..."
+echo "🚀 Opravený deploy začína pre $APP_NAME..."
 
 # Prejdi do adresára projektu
 cd $APP_DIR || { echo "❌ Projektový adresár $APP_DIR neexistuje"; exit 1; }
@@ -15,7 +15,6 @@ git pull origin replit-agent || { echo "❌ Nepodarilo sa stiahnuť nové zmeny"
 
 echo "🔧 Prepínam na Node 20 cez nvm..."
 export NVM_DIR="$HOME/.nvm"
-# načítaj nvm, ak ešte nie je v PATH
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 nvm use 20 || { echo "❌ Nepodarilo sa prepnúť na Node 20"; exit 1; }
 
@@ -26,9 +25,10 @@ echo "🧹 Čistím starý build..."
 rm -rf dist/*
 
 echo "📝 Načítavam environment variables pre build..."
-# Načítaj .env súbor pre Vite build (VITE_ variables)
 if [ -f "$APP_DIR/.env" ]; then
-    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
+    set -a
+    source "$APP_DIR/.env"
+    set +a
     echo "✅ Environment variables načítané"
 else
     echo "⚠️ .env súbor sa nenašiel!"
@@ -36,6 +36,15 @@ fi
 
 echo "🔨 Build projektu s environment variables..."
 NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
+
+echo "🔍 Kontrolujem build..."
+if [ -d "dist/public" ]; then
+    echo "✅ Frontend build existuje v dist/public"
+    ls -la dist/public/
+else
+    echo "❌ Frontend build neexistuje!"
+    exit 1
+fi
 
 echo "🔎 Kontrolujem proces na porte $PORT..."
 PID=$(lsof -t -i:$PORT)
@@ -51,10 +60,11 @@ echo "🗑️ Mažem starý PM2 proces..."
 pm2 delete $APP_NAME || true
 
 echo "📝 Nastavujem environment variables..."
-# Načítaj .env súbor ak existuje
 if [ -f "$APP_DIR/.env" ]; then
     echo "✅ Našiel som .env súbor"
-    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
+    set -a
+    source "$APP_DIR/.env"
+    set +a
 else
     echo "⚠️  .env súbor sa nenašiel v $APP_DIR"
 fi
@@ -65,11 +75,10 @@ pm2 start dist/index.js --name $APP_NAME --cwd $APP_DIR --env production
 echo "💾 Ukladám PM2 konfiguráciu..."
 pm2 save
 
-echo "🔍 Kontrolujem načítané env hodnoty..."
-pm2 show $APP_NAME
+echo "⏳ Čakám na spustenie servera..."
+sleep 5
 
-echo "🔍 Testovanie API endpointu..."
-sleep 3
+echo "🧪 Testovanie servera..."
 curl -f http://localhost:$PORT/api/products > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "✅ API endpoint funguje!"
@@ -78,4 +87,13 @@ else
     pm2 logs $APP_NAME --lines 10
 fi
 
-echo "✅ Deploy hotový!"
+echo "🌐 Testovanie frontend..."
+curl -f http://localhost:$PORT/ > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "✅ Frontend funguje!"
+else
+    echo "❌ Frontend nefunguje, kontroluj logy:"
+    pm2 logs $APP_NAME --lines 10
+fi
+
+echo "✅ Opravený deploy hotový!"

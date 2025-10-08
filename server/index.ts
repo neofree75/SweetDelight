@@ -100,9 +100,6 @@ if (process.env.NODE_ENV === 'production') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Serve uploaded files statically
-app.use('/uploads', express.static('uploads'));
-
 // Configure session management with secure settings
 // WARNING: MemoryStore loses all sessions on server restart!
 // In production, consider using Redis or database-backed session store

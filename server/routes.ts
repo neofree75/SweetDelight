@@ -467,6 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[login] Fetching user profile for: ${email}`);
       const profileResult = await erpNextService.getUserProfile(email);
       console.log(`[login] Profile result:`, { success: profileResult.success, hasData: !!profileResult.data, message: profileResult.message });
+      console.log(`[login] Profile data keys:`, profileResult.data ? Object.keys(profileResult.data) : 'NO DATA');
       
       if (profileResult.success && profileResult.data) {
         // Merge login data with profile data (including admin status)
@@ -476,7 +477,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         session.user = completeUserData;
         
-        console.log(`[login] Returning complete user data with admin status:`, { isAdmin: completeUserData.isAdmin, userType: completeUserData.userType });
+        console.log(`[login] Session user before response:`, { 
+          email: session.user?.email, 
+          isAdmin: session.user?.isAdmin, 
+          userType: session.user?.userType,
+          keys: Object.keys(session.user || {})
+        });
+        console.log(`[login] Complete user data:`, { 
+          email: completeUserData?.email, 
+          isAdmin: completeUserData?.isAdmin, 
+          userType: completeUserData?.userType,
+          keys: Object.keys(completeUserData || {})
+        });
+        
         res.json({
           success: true,
           user: completeUserData,
@@ -485,6 +498,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Fallback if profile fetch fails
         console.log(`[login] Profile fetch failed, using fallback data. Error:`, profileResult.message);
+        console.log(`[login] Fallback session user:`, { 
+          email: session.user?.email, 
+          isAdmin: session.user?.isAdmin, 
+          userType: session.user?.userType,
+          keys: Object.keys(session.user || {})
+        });
         res.json({
           success: true,
           user: session.user,

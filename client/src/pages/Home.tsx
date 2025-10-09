@@ -64,7 +64,7 @@ export default function Home({ cartItems, onAddToCart, onCartOpen }: HomeProps) 
   return (
     <>
       <SEO 
-        title="Marsela Bakery - Artisan cukráreň | Čerstvé zákusky a torty"
+        title="Marsela Bakery - cukráreň | Čerstvé zákusky a torty"
         description="Odkryjte ručne vyrobené zákusky, čerstvé torty a artisan dezerty v Marsela Bakery. Objednajte online na vyzdvihnutie alebo doručenie. Prémiová kvalita, tradičné receptúry, moderná chuť."
         keywords="cukráreň, zákusky, torty, dezerty, Marsela Bakery, Dvorníky, objednávka online, čerstvé pečivo, tradičné receptúry, artisan cukráreň"
         canonical="/"

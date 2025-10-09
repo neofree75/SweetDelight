@@ -344,9 +344,12 @@ export default function Gallery({ user }: GalleryProps) {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-4">
-            Fotogaléria
-          </h1>
+          <div className="flex items-center justify-center mb-4">
+            <ImageIcon className="h-8 w-8 text-primary mr-3" />
+            <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground">
+              Fotogaléria
+            </h1>
+          </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Pozrite si naše krásne cukrárske výrobky a prevádzku
           </p>

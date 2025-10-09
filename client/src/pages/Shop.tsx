@@ -3,7 +3,7 @@ import ProductGrid from '@/components/ProductGrid';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, Loader2, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 interface Product {
@@ -97,9 +97,12 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-4">
-            Náš obchod
-          </h1>
+          <div className="flex items-center justify-center mb-4">
+            <ShoppingBag className="h-8 w-8 text-primary mr-3" />
+            <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground">
+              Náš obchod
+            </h1>
+          </div>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Vyberte si z našej širokej ponuky čerstvých zákuskov, pečiva a tort.
           </p>

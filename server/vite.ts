@@ -99,11 +99,20 @@ export function serveStatic(app: Express) {
     console.warn(`[static] Uploads directory not found: ${uploadsPath}`);
     // Try alternative paths in production
     if (process.env.NODE_ENV === 'production') {
-      const altUploadsPath = path.resolve(process.cwd(), "..", "uploads");
-      console.log(`[static] Trying alternative path: ${altUploadsPath}`);
-      if (fs.existsSync(altUploadsPath)) {
-        app.use('/uploads', express.static(altUploadsPath));
-        console.log(`[static] Serving uploads from alternative path: ${altUploadsPath}`);
+      const altPaths = [
+        path.resolve(process.cwd(), "..", "uploads"),
+        path.resolve(process.cwd(), "..", "..", "uploads"),
+        path.resolve("/var/www/SweetDelight", "uploads"),
+        path.resolve("/home/ubuntu/SweetDelight", "uploads")
+      ];
+      
+      for (const altPath of altPaths) {
+        console.log(`[static] Trying alternative path: ${altPath}`);
+        if (fs.existsSync(altPath)) {
+          app.use('/uploads', express.static(altPath));
+          console.log(`[static] Serving uploads from alternative path: ${altPath}`);
+          break;
+        }
       }
     }
   }

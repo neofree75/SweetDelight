@@ -16,11 +16,29 @@ const app = express();
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // PM2 runs with --cwd $APP_DIR, so uploads is in the same directory
-    const uploadsPath = path.resolve(process.cwd(), 'uploads', 'gallery');
+    let uploadsPath = path.resolve(process.cwd(), 'uploads', 'gallery');
     
     console.log(`[multer] NODE_ENV: ${process.env.NODE_ENV}`);
     console.log(`[multer] process.cwd(): ${process.cwd()}`);
     console.log(`[multer] uploadsPath: ${uploadsPath}`);
+    
+    // In production, try alternative paths if the default doesn't work
+    if (process.env.NODE_ENV === 'production' && !fs.existsSync(path.dirname(uploadsPath))) {
+      const altPaths = [
+        path.resolve(process.cwd(), "..", "uploads", "gallery"),
+        path.resolve("/var/www/SweetDelight", "uploads", "gallery"),
+        path.resolve("/home/ubuntu/SweetDelight", "uploads", "gallery")
+      ];
+      
+      for (const altPath of altPaths) {
+        console.log(`[multer] Trying alternative path: ${altPath}`);
+        if (fs.existsSync(path.dirname(altPath))) {
+          uploadsPath = altPath;
+          console.log(`[multer] Using alternative path: ${uploadsPath}`);
+          break;
+        }
+      }
+    }
     
     // Ensure directory exists
     fs.mkdirSync(uploadsPath, { recursive: true });

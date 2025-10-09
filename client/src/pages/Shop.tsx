@@ -93,7 +93,7 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
   };
 
   return (
-    <div className="min-h-screen bg-background pt-8">
+    <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
@@ -103,7 +103,7 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
               Náš obchod
             </h1>
           </div>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-xl max-w-2xl mx-auto">
             Vyberte si z našej širokej ponuky čerstvých zákuskov, pečiva a tort.
           </p>
         </div>

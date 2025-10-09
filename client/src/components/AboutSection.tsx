@@ -10,7 +10,7 @@ export default function AboutSection() {
   ];
 
   return (
-    <section className="py-16 bg-card">
+    <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
@@ -19,7 +19,7 @@ export default function AboutSection() {
               O našej cukrárni
             </h2>
           </div>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-xl max-w-2xl mx-auto">
             Prinášame autentické chute tradičných aj netradičných zákuskov do nášho regiónu.
           </p>
         </div>

@@ -141,12 +141,13 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="min-h-screen bg-background py-12">
+      <div className="container mx-auto px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Cake className="h-8 w-8 text-primary mr-3" />
-            <h1 className="text-4xl font-serif font-bold text-foreground">Torta na mieru</h1>
+            <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground">Torta na mieru</h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Vytvorte si vašu vlastnú tortu presne podľa vašich predstáv. 
@@ -310,6 +311,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
             </Card>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

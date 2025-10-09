@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Clock, MapPin, Phone, Mail, Send, MessageCircle } from 'lucide-react';
+import SEO from '@/components/SEO';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -43,7 +44,14 @@ export default function Contact() {
   ];
 
   return (
-    <div className="min-h-screen bg-background py-12">
+    <>
+      <SEO 
+        title="Kontakt | Marsela Bakery"
+        description="Kontaktujte nás v Marsela Bakery. Máte otázky alebo chcete vytvoriť špecialnu objednávku? Napíšte nám! Nájdete nás v Dvorníkoch, otváracie hodiny: Utorok-Štvrtok 14:00-20:00, Piatok-Nedeľa 14:00-20:30."
+        keywords="kontakt, objednávka, otázky, Marsela Bakery, Dvorníky, telefón, email, adresa, otváracie hodiny"
+        canonical="/kontakt"
+      />
+      <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
@@ -230,6 +238,7 @@ export default function Contact() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

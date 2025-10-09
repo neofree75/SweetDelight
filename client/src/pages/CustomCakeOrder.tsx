@@ -11,6 +11,7 @@ import { Loader2, Cake, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CustomCakeAttribute, CustomCakeAttributeValue } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
+import SEO from '@/components/SEO';
 
 // Hook to fetch custom cake attributes from ERPNext
 function useCustomCakeAttributes() {
@@ -141,7 +142,14 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
+    <>
+      <SEO 
+        title="Torta na mieru | Marsela Bakery"
+        description="Vytvorte si vašu vlastnú tortu presne podľa vašich predstáv. Vyberte si zo širokej ponuky ingrediencií a príchutí. Plnka, poleva, veľkosť - všetko podľa vašich požiadaviek."
+        keywords="torta na mieru, vlastná torta, ingrediencie, príchute, plnka, poleva, veľkosť, objednávka torty, Marsela Bakery"
+        canonical="/torta-na-mieru"
+      />
+      <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
@@ -313,6 +321,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
         </div>
       </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

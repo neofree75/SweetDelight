@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import SEO from '@/components/SEO';
 import { 
   Upload, 
   X, 
@@ -340,7 +341,14 @@ export default function Gallery({ user }: GalleryProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
+    <>
+      <SEO 
+        title="Fotogaléria | Marsela Bakery"
+        description="Pozrite si naše krásne cukrárske výrobky a prevádzku vo fotogalérii. Inšpirujte sa našimi čerstvými zákuskami, tortami a dezertmi. Tradičné receptúry s moderným prístupom."
+        keywords="fotogaléria, cukrárske výrobky, zákusky, torty, dezerty, Marsela Bakery, prevádzka, tradičné receptúry"
+        canonical="/galeria"
+      />
+      <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
@@ -702,6 +710,7 @@ export default function Gallery({ user }: GalleryProps) {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

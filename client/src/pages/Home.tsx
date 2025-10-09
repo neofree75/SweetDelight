@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import Hero from '@/components/Hero';
 import ProductGrid from '@/components/ProductGrid';
 import AboutSection from '@/components/AboutSection';
+import SEO from '@/components/SEO';
 
 interface Product {
   id: string;
@@ -61,8 +62,15 @@ export default function Home({ cartItems, onAddToCart, onCartOpen }: HomeProps) 
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Hero />
+    <>
+      <SEO 
+        title="Marsela Bakery - Artisan cukráreň | Čerstvé zákusky a torty"
+        description="Odkryjte ručne vyrobené zákusky, čerstvé torty a artisan dezerty v Marsela Bakery. Objednajte online na vyzdvihnutie alebo doručenie. Prémiová kvalita, tradičné receptúry, moderná chuť."
+        keywords="cukráreň, zákusky, torty, dezerty, Marsela Bakery, Dvorníky, objednávka online, čerstvé pečivo, tradičné receptúry, artisan cukráreň"
+        canonical="/"
+      />
+      <div className="min-h-screen bg-background">
+        <Hero />
       
       {/* Zobraz loading alebo error state */}
       {isLoading ? (
@@ -91,6 +99,7 @@ export default function Home({ cartItems, onAddToCart, onCartOpen }: HomeProps) 
       )}
       
       <AboutSection />
-    </div>
+      </div>
+    </>
   );
 }

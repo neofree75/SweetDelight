@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Search, Filter, Loader2, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import SEO from '@/components/SEO';
 
 interface Product {
   id: string;
@@ -93,7 +94,14 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
   };
 
   return (
-    <div className="min-h-screen bg-background py-12">
+    <>
+      <SEO 
+        title="Náš obchod | Marsela Bakery"
+        description="Prehľadajte našu širokú ponuku čerstvých zákuskov, pečiva a tort. Vyberte si z tradičných slovenských receptúr a moderných dezertov. Objednajte online na vyzdvihnutie."
+        keywords="obchod, zákusky, pečivo, torty, tradičné receptúry, objednávka online, čerstvé produkty, Marsela Bakery"
+        canonical="/obchod"
+      />
+      <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
@@ -212,6 +220,7 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
           </>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

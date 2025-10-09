@@ -6,6 +6,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -14,7 +15,12 @@ const app = express();
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/gallery/');
+    // PM2 runs with --cwd $APP_DIR, so uploads is in the same directory
+    const uploadsPath = path.resolve(process.cwd(), 'uploads', 'gallery');
+    
+    // Ensure directory exists
+    fs.mkdirSync(uploadsPath, { recursive: true });
+    cb(null, uploadsPath);
   },
   filename: (req, file, cb) => {
     // Generate unique filename with timestamp

@@ -26,6 +26,11 @@ rm -rf dist/
 rm -rf node_modules/.vite/
 rm -rf node_modules/.cache/
 
+echo "📁 Zabezpečujem uploads priečinok..."
+# Ensure uploads directory exists and has correct permissions
+mkdir -p uploads/gallery
+chmod 755 uploads/gallery
+
 echo "📝 Načítavam environment variables..."
 if [ -f "$APP_DIR/.env" ]; then
     set -a

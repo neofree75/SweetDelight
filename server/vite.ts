@@ -82,9 +82,17 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // Serve uploaded files statically
-  const uploadsPath = path.resolve(currentDir, "..", "uploads");
+  // In production, PM2 runs with --cwd $APP_DIR, so uploads is in the same directory
+  const uploadsPath = process.env.NODE_ENV === 'production' 
+    ? path.resolve(process.cwd(), "uploads")
+    : path.resolve(currentDir, "..", "uploads");
+    
+    
   if (fs.existsSync(uploadsPath)) {
     app.use('/uploads', express.static(uploadsPath));
+    console.log(`[static] Serving uploads from: ${uploadsPath}`);
+  } else {
+    console.warn(`[static] Uploads directory not found: ${uploadsPath}`);
   }
 
   // fall through to index.html if the file doesn't exist

@@ -25,6 +25,11 @@ npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 echo "🧹 Čistím starý build..."
 rm -rf dist/*
 
+echo "📁 Zabezpečujem uploads priečinok..."
+# Ensure uploads directory exists and has correct permissions
+mkdir -p uploads/gallery
+chmod 755 uploads/gallery
+
 echo "📝 Načítavam environment variables pre build..."
 # Načítaj .env súbor pre Vite build (VITE_ variables)
 if [ -f "$APP_DIR/.env" ]; then

@@ -18,8 +18,13 @@ const storage = multer.diskStorage({
     // PM2 runs with --cwd $APP_DIR, so uploads is in the same directory
     const uploadsPath = path.resolve(process.cwd(), 'uploads', 'gallery');
     
+    console.log(`[multer] NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[multer] process.cwd(): ${process.cwd()}`);
+    console.log(`[multer] uploadsPath: ${uploadsPath}`);
+    
     // Ensure directory exists
     fs.mkdirSync(uploadsPath, { recursive: true });
+    console.log(`[multer] Created uploads directory: ${uploadsPath}`);
     cb(null, uploadsPath);
   },
   filename: (req, file, cb) => {

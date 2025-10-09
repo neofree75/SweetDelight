@@ -87,12 +87,25 @@ export function serveStatic(app: Express) {
     ? path.resolve(process.cwd(), "uploads")
     : path.resolve(currentDir, "..", "uploads");
     
+  console.log(`[static] NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`[static] process.cwd(): ${process.cwd()}`);
+  console.log(`[static] uploadsPath: ${uploadsPath}`);
+  console.log(`[static] uploadsPath exists: ${fs.existsSync(uploadsPath)}`);
     
   if (fs.existsSync(uploadsPath)) {
     app.use('/uploads', express.static(uploadsPath));
     console.log(`[static] Serving uploads from: ${uploadsPath}`);
   } else {
     console.warn(`[static] Uploads directory not found: ${uploadsPath}`);
+    // Try alternative paths in production
+    if (process.env.NODE_ENV === 'production') {
+      const altUploadsPath = path.resolve(process.cwd(), "..", "uploads");
+      console.log(`[static] Trying alternative path: ${altUploadsPath}`);
+      if (fs.existsSync(altUploadsPath)) {
+        app.use('/uploads', express.static(altUploadsPath));
+        console.log(`[static] Serving uploads from alternative path: ${altUploadsPath}`);
+      }
+    }
   }
 
   // fall through to index.html if the file doesn't exist

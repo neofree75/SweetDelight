@@ -30,6 +30,18 @@ echo "📁 Zabezpečujem uploads priečinok..."
 mkdir -p uploads/gallery
 chmod 755 uploads/gallery
 
+echo "🔍 Kontrolujem uploads priečinok..."
+ls -la uploads/gallery/ || echo "⚠️ Uploads priečinok je prázdny alebo neexistuje"
+
+echo "📋 Kontrolujem, či existujú obrázky v uploads priečinku..."
+if [ -d "uploads/gallery" ] && [ "$(ls -A uploads/gallery)" ]; then
+    echo "✅ Uploads priečinok obsahuje obrázky:"
+    ls -la uploads/gallery/
+else
+    echo "⚠️ Uploads priečinok je prázdny alebo neexistuje"
+    echo "💡 Ak ste už nahrávali obrázky, skontrolujte, či sa nachádzajú v správnom priečinku"
+fi
+
 echo "📝 Načítavam environment variables pre build..."
 # Načítaj .env súbor pre Vite build (VITE_ variables)
 if [ -f "$APP_DIR/.env" ]; then

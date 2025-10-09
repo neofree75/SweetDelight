@@ -25,21 +25,26 @@ npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 echo "🧹 Čistím starý build..."
 rm -rf dist/*
 
-echo "📁 Zabezpečujem attached_assets priečinok..."
-# Ensure attached_assets directory exists and has correct permissions
+echo "📁 Zabezpečujem assets priečinky..."
+# Ensure both attached_assets and dist/public/assets directories exist
 mkdir -p attached_assets/gallery
+mkdir -p dist/public/assets/gallery
 chmod 755 attached_assets/gallery
+chmod 755 dist/public/assets/gallery
 
 echo "🔍 Kontrolujem attached_assets priečinok..."
 ls -la attached_assets/gallery/ || echo "⚠️ Attached_assets priečinok je prázdny alebo neexistuje"
 
-echo "📋 Kontrolujem, či existujú obrázky v attached_assets priečinku..."
-if [ -d "attached_assets/gallery" ] && [ "$(ls -A attached_assets/gallery)" ]; then
-    echo "✅ Attached_assets priečinok obsahuje obrázky:"
-    ls -la attached_assets/gallery/
+echo "🔍 Kontrolujem dist/public/assets/gallery priečinok..."
+ls -la dist/public/assets/gallery/ || echo "⚠️ dist/public/assets/gallery priečinok je prázdny alebo neexistuje"
+
+echo "📋 Kontrolujem, či existujú obrázky v galérii..."
+if [ -d "dist/public/assets/gallery" ] && [ "$(ls -A dist/public/assets/gallery)" ]; then
+    echo "✅ dist/public/assets/gallery priečinok obsahuje obrázky:"
+    ls -la dist/public/assets/gallery/
 else
-    echo "⚠️ Attached_assets priečinok je prázdny alebo neexistuje"
-    echo "💡 Galéria sa teraz ukladá do attached_assets/gallery (rovnako ako logo)"
+    echo "⚠️ dist/public/assets/gallery priečinok je prázdny alebo neexistuje"
+    echo "💡 Nové obrázky sa ukladajú priamo do dist/public/assets/gallery"
 fi
 
 echo "📝 Načítavam environment variables pre build..."

@@ -15,8 +15,11 @@ const app = express();
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Store gallery images in attached_assets/gallery (same as other assets)
-    const galleryPath = path.resolve(process.cwd(), 'attached_assets', 'gallery');
+    // Store gallery images directly in dist/public/assets/gallery for production
+    // This ensures they are immediately available for serving
+    const galleryPath = process.env.NODE_ENV === 'production' 
+      ? path.resolve(process.cwd(), 'dist', 'public', 'assets', 'gallery')
+      : path.resolve(process.cwd(), 'attached_assets', 'gallery');
     
     console.log(`[multer] NODE_ENV: ${process.env.NODE_ENV}`);
     console.log(`[multer] process.cwd(): ${process.cwd()}`);

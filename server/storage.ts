@@ -44,7 +44,7 @@ export class MemStorage implements IStorage {
         id: 'demo-1',
         title: 'Naša cukráreň',
         description: 'Krásna cukráreň s útulným interiérom a čerstvými výrobkami',
-        imageUrl: '/attached_assets/generated_images/Elegant_pastry_shop_interior_new.png',
+        imageUrl: '/assets/Elegant_pastry_shop_interior_new-CLgVR26R.png',
         category: 'prevadzka',
         uploadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
         uploadedBy: 'admin@marselabakery.sk',
@@ -54,7 +54,7 @@ export class MemStorage implements IStorage {
         id: 'demo-2',
         title: 'Čokoládové éclairs',
         description: 'Čerstvé éclairs s belgickou čokoládou a smotanou',
-        imageUrl: '/attached_assets/generated_images/Chocolate_éclair_product_e07f4a3d.png',
+        imageUrl: '/assets/Chocolate_éclair_product_e07f4a3d.png',
         category: 'produkty',
         uploadedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         uploadedBy: 'admin@marselabakery.sk',
@@ -64,7 +64,7 @@ export class MemStorage implements IStorage {
         id: 'demo-3',
         title: 'Zlatý croissant',
         description: 'Voňavý máslový croissant s krištáľovou kôrkou',
-        imageUrl: '/attached_assets/generated_images/Golden_butter_croissant_3113f28f.png',
+        imageUrl: '/assets/Golden_butter_croissant_3113f28f.png',
         category: 'produkty',
         uploadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
         uploadedBy: 'admin@marselabakery.sk',
@@ -74,7 +74,7 @@ export class MemStorage implements IStorage {
         id: 'demo-4',
         title: 'Pastelové macarons',
         description: 'Delikátne macarons v pastelových farbách s ovocnou náplňou',
-        imageUrl: '/attached_assets/generated_images/Pastel_colored_macarons_d19a6f3c.png',
+        imageUrl: '/assets/Pastel_colored_macarons_d19a6f3c.png',
         category: 'produkty',
         uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
         uploadedBy: 'admin@marselabakery.sk',
@@ -84,7 +84,7 @@ export class MemStorage implements IStorage {
         id: 'demo-5',
         title: 'Jahodový koláč',
         description: 'Čerstvý ovocný koláč s jahodami a vanilkovým krémom',
-        imageUrl: '/attached_assets/generated_images/Strawberry_fruit_tart_25e81086.png',
+        imageUrl: '/assets/Strawberry_fruit_tart_25e81086.png',
         category: 'produkty',
         uploadedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
         uploadedBy: 'admin@marselabakery.sk',
@@ -94,7 +94,7 @@ export class MemStorage implements IStorage {
         id: 'demo-6',
         title: 'Vystavenie v cukrárni',
         description: 'Vitrína plná čerstvých cukrárenských výrobkov',
-        imageUrl: '/attached_assets/generated_images/Bakery_display_case_hero_a86779fc.png',
+        imageUrl: '/assets/Bakery_display_case_hero_a86779fc.png',
         category: 'prevadzka',
         uploadedAt: new Date().toISOString(), // today
         uploadedBy: 'admin@marselabakery.sk',

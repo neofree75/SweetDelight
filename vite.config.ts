@@ -1,12 +1,46 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
   plugins: [
     react(),
     runtimeErrorOverlay(),
+    // Plugin to copy gallery images to assets
+    {
+      name: 'copy-gallery',
+      writeBundle() {
+        const sourceDir = path.resolve(import.meta.dirname, "attached_assets");
+        const targetDir = path.resolve(import.meta.dirname, "dist/public/assets");
+        
+        // Ensure target directory exists
+        fs.mkdirSync(targetDir, { recursive: true });
+        
+        // Copy all files from attached_assets to dist/public/assets
+        function copyDir(src: string, dest: string) {
+          if (!fs.existsSync(src)) return;
+          
+          const entries = fs.readdirSync(src, { withFileTypes: true });
+          
+          for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            
+            if (entry.isDirectory()) {
+              fs.mkdirSync(destPath, { recursive: true });
+              copyDir(srcPath, destPath);
+            } else {
+              fs.copyFileSync(srcPath, destPath);
+            }
+          }
+        }
+        
+        copyDir(sourceDir, targetDir);
+        console.log('✅ Gallery images copied to dist/public/assets/');
+      }
+    },
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [

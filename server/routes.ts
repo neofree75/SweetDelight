@@ -1689,7 +1689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Use the uploaded file path
-      const imageUrl = `/uploads/gallery/${req.file.filename}`;
+      const imageUrl = `/assets/gallery/${req.file.filename}`;
       console.log(`[gallery-upload] File saved: ${req.file.filename}`);
       
       const imageData: InsertGalleryImage = {
@@ -1746,7 +1746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.file) {
         // New image uploaded - update with new file
         const { title, description, category } = req.body;
-        const newImageUrl = `/uploads/gallery/${req.file.filename}`;
+        const newImageUrl = `/assets/gallery/${req.file.filename}`;
         
         // Update image with new file
         const updates = {

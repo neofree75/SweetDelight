@@ -25,21 +25,21 @@ npm install || { echo "❌ NPM install zlyhal"; exit 1; }
 echo "🧹 Čistím starý build..."
 rm -rf dist/*
 
-echo "📁 Zabezpečujem uploads priečinok..."
-# Ensure uploads directory exists and has correct permissions
-mkdir -p uploads/gallery
-chmod 755 uploads/gallery
+echo "📁 Zabezpečujem attached_assets priečinok..."
+# Ensure attached_assets directory exists and has correct permissions
+mkdir -p attached_assets/gallery
+chmod 755 attached_assets/gallery
 
-echo "🔍 Kontrolujem uploads priečinok..."
-ls -la uploads/gallery/ || echo "⚠️ Uploads priečinok je prázdny alebo neexistuje"
+echo "🔍 Kontrolujem attached_assets priečinok..."
+ls -la attached_assets/gallery/ || echo "⚠️ Attached_assets priečinok je prázdny alebo neexistuje"
 
-echo "📋 Kontrolujem, či existujú obrázky v uploads priečinku..."
-if [ -d "uploads/gallery" ] && [ "$(ls -A uploads/gallery)" ]; then
-    echo "✅ Uploads priečinok obsahuje obrázky:"
-    ls -la uploads/gallery/
+echo "📋 Kontrolujem, či existujú obrázky v attached_assets priečinku..."
+if [ -d "attached_assets/gallery" ] && [ "$(ls -A attached_assets/gallery)" ]; then
+    echo "✅ Attached_assets priečinok obsahuje obrázky:"
+    ls -la attached_assets/gallery/
 else
-    echo "⚠️ Uploads priečinok je prázdny alebo neexistuje"
-    echo "💡 Ak ste už nahrávali obrázky, skontrolujte, či sa nachádzajú v správnom priečinku"
+    echo "⚠️ Attached_assets priečinok je prázdny alebo neexistuje"
+    echo "💡 Galéria sa teraz ukladá do attached_assets/gallery (rovnako ako logo)"
 fi
 
 echo "📝 Načítavam environment variables pre build..."

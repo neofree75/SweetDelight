@@ -81,41 +81,9 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // Serve uploaded files statically
-  // In production, PM2 runs with --cwd $APP_DIR, so uploads is in the same directory
-  const uploadsPath = process.env.NODE_ENV === 'production' 
-    ? path.resolve(process.cwd(), "uploads")
-    : path.resolve(currentDir, "..", "uploads");
-    
-  console.log(`[static] NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`[static] process.cwd(): ${process.cwd()}`);
-  console.log(`[static] uploadsPath: ${uploadsPath}`);
-  console.log(`[static] uploadsPath exists: ${fs.existsSync(uploadsPath)}`);
-    
-  if (fs.existsSync(uploadsPath)) {
-    app.use('/uploads', express.static(uploadsPath));
-    console.log(`[static] Serving uploads from: ${uploadsPath}`);
-  } else {
-    console.warn(`[static] Uploads directory not found: ${uploadsPath}`);
-    // Try alternative paths in production
-    if (process.env.NODE_ENV === 'production') {
-      const altPaths = [
-        path.resolve(process.cwd(), "..", "uploads"),
-        path.resolve(process.cwd(), "..", "..", "uploads"),
-        path.resolve("/var/www/SweetDelight", "uploads"),
-        path.resolve("/home/ubuntu/SweetDelight", "uploads")
-      ];
-      
-      for (const altPath of altPaths) {
-        console.log(`[static] Trying alternative path: ${altPath}`);
-        if (fs.existsSync(altPath)) {
-          app.use('/uploads', express.static(altPath));
-          console.log(`[static] Serving uploads from alternative path: ${altPath}`);
-          break;
-        }
-      }
-    }
-  }
+  // Gallery images are now served from attached_assets (same as other assets)
+  // They will be copied to dist/public/assets/ during build process
+  console.log(`[static] Gallery images are served from attached_assets (copied to dist/public/assets/ during build)`);
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {

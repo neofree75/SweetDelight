@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, MapPin, Phone, Mail } from 'lucide-react';
+import { Clock, MapPin, Phone, Mail, Users } from 'lucide-react';
 import aboutImage from '@assets/generated_images/Elegant_pastry_shop_interior_new.png';
 
 export default function AboutSection() {
@@ -13,9 +13,12 @@ export default function AboutSection() {
     <section className="py-16 bg-card">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-4">
-            O našej cukrárni
-          </h2>
+          <div className="flex items-center justify-center mb-4">
+            <Users className="h-8 w-8 text-primary mr-3" />
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-foreground">
+              O našej cukrárni
+            </h2>
+          </div>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Prinášame autentické chute tradičných aj netradičných zákuskov do nášho regiónu.
           </p>

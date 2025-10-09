@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, Phone, Mail, Send } from 'lucide-react';
+import { Clock, MapPin, Phone, Mail, Send, MessageCircle } from 'lucide-react';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -47,9 +47,12 @@ export default function Contact() {
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-4">
-            Kontaktujte nás
-          </h1>
+          <div className="flex items-center justify-center mb-4">
+            <MessageCircle className="h-8 w-8 text-primary mr-3" />
+            <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground">
+              Kontaktujte nás
+            </h1>
+          </div>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Máte otázky alebo chcete vytvoriť špecialnu objednávku? Napíšte nám!
           </p>

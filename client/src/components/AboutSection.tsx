@@ -44,11 +44,11 @@ export default function AboutSection() {
               <p className="text-muted-foreground leading-relaxed">
               Naše brány sme otvorili v januári 2022, keď sme začali s výrobou a predajom kvalitných cukrárenských výrobkov. Produkciu sme spustili v zrekonštruovaných priestoroch v obci Dvorníky, kde sme o rok neskôr otvorili aj cukráreň so sedením.
 
-Tu si naši zákazníci môžu vychutnať nielen čerstvé zákusky a torty, ale aj šálku výbornej kávy, čaju, pohár vína či piva a ďalšie dobroty z našej ponuky.
+<br/>Tu si naši zákazníci môžu vychutnať nielen čerstvé zákusky a torty, ale aj šálku výbornej kávy, čaju, pohár vína či piva a ďalšie dobroty z našej ponuky.
 
-Dbáme na poctivú výrobu, kvalitu surovín a precíznosť každého detailu. Za každým koláčikom stojí srdce, odhodlanie a kreativita nášho cukrárskeho tímu.
+<br/>Dbáme na poctivú výrobu, kvalitu surovín a precíznosť každého detailu. Za každým koláčikom stojí srdce, odhodlanie a kreativita nášho cukrárskeho tímu.
 
-Tešíme sa na každú Vašu návštevu a objednávku – s nami si život vychutnáte sladšie. 🍰
+<br/>Tešíme sa na každú Vašu návštevu a objednávku – s nami si život vychutnáte sladšie. 🍰
               </p>
             </div>
 

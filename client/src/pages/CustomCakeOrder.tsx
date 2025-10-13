@@ -287,7 +287,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
 
                 <div className="pt-4 border-t">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg font-medium">Odhadovaná cena:</span>
+                    <span className="text-lg font-medium">Záloha:</span>
                     <span className="text-2xl font-bold text-primary" data-testid="estimated-price">
 {formatPrice(estimatedPrice)}
                     </span>

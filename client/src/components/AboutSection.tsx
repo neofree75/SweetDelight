@@ -42,9 +42,7 @@ export default function AboutSection() {
                 Naša história
               </h3>
               <p className="text-muted-foreground leading-relaxed">
-                Začali sme ako malá rodinná cukráreň s veľkými snami. Dnes sme pyšní na to, 
-                že každý deň pečieme čerstvé produkty používajúc iba tie najkvalitnejšie suroviny. 
-                Naše recepty kombinujú tradičné slovenské postupy s modernými technikami.
+              Naše brány sme otvorili v Januári 2022  Vtedy sme začali s výrobou a predajom kvalitných cukrárenských výrobkov. Výrobu našich produktov sme začali vo svojom zrekonštruovanom priestore v obci Dvorníky,  kde sme o rok otvorili aj cukráreň so sedením, kde si zákazníci môžu pri našich sladkých produktoch dať aj kávu, čaj víno, pivo a iné dobroty. Dbáme na kvalitu a za každým koláčikom je srdce, odhodlanosť a kreatívnosť nášho cukrárskeho tímu. Tešíme sa na každú Vašu objednávku.
               </p>
             </div>
 

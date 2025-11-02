@@ -55,7 +55,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get products from ERPNext
   app.get("/api/products", async (req, res) => {
     try {
+      // Disable caching for products endpoint
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const products = await erpNextService.getProductsForFrontend();
+      console.log(`[api/products] Returning ${products.length} products`);
       res.json(products);
     } catch (error) {
       console.error("Error fetching products:", error);

@@ -30,13 +30,18 @@ function useProducts() {
   return useQuery({
     queryKey: ['/api/products'],
     queryFn: async (): Promise<Product[]> => {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/products', {
+        cache: 'no-cache', // Disable browser cache
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
       return response.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 seconds (reduced for testing)
   });
 }
 

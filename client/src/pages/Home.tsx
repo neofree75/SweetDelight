@@ -27,7 +27,12 @@ function useFeaturedProducts() {
   return useQuery({
     queryKey: ['/api/products', 'featured'],
     queryFn: async (): Promise<Product[]> => {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/products', {
+        cache: 'no-cache', // Disable browser cache
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
@@ -35,7 +40,7 @@ function useFeaturedProducts() {
       // Zobraz iba prvé 4 produkty pre featured sekciu
       return allProducts.slice(0, 4);
     },
-    staleTime: 5 * 60 * 1000, // 5 minút
+    staleTime: 30 * 1000, // 30 sekúnd (reduced for testing)
   });
 }
 

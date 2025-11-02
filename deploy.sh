@@ -1,7 +1,7 @@
 #!/bin/bash
 # Deploy script pre SweetDelight s fix pre Environment Variables
 
-APP_NAME="SweetDelight"
+APP_NAME="sweetdelight"
 APP_DIR="/var/www/SweetDelight"
 PORT=5001
 
@@ -21,6 +21,17 @@ nvm use 20 || { echo "❌ Nepodarilo sa prepnúť na Node 20"; exit 1; }
 
 echo "📦 Inštalujem závislosti..."
 npm install || { echo "❌ NPM install zlyhal"; exit 1; }
+
+echo "💾 Backing up nahrané obrázky z dist/public/assets/gallery..."
+# Backup obrázkov nahraných priamo v produkcii pred vymazaním dist/
+BACKUP_DIR="/tmp/sweetdelight_gallery_backup_$(date +%s)"
+if [ -d "dist/public/assets/gallery" ] && [ "$(ls -A dist/public/assets/gallery 2>/dev/null)" ]; then
+    mkdir -p "$BACKUP_DIR"
+    cp -r dist/public/assets/gallery/* "$BACKUP_DIR/" 2>/dev/null || true
+    echo "✅ Zálohovaných $(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l) obrázkov"
+else
+    echo "ℹ️  Žiadne obrázky na zálohovanie"
+fi
 
 echo "🧹 Čistím starý build..."
 rm -rf dist/*
@@ -59,6 +70,16 @@ fi
 echo "🔨 Build projektu s environment variables..."
 NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
 
+echo "📥 Obnovujem zálohované obrázky..."
+# Obnov zálohované obrázky po build (build skopíruje z attached_assets, ale my chceme aj produkčné)
+if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
+    cp -r "$BACKUP_DIR"/* dist/public/assets/gallery/ 2>/dev/null || true
+    echo "✅ Obnovených $(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l) obrázkov"
+    rm -rf "$BACKUP_DIR"
+else
+    echo "ℹ️  Žiadne obrázky na obnovenie"
+fi
+
 echo "🔎 Kontrolujem proces na porte $PORT..."
 PID=$(lsof -t -i:$PORT)
 
@@ -72,17 +93,21 @@ fi
 echo "🗑️ Mažem starý PM2 proces..."
 pm2 delete $APP_NAME || true
 
-echo "📝 Nastavujem environment variables..."
-# Načítaj .env súbor ak existuje
+echo "📝 Nastavujem environment variables pre PM2..."
+# PM2 potrebuje env variables explicitne alebo cez ecosystem file
+# Použijeme --update-env aby PM2 načítal env z prostredia
 if [ -f "$APP_DIR/.env" ]; then
-    echo "✅ Našiel som .env súbor"
+    echo "✅ Našiel som .env súbor, načítavam pre PM2..."
+    # Načítaj env variables do shellu (už sú exportované vyššie)
     export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
+    # PM2 automaticky dedí env variables z shellu pri --update-env
 else
     echo "⚠️  .env súbor sa nenašiel v $APP_DIR"
 fi
 
-echo "🚀 Spúšťam $APP_NAME cez PM2 s environment variables..."
-pm2 start dist/index.js --name $APP_NAME --cwd $APP_DIR --env production
+echo "🚀 Spúšťam $APP_NAME cez PM2..."
+# Použijeme --update-env aby PM2 použil aktuálne env variables z shellu
+pm2 start dist/index.js --name $APP_NAME --cwd $APP_DIR --update-env
 
 echo "💾 Ukladám PM2 konfiguráciu..."
 pm2 save

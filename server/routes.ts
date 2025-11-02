@@ -1152,7 +1152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let payNow = subtotal; // Default to full amount
           let paymentMode = 'full';
           
-          if (paymentMethod === 'card' && requiresDeposit) {
+          if ((paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') && requiresDeposit) {
             // For online payments, offer both deposit and full options
             payNow = depositAmount; // Default to deposit for required cases
             paymentMode = 'deposit';

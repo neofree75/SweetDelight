@@ -79,7 +79,17 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // CRITICAL: Skip static serving for API routes
+  // express.static would otherwise try to serve files for /api/* requests
+  // We conditionally apply static middleware only for non-API routes
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      // Skip static middleware for API routes - they should be handled by API routes
+      return next();
+    }
+    // Apply static middleware only for non-API routes
+    express.static(distPath)(req, res, next);
+  });
 
   // Gallery images are now served from attached_assets (same as other assets)
   // They will be copied to dist/public/assets/ during build process

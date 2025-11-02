@@ -41,7 +41,7 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
   // Získaj údaje z URL parametrov
   const deliveryDate = params.get('date') || '';
   const deliveryTime = params.get('time') || '';
-  const paymentMethod = params.get('payment') || 'card';
+  const paymentMethod = params.get('payment') || 'qr_transfer';
   const paymentAmount = params.get('amount') || 'full';
   
   // Fakturačné údaje
@@ -602,10 +602,10 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                 <div className="flex items-center gap-2">
                   <span>Vybratá platba:</span>
                   <div className="flex items-center gap-1" data-testid="selected-payment-method">
-                    {paymentMethod === 'card' ? (
+                    {(paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') ? (
                       <>
-                        <CreditCard className="h-4 w-4" />
-                        <span>Kartou</span>
+                        <QrCode className="h-4 w-4" />
+                        <span>QR kód / Prevod</span>
                       </>
                     ) : (
                       <>

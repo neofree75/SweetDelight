@@ -10,13 +10,13 @@ import { ArrowLeft, CreditCard, Banknote, ShoppingBag, Package, Calendar, FileTe
 import { formatPrice } from '@/lib/format-price';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
-import StripeCheckout from '@/components/StripeCheckout';
+import QRPayment from '@/components/QRPayment';
 import { apiRequest } from '@/lib/queryClient';
 
 export default function ExistingOrderPayment() {
   const [, setLocation] = useLocation();
   const [orderId, setOrderId] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('qr_transfer');
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
   const [showStripeCheckout, setShowStripeCheckout] = useState(false);
   const [orderPaymentData, setOrderPaymentData] = useState<any>(null);
@@ -264,12 +264,12 @@ export default function ExistingOrderPayment() {
 
             {/* Right side - Payment form */}
             <div>
-              {paymentMethod === 'card' ? (
-                <StripeCheckout
+              {(paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') ? (
+                <QRPayment
                   salesOrderId={orderId}
                   paymentMode={paymentAmount}
                   amount={finalAmount}
-                  currency="eur"
+                  currency="EUR"
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />

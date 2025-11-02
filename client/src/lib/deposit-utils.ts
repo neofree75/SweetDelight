@@ -127,13 +127,6 @@ export function getPaymentMethods() {
       description: 'Platba bankovým prevodom pomocou QR kódu',
       icon: 'qr_code',
       default: true
-    },
-    {
-      id: 'card',
-      label: 'Platba kartou',
-      description: 'Online platba debetnou alebo kreditnou kartou',
-      icon: 'credit_card',
-      default: false
     }
   ];
 }

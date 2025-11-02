@@ -148,7 +148,6 @@ export default function Payment() {
                     <p><strong>Dátum:</strong> {checkoutData?.deliveryDate}</p>
                     <p><strong>Čas:</strong> {checkoutData?.deliveryTime}</p>
                     <p><strong>Platobná metóda:</strong> {
-                      checkoutData?.paymentMethod === 'card' ? 'Platobná karta' : 
                       (checkoutData?.paymentMethod === 'qr_transfer' || checkoutData?.paymentMethod === 'bank_transfer') ? 'Platba QR kódom / Prevodom' :
                       'Hotovosť pri prevzatí'
                     }</p>
@@ -159,16 +158,7 @@ export default function Payment() {
 
             {/* Right side - Payment form */}
             <div>
-              {checkoutData?.paymentMethod === 'card' ? (
-                <StripeCheckout
-                  salesOrderId={salesOrderId}
-                  paymentMode={amounts.mode}
-                  amount={amounts.payNow}
-                  currency="eur"
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
-              ) : (checkoutData?.paymentMethod === 'qr_transfer' || checkoutData?.paymentMethod === 'bank_transfer') ? (
+              {(checkoutData?.paymentMethod === 'qr_transfer' || checkoutData?.paymentMethod === 'bank_transfer') ? (
                 <QRPayment
                   salesOrderId={salesOrderId}
                   paymentMode={amounts.mode}

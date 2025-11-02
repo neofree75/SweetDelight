@@ -151,8 +151,8 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
 
       // Redirect based on payment method
-      // Card and QR/Bank Transfer payments go to /platba, Cash/COD goes to /pokladna
-      if (paymentMethod === 'card' || paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') {
+      // QR/Bank Transfer payments go to /platba, Cash/COD goes to /pokladna
+      if (paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') {
         setLocation(`/platba?salesOrderId=${salesOrderId}`);
       } else if (paymentMethod === 'cash') {
         setLocation(`/pokladna?salesOrderId=${salesOrderId}`);
@@ -455,7 +455,7 @@ export default function Checkout({ cartItems }: CheckoutProps) {
               onClick={handleSubmitOrder}
               data-testid="button-submit-order"
             >
-              {paymentMethod === 'card' || paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer' ? 'Pokračovať na platbu' : 'Skontrolovať a objednať'}
+              {paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer' ? 'Pokračovať na platbu' : 'Skontrolovať a objednať'}
             </Button>
           </div>
         </div>

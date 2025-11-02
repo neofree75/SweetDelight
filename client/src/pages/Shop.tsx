@@ -30,18 +30,51 @@ function useProducts() {
   return useQuery({
     queryKey: ['/api/products'],
     queryFn: async (): Promise<Product[]> => {
-      const response = await fetch('/api/products', {
-        cache: 'no-cache', // Disable browser cache
-        headers: {
-          'Cache-Control': 'no-cache'
+      try {
+        console.log('[Shop] Fetching products from /api/products...');
+        const response = await fetch('/api/products', {
+          cache: 'no-cache', // Disable browser cache
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('[Shop] Response status:', response.status);
+        console.log('[Shop] Response headers:', {
+          'content-type': response.headers.get('content-type')
+        });
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('[Shop] Received non-JSON response:', text.substring(0, 200));
+          throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}. This usually means nginx is not forwarding API requests correctly.`);
         }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[Shop] API error:', errorText);
+          throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Shop] Received products:', Array.isArray(data) ? data.length : 'not an array', data);
+        
+        if (!Array.isArray(data)) {
+          console.error('[Shop] Response is not an array:', data);
+          throw new Error('Invalid response format: expected array');
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('[Shop] Error fetching products:', error);
+        throw error;
       }
-      return response.json();
     },
     staleTime: 30 * 1000, // 30 seconds (reduced for testing)
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -162,13 +195,28 @@ export default function Shop({ cartItems, onAddToCart, onCartOpen }: ShopProps) 
 
         {/* Error State */}
         {error && (
-          <div className="text-center py-12">
+          <div className="text-center py-12 max-w-2xl mx-auto">
             <p className="text-destructive text-lg mb-4">
               Chyba pri načítavaní produktov
             </p>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm mb-4">
               {error instanceof Error ? error.message : 'Neznáma chyba'}
             </p>
+            <details className="mt-4 text-left">
+              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                Technické detaily (pre vývojárov)
+              </summary>
+              <pre className="mt-2 p-4 bg-muted rounded text-xs overflow-auto">
+                {JSON.stringify(error, null, 2)}
+              </pre>
+            </details>
+            <Button
+              onClick={() => window.location.reload()}
+              className="mt-4"
+              variant="outline"
+            >
+              Obnoviť stránku
+            </Button>
           </div>
         )}
 

@@ -39,6 +39,16 @@ if (process.env.STRIPE_SECRET_KEY) {
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log('[registerRoutes] Registering API routes...');
   
+  // Simple test endpoint that should always work
+  app.get("/api/test", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      message: "API routes are working!",
+      timestamp: new Date().toISOString(),
+      path: req.path
+    });
+  });
+  
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
     try {

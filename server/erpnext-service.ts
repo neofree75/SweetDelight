@@ -566,6 +566,40 @@ export class ERPNextService {
     }
   }
 
+  // Get item price from Item Price doctype
+  // This is the correct way to get selling prices in ERPNext
+  async getItemPrice(itemCode: string, priceList?: string): Promise<number> {
+    this.refreshClient();
+    try {
+      // Default price list is usually "Standard Selling" or similar
+      const priceListName = priceList || process.env.ERPNEXT_PRICE_LIST || 'Standard Selling';
+      
+      const response = await this.client.get('/resource/Item%20Price', {
+        params: {
+          fields: '["price_list_rate","item_code"]',
+          filters: JSON.stringify([
+            ["item_code", "=", itemCode],
+            ["price_list", "=", priceListName],
+            ["selling", "=", 1]
+          ]),
+          limit_page_length: 1,
+          order_by: 'valid_from desc' // Get the most recent price
+        }
+      });
+
+      const prices = response.data.data || [];
+      if (prices.length > 0 && prices[0].price_list_rate) {
+        return Number(prices[0].price_list_rate) || 0;
+      }
+
+      // If no price found, return 0 (valuation_rate fallback will be used)
+      return 0;
+    } catch (error) {
+      // If Item Price fails, return 0 and use valuation_rate fallback
+      console.log(`[getItemPrice] Could not fetch price for ${itemCode}, using valuation_rate fallback`);
+      return 0;
+    }
+  }
 
   // Search for existing customer by email
   async findCustomerByEmail(email: string): Promise<{customerId: string; needsGroupUpdate: boolean} | null> {
@@ -995,8 +1029,24 @@ export class ERPNextService {
       }
 
       // Calculate VAT information using rate from ERPNext tax template
-
-      const priceWithoutVat = item.valuation_rate || 0;
+      // Try to get price from Item Price first, fallback to valuation_rate
+      let priceWithoutVat = 0;
+      
+      // Try to get price from Item Price doctype (preferred method)
+      const itemPrice = await this.getItemPrice(item.name);
+      if (itemPrice > 0) {
+        priceWithoutVat = itemPrice;
+        console.log(`[getProductsForFrontend] Using Item Price for ${item.name}: ${itemPrice}`);
+      } else {
+        // Fallback to valuation_rate if Item Price not found
+        priceWithoutVat = item.valuation_rate || 0;
+        if (priceWithoutVat > 0) {
+          console.log(`[getProductsForFrontend] Using valuation_rate for ${item.name}: ${priceWithoutVat}`);
+        } else {
+          console.warn(`[getProductsForFrontend] No price found for ${item.name} (item_code: ${item.name})`);
+        }
+      }
+      
       const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
 
       // Ak má produkt varianty, načítaj ich
@@ -1005,8 +1055,12 @@ export class ERPNextService {
       if (Boolean(item.has_variants)) {
         console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);
-        variants = itemVariants.map(variant => {
-          const variantPriceWithoutVat = variant.valuation_rate || 0;
+        variants = await Promise.all(itemVariants.map(async variant => {
+          // Try to get price from Item Price first, fallback to valuation_rate
+          let variantPriceWithoutVat = await this.getItemPrice(variant.name);
+          if (variantPriceWithoutVat === 0) {
+            variantPriceWithoutVat = variant.valuation_rate || 0;
+          }
           const variantPriceWithVat = variantPriceWithoutVat * (1 + vatRate / 100);
           return {
             id: variant.name,
@@ -1020,7 +1074,7 @@ export class ERPNextService {
             vatRate: vatRate, // Sadzba DPH v percentách
             priceWithVat: Math.round(variantPriceWithVat * 100) / 100, // Cena s DPH
           };
-        });
+        }));
         console.log(`Debug: Mapped ${variants.length} variants for ${item.name}`);
       }
 
@@ -1098,15 +1152,27 @@ export class ERPNextService {
 
       // Calculate VAT information using rate from ERPNext tax template
       const vatRate = await this.getDefaultVATRate();
-      const priceWithoutVat = item.valuation_rate || 0;
+      // Try to get price from Item Price first, fallback to valuation_rate
+      let priceWithoutVat = 0;
+      const itemPrice = await this.getItemPrice(item.name);
+      if (itemPrice > 0) {
+        priceWithoutVat = itemPrice;
+      } else {
+        priceWithoutVat = item.valuation_rate || 0;
+      }
+      
       const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
 
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
       if (Boolean(item.has_variants)) {
         const itemVariants = await this.getItemVariants(item.name);
-        variants = itemVariants.map(variant => {
-          const variantPriceWithoutVat = variant.valuation_rate || 0;
+        variants = await Promise.all(itemVariants.map(async variant => {
+          // Try to get price from Item Price first, fallback to valuation_rate
+          let variantPriceWithoutVat = await this.getItemPrice(variant.name);
+          if (variantPriceWithoutVat === 0) {
+            variantPriceWithoutVat = variant.valuation_rate || 0;
+          }
           const variantPriceWithVat = variantPriceWithoutVat * (1 + vatRate / 100);
           return {
             id: variant.name,
@@ -1120,7 +1186,7 @@ export class ERPNextService {
             vatRate: vatRate, // Sadzba DPH v percentách
             priceWithVat: Math.round(variantPriceWithVat * 100) / 100, // Cena s DPH
           };
-        });
+        }));
       }
 
       return {

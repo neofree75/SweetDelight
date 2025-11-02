@@ -216,6 +216,18 @@ app.use((req, res, next) => {
   ).length;
   console.log(`[index] Found ${routeCount} registered API routes before static serving`);
   
+  // CRITICAL: Middleware to block static serving for API routes
+  app.use((req, res, next) => {
+    // If this is an API route, ensure it's NOT served as static file
+    if (req.path.startsWith('/api/')) {
+      // This should have been handled by API routes already
+      // If we reach here, API route wasn't found
+      console.warn(`[index] API route ${req.path} reached static middleware - route may not be registered`);
+      return res.status(404).json({ error: 'API endpoint not found', path: req.path });
+    }
+    next();
+  });
+  
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes

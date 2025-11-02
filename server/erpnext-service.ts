@@ -180,8 +180,11 @@ export class ERPNextService {
   }
 
   // Get all active items from ERPNext (published on website via Website Item)
+  // Fallback to Item doctype if Website Item fails or returns no results
   async getItems(): Promise<ERPNextItem[]> {
     this.refreshClient();
+    
+    // Try Website Item first
     try {
       console.log('[getItems] Starting to fetch items from Website Item doctype...');
       
@@ -396,10 +399,18 @@ export class ERPNextService {
       });
 
       console.log(`[getItems] Returning ${itemsWithWebsiteData.length} items with Website Item data`);
-      return itemsWithWebsiteData;
+      
+      // Ak sme našli produkty cez Website Item, vráť ich
+      if (itemsWithWebsiteData.length > 0) {
+        return itemsWithWebsiteData;
+      } else {
+        console.log('[getItems] Website Item returned 0 items, falling back to Item doctype...');
+        return await this.fallbackToItemDoctype();
+      }
     } catch (error) {
-      this.logError('Error fetching items from ERPNext:', error);
-      console.log('[getItems] Error occurred, trying fallback...');
+      this.logError('Error fetching items from Website Item:', error);
+      console.log('[getItems] Website Item failed, falling back to Item doctype...');
+      // Fallback na Item doctype ak Website Item zlyhá
       return await this.fallbackToItemDoctype();
     }
   }
@@ -407,20 +418,44 @@ export class ERPNextService {
   // Fallback method to load items directly from Item doctype
   private async fallbackToItemDoctype(): Promise<ERPNextItem[]> {
     try {
-      console.log('[getItems] Fallback: Loading from Item doctype with published filter...');
+      console.log('[getItems] Fallback: Loading from Item doctype...');
+      
+      // Najprv skús s published filterom
+      try {
+        const response = await this.client.get('/resource/Item', {
+          params: {
+            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]',
+            filters: JSON.stringify([
+              ["disabled", "=", "0"],
+              ["published", "=", "1"]
+            ]),
+            limit_page_length: 100
+          }
+        });
+        
+        const items = response.data.data || [];
+        if (items.length > 0) {
+          console.log(`[getItems] Fallback: Found ${items.length} items from Item doctype with published filter`);
+          return items;
+        }
+      } catch (publishedError) {
+        console.log('[getItems] Fallback: Published filter failed, trying custom_is_eshop...');
+      }
+      
+      // Ak published filter nefunguje, skús custom_is_eshop (starý spôsob)
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]',
           filters: JSON.stringify([
             ["disabled", "=", "0"],
-            ["published", "=", "1"]
+            ["custom_is_eshop", "=", "1"]
           ]),
           limit_page_length: 100
         }
       });
       
       const items = response.data.data || [];
-      console.log(`[getItems] Fallback: Found ${items.length} items from Item doctype`);
+      console.log(`[getItems] Fallback: Found ${items.length} items from Item doctype with custom_is_eshop filter`);
       return items;
     } catch (fallbackError) {
       this.logError('Error in fallback Item fetch:', fallbackError);

@@ -99,25 +99,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get products from ERPNext
   app.get("/api/products", async (req, res) => {
     try {
-      // Disable caching for products endpoint
+      // CRITICAL: Set JSON content type and disable caching
+      res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
       
       console.log(`[api/products] Request from: ${req.get('host')}, Environment: ${process.env.NODE_ENV}`);
       console.log(`[api/products] ERPNext URL: ${process.env.ERPNEXT_URL ? 'SET' : 'NOT SET'}`);
+      console.log(`[api/products] Request path: ${req.path}, Original URL: ${req.originalUrl}`);
       
       const products = await erpNextService.getProductsForFrontend();
       console.log(`[api/products] Returning ${products.length} products to ${req.get('host')}`);
       
       if (products.length === 0) {
         console.warn(`[api/products] WARNING: No products returned! Check ERPNext connection.`);
+        // Return empty array instead of error, so frontend can handle it gracefully
+        return res.json([]);
       }
       
+      // Ensure we're sending JSON, not HTML
       res.json(products);
     } catch (error: any) {
       console.error("[api/products] Error fetching products:", error);
       console.error("[api/products] Error stack:", error.stack);
+      
+      // Ensure error response is also JSON
+      res.setHeader('Content-Type', 'application/json');
       res.status(500).json({ 
         error: "Failed to fetch products",
         message: error.message,

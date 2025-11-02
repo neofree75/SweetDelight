@@ -421,30 +421,52 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                 <CardTitle className="text-lg font-serif">Platobná metóda</CardTitle>
               </CardHeader>
               <CardContent>
-                <RadioGroup 
-                  value={paymentMethod} 
-                  onValueChange={setPaymentMethod}
-                  data-testid="payment-method-group"
-                >
-                  {getPaymentMethods().map((method) => {
+                {(() => {
+                  const methods = getPaymentMethods();
+                  // Ak je len jedna možnosť, zobraz ju ako informačný text
+                  if (methods.length === 1) {
+                    const method = methods[0];
                     const IconComponent = method.icon === 'qr_code' ? QrCode : 
                                         method.icon === 'credit_card' ? CreditCard : 
                                         Banknote;
-                    
                     return (
-                      <div key={method.id} className="flex items-start space-x-2">
-                        <RadioGroupItem value={method.id} id={method.id} className="mt-1" />
-                        <Label htmlFor={method.id} className="cursor-pointer flex-1">
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="h-4 w-4" />
-                            <span className="font-medium">{method.label}</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{method.description}</p>
-                        </Label>
+                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                        <IconComponent className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-medium">{method.label}</p>
+                          <p className="text-sm text-muted-foreground">{method.description}</p>
+                        </div>
                       </div>
                     );
-                  })}
-                </RadioGroup>
+                  }
+                  // Ak je viac možností, zobraz RadioGroup
+                  return (
+                    <RadioGroup 
+                      value={paymentMethod} 
+                      onValueChange={setPaymentMethod}
+                      data-testid="payment-method-group"
+                    >
+                      {methods.map((method) => {
+                        const IconComponent = method.icon === 'qr_code' ? QrCode : 
+                                            method.icon === 'credit_card' ? CreditCard : 
+                                            Banknote;
+                        
+                        return (
+                          <div key={method.id} className="flex items-start space-x-2">
+                            <RadioGroupItem value={method.id} id={method.id} className="mt-1" />
+                            <Label htmlFor={method.id} className="cursor-pointer flex-1">
+                              <div className="flex items-center gap-2">
+                                <IconComponent className="h-4 w-4" />
+                                <span className="font-medium">{method.label}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{method.description}</p>
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </RadioGroup>
+                  );
+                })()}
               </CardContent>
             </Card>
 

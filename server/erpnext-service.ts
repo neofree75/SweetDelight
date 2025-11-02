@@ -179,14 +179,14 @@ export class ERPNextService {
     }
   }
 
-  // Get all active items from ERPNext
+  // Get all active items from ERPNext (published on website)
   async getItems(): Promise<ERPNextItem[]> {
     this.refreshClient();
     try {
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]',
-          filters: '[["disabled","=","0"],["custom_is_eshop","=","1"]]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]',
+          filters: '[["disabled","=","0"],["published","=","1"]]',
           limit_page_length: 100
         }
       });
@@ -198,15 +198,15 @@ export class ERPNextService {
     }
   }
 
-  // Get variants for a specific item template
+  // Get variants for a specific item template (published on website)
   async getItemVariants(templateName: string): Promise<ERPNextItemVariant[]> {
     this.refreshClient();
     try {
       console.log(`Debug: Fetching variants for template: ${templateName}`);
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes","valuation_rate","disabled"]',
-          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"],["custom_is_eshop","=","1"]]`,
+          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes","valuation_rate","disabled"]',
+          filters: `[["variant_of","=","${templateName}"],["disabled","=","0"],["published","=","1"]]`,
           limit_page_length: 50
         }
       });
@@ -713,13 +713,20 @@ export class ERPNextService {
     try {
       const response = await this.client.get(`/resource/Item/${productId}`, {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]'
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]'
         }
       });
 
       const item = response.data.data;
       
       if (!item || item.disabled) {
+        return null;
+      }
+
+      // Pre produkty zobrazované v obchode, skontroluj či je published
+      // (TORTCUS001 môže byť nepublished, lebo sa používa len pre custom orders)
+      if (productId !== 'TORTCUS001' && !item.published) {
+        console.log(`Product ${productId} is not published, skipping`);
         return null;
       }
 

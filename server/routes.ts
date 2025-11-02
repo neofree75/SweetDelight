@@ -52,6 +52,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint - check ERPNext config (safe for production)
+  app.get("/api/debug/config", async (req, res) => {
+    try {
+      const hasUrl = !!process.env.ERPNEXT_URL;
+      const hasApiKey = !!process.env.ERPNEXT_API_KEY;
+      const hasApiSecret = !!process.env.ERPNEXT_API_SECRET;
+      const urlPreview = process.env.ERPNEXT_URL ? 
+        (process.env.ERPNEXT_URL.length > 30 ? process.env.ERPNEXT_URL.substring(0, 30) + '...' : process.env.ERPNEXT_URL) : 
+        'NOT SET';
+      
+      const validation = await erpNextService.validateCredentials();
+      const itemsCount = await erpNextService.getItems().then(items => items.length).catch(() => 0);
+      
+      res.json({
+        environment: process.env.NODE_ENV || 'unknown',
+        erpnext: {
+          urlSet: hasUrl,
+          urlPreview: urlPreview,
+          apiKeySet: hasApiKey,
+          apiSecretSet: hasApiSecret,
+          validation: validation,
+          itemsCount: itemsCount
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        error: "Config check failed",
+        message: error.message
+      });
+    }
+  });
+
   // Get products from ERPNext
   app.get("/api/products", async (req, res) => {
     try {
@@ -60,12 +93,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
       
+      console.log(`[api/products] Request from: ${req.get('host')}, Environment: ${process.env.NODE_ENV}`);
+      console.log(`[api/products] ERPNext URL: ${process.env.ERPNEXT_URL ? 'SET' : 'NOT SET'}`);
+      
       const products = await erpNextService.getProductsForFrontend();
-      console.log(`[api/products] Returning ${products.length} products`);
+      console.log(`[api/products] Returning ${products.length} products to ${req.get('host')}`);
+      
+      if (products.length === 0) {
+        console.warn(`[api/products] WARNING: No products returned! Check ERPNext connection.`);
+      }
+      
       res.json(products);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ error: "Failed to fetch products" });
+    } catch (error: any) {
+      console.error("[api/products] Error fetching products:", error);
+      console.error("[api/products] Error stack:", error.stack);
+      res.status(500).json({ 
+        error: "Failed to fetch products",
+        message: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   });
 

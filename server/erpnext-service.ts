@@ -962,28 +962,61 @@ export class ERPNextService {
 
       console.log('Fetching default VAT rate from ERPNext...');
       
-      // Načítať predvolenú šablónu daní
-      const response = await this.client.get(`/resource/Sales Taxes and Charges Template`, {
+      // Najprv skús nájsť šablónu s 23% DPH (aktuálna slovenská sadzba)
+      // Ak nie je, použije default šablónu
+      const templatesResponse = await this.client.get(`/resource/Sales Taxes and Charges Template`, {
         params: {
-          filters: JSON.stringify([['is_default', '=', 1]]),
-          fields: JSON.stringify(['name', 'taxes']),
-          limit: 1
+          fields: JSON.stringify(['name', 'is_default']),
+          limit_page_length: 100
         }
       });
 
-      if (response.data?.data && response.data.data.length > 0) {
-        const template = response.data.data[0];
-        
+      let templateToUse = null;
+
+      if (templatesResponse.data?.data && templatesResponse.data.data.length > 0) {
+        // Najprv skús nájsť šablónu, ktorá obsahuje "23" v názve alebo má 23% sadzbu
+        for (const template of templatesResponse.data.data) {
+          if (template.name.toLowerCase().includes('23') || template.name.toLowerCase().includes('0.23')) {
+            templateToUse = template;
+            console.log(`Found template with 23%: "${template.name}"`);
+            break;
+          }
+        }
+
+        // Ak nenašiel 23%, skús nájsť default šablónu
+        if (!templateToUse) {
+          templateToUse = templatesResponse.data.data.find((t: any) => t.is_default === 1);
+          if (templateToUse) {
+            console.log(`Using default template: "${templateToUse.name}"`);
+          }
+        }
+
+        // Ak stále nie je, použije prvú dostupnú
+        if (!templateToUse) {
+          templateToUse = templatesResponse.data.data[0];
+          console.log(`Using first available template: "${templateToUse.name}"`);
+        }
+      }
+
+      if (templateToUse) {
         // Načítať podrobnosti šablóny vrátane daní (správne enkódovať názov)
-        const encodedTemplateName = encodeURIComponent(template.name);
+        const encodedTemplateName = encodeURIComponent(templateToUse.name);
         const detailResponse = await this.client.get(`/resource/Sales Taxes and Charges Template/${encodedTemplateName}`);
         
         if (detailResponse.data?.data && detailResponse.data.data.taxes && detailResponse.data.data.taxes.length > 0) {
-          // Vziať prvú sadzbu z prvej dane v šablóne (obvykle DPH)
-          const firstTax = detailResponse.data.data.taxes[0];
-          const vatRate = parseFloat(firstTax.rate) || 20;
+          // Hľadať daň s najvyššou sadzbou (obvykle je to DPH)
+          let maxRate = 0;
+          let vatRate = 20; // fallback
           
-          console.log(`Loaded VAT rate from ERPNext template "${template.name}": ${vatRate}%`);
+          for (const tax of detailResponse.data.data.taxes) {
+            const rate = parseFloat(tax.rate) || 0;
+            if (rate > maxRate && rate > 0 && rate <= 100) {
+              maxRate = rate;
+              vatRate = rate;
+            }
+          }
+          
+          console.log(`Loaded VAT rate from ERPNext template "${templateToUse.name}": ${vatRate}%`);
           
           // Uložiť do cache
           this.vatRateCache = {
@@ -995,7 +1028,7 @@ export class ERPNextService {
         }
       }
       
-      console.warn('No default tax template found in ERPNext, using 20% VAT rate');
+      console.warn('No tax template found in ERPNext, using 20% VAT rate as fallback');
       return 20;
     } catch (error) {
       console.error('Error fetching VAT rate from ERPNext:', error);

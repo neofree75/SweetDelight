@@ -245,9 +245,14 @@ export class ERPNextService {
         }
       }
 
-      // Získaj všetky item_code z Website Items
-      const itemCodes = websiteItems.map((wi: any) => wi.item_code).filter(Boolean);
+      // Získaj všetky item_code z Website Items (alebo name ak item_code nie je)
+      const itemCodes = websiteItems.map((wi: any) => wi.item_code || wi.name).filter(Boolean);
       console.log(`[getItems] Extracted ${itemCodes.length} item codes:`, itemCodes.slice(0, 5));
+      console.log(`[getItems] Website Items detail:`, websiteItems.slice(0, 3).map((wi: any) => ({
+        name: wi.name,
+        item_code: wi.item_code,
+        has_item_code: !!wi.item_code
+      })));
       
       if (itemCodes.length === 0) {
         console.log('[getItems] No item codes found in Website Items');
@@ -290,29 +295,44 @@ export class ERPNextService {
 
       if (items.length === 0) {
         console.log('[getItems] No Items found, using Website Items directly...');
+        console.log('[getItems] Converting Website Items to Item format...');
+        
         // Ak sa nepodarilo načítať Items, použijeme Website Items priamo
-        return websiteItems.map((wi: any) => ({
-          name: wi.item_code || wi.name,
-          item_name: wi.web_item_name || wi.item_code || wi.name,
-          description: wi.description || '',
-          item_group: 'Uncategorized', // Default ak nemáme Item data
-          stock_uom: 'Nos',
-          is_stock_item: true,
-          disabled: false,
-          image: wi.website_image || '',
-          valuation_rate: 0,
-          has_variants: false,
-          variant_of: null,
-          custom_min_mnozstvo_obj_predaj: 1,
-          attributes: [],
-          published: wi.published || 0,
-          route: wi.route
-        }));
+        // Website Item name môže byť aj item_code, alebo môže byť samostatný identifikátor
+        const convertedItems = websiteItems.map((wi: any) => {
+          const itemCode = wi.item_code || wi.name;
+          console.log(`[getItems] Converting Website Item: name=${wi.name}, item_code=${wi.item_code}`);
+          
+          return {
+            name: itemCode,
+            item_name: wi.web_item_name || wi.name || itemCode,
+            description: wi.description || '',
+            item_group: 'Uncategorized', // Default ak nemáme Item data
+            stock_uom: 'Nos',
+            is_stock_item: true,
+            disabled: false,
+            image: wi.website_image || '',
+            valuation_rate: 0,
+            has_variants: false,
+            variant_of: null,
+            custom_min_mnozstvo_obj_predaj: 1,
+            attributes: [],
+            published: wi.published || 1,
+            route: wi.route
+          };
+        });
+        
+        console.log(`[getItems] Returning ${convertedItems.length} converted Website Items`);
+        return convertedItems;
       }
 
       // Map Website Item data onto Item records
       const itemsWithWebsiteData = items.map((item: any) => {
-        const websiteItem = websiteItems.find((wi: any) => wi.item_code === item.name);
+        // Match by item_code alebo name
+        const websiteItem = websiteItems.find((wi: any) => 
+          (wi.item_code && wi.item_code === item.name) || 
+          (!wi.item_code && wi.name === item.name)
+        );
         
         return {
           ...item,
@@ -842,15 +862,25 @@ export class ERPNextService {
     // Skontroluj cache
     if (this.productCache && 
         Date.now() - this.productCache.timestamp < this.CACHE_DURATION) {
+      console.log(`[getProductsForFrontend] Using cached products: ${this.productCache.data.length}`);
       return this.productCache.data;
     }
 
+    console.log('[getProductsForFrontend] Fetching fresh products...');
     const items = await this.getItems();
+    console.log(`[getProductsForFrontend] Got ${items.length} items from getItems()`);
     
     if (items.length === 0) {
-      console.log('No items found in ERPNext');
+      console.log('[getProductsForFrontend] No items found in ERPNext');
       return [];
     }
+
+    console.log('[getProductsForFrontend] Sample items:', items.slice(0, 3).map(i => ({
+      name: i.name,
+      item_name: i.item_name,
+      item_group: i.item_group,
+      valuation_rate: i.valuation_rate
+    })));
 
     // Načítať sadzbu DPH raz pre všetky produkty
     const vatRate = await this.getDefaultVATRate();
@@ -914,6 +944,7 @@ export class ERPNextService {
     // Vyfiltrovať TORTCUS001 z produktov zobrazovaných v obchode
     // (Tento produkt sa používa len pre torty na mieru cez špeciálnu stránku)
     const filteredProducts = products.filter(product => product.id !== 'TORTCUS001');
+    console.log(`[getProductsForFrontend] After filtering: ${filteredProducts.length} products (from ${products.length} total)`);
 
     // Ulož do cache
     this.productCache = {
@@ -921,6 +952,7 @@ export class ERPNextService {
       timestamp: Date.now()
     };
 
+    console.log(`[getProductsForFrontend] Returning ${filteredProducts.length} products`);
     return filteredProducts;
   }
 

@@ -34,6 +34,22 @@ export class ERPNextService {
     this.refreshClient();
   }
 
+  // Helper function to strip HTML tags from text
+  private stripHtmlTags(html: string): string {
+    if (!html) return '';
+    // Remove HTML tags and decode HTML entities
+    return html
+      .replace(/<[^>]*>/g, '') // Remove all HTML tags
+      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+      .replace(/&amp;/g, '&') // Replace &amp; with &
+      .replace(/&lt;/g, '<') // Replace &lt; with <
+      .replace(/&gt;/g, '>') // Replace &gt; with >
+      .replace(/&quot;/g, '"') // Replace &quot; with "
+      .replace(/&#39;/g, "'") // Replace &#39; with '
+      .replace(/&apos;/g, "'") // Replace &apos; with '
+      .trim(); // Remove leading/trailing whitespace
+  }
+
   // Safely log errors without exposing sensitive information like authorization tokens
   private logError(context: string, error: any) {
     if (axios.isAxiosError(error)) {
@@ -389,6 +405,7 @@ export class ERPNextService {
           // Použi web_item_name z Website Item ak existuje, inak item_name
           item_name: websiteItem?.web_item_name || item.item_name,
           // Použi description z Website Item ak existuje, inak z Item
+          // Poznámka: HTML tagy sa odstránia neskôr v getProductsForFrontend
           description: websiteItem?.description || item.description,
           // Použi website_image z Website Item ak existuje, inak image z Item
           image: websiteItem?.website_image || item.image,
@@ -1010,7 +1027,7 @@ export class ERPNextService {
       return {
         id: item.name,
         name: item.item_name,
-        description: item.description || '',
+        description: this.stripHtmlTags(item.description || ''),
         price: priceWithoutVat, // Cena bez DPH
         image: imageUrl,
         category: item.item_group,
@@ -1109,7 +1126,7 @@ export class ERPNextService {
       return {
         id: item.name,
         name: item.item_name,
-        description: item.description || '',
+        description: this.stripHtmlTags(item.description || ''),
         price: priceWithoutVat, // Cena bez DPH
         image: imageUrl,
         category: item.item_group,

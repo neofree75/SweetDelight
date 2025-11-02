@@ -270,7 +270,7 @@ export class ERPNextService {
         try {
           const allWebsiteItemsResponse = await this.client.get('/resource/Website%20Item', {
             params: {
-              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name"]),
+              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow"]),
               limit_page_length: 100
             }
           });
@@ -458,7 +458,9 @@ export class ERPNextService {
           // Route z Website Item
           route: websiteItem?.route,
           // Min quantity z Website Item website_specifications (ak existuje, použije sa v getProductsForFrontend)
-          custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : item.custom_min_mnozstvo_obj_predaj
+          custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : item.custom_min_mnozstvo_obj_predaj,
+          // Slideshow name z Website Item (použije sa neskôr na načítanie obrázkov)
+          slideshow: websiteItem?.slideshow || null
         };
       });
 
@@ -660,6 +662,46 @@ export class ERPNextService {
       // If Item Price fails, return 0 and use valuation_rate fallback
       console.log(`[getItemPrice] Error fetching price for ${itemCode}: ${error instanceof Error ? error.message : 'Unknown error'}, using valuation_rate fallback`);
       return 0;
+    }
+  }
+
+  // Get Website Slideshow images for a slideshow name
+  async getSlideshowImages(slideshowName: string): Promise<string[]> {
+    this.refreshClient();
+    try {
+      if (!slideshowName) {
+        return [];
+      }
+
+      // Načítať Website Slideshow dokument
+      const encodedName = encodeURIComponent(slideshowName);
+      const response = await this.client.get(`/resource/Website%20Slideshow/${encodedName}`);
+      
+      if (!response.data?.data || !response.data.data.slideshow_items) {
+        console.log(`[getSlideshowImages] No slideshow items found for ${slideshowName}`);
+        return [];
+      }
+
+      // Extrahovať obrázky z slideshow_items
+      const images: string[] = [];
+      const slideshowItems = response.data.data.slideshow_items || [];
+      
+      for (const item of slideshowItems) {
+        if (item.image) {
+          // Konvertovať relatívny path na absolútny URL
+          let imageUrl = item.image;
+          if (imageUrl.startsWith('/files/')) {
+            imageUrl = `${this.baseUrl}${imageUrl}`;
+          }
+          images.push(imageUrl);
+        }
+      }
+
+      console.log(`[getSlideshowImages] Loaded ${images.length} images from slideshow "${slideshowName}"`);
+      return images;
+    } catch (error) {
+      console.log(`[getSlideshowImages] Error loading slideshow ${slideshowName}:`, error instanceof Error ? error.message : 'Unknown error');
+      return [];
     }
   }
 
@@ -1144,6 +1186,12 @@ export class ERPNextService {
       
       const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
 
+      // Načítať slideshow obrázky ak existuje slideshow
+      let galleryImages: string[] = [];
+      if ((item as any).slideshow) {
+        galleryImages = await this.getSlideshowImages((item as any).slideshow);
+      }
+
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
       
@@ -1258,6 +1306,25 @@ export class ERPNextService {
       
       const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
 
+      // Načítať slideshow obrázky z Website Item
+      let galleryImages: string[] = [];
+      try {
+        // Skús nájsť Website Item pre tento produkt
+        const websiteItemResponse = await this.client.get('/resource/Website%20Item', {
+          params: {
+            fields: JSON.stringify(['slideshow']),
+            filters: JSON.stringify([['item_code', '=', productId]]),
+            limit_page_length: 1
+          }
+        });
+        const websiteItems = websiteItemResponse.data.data || [];
+        if (websiteItems.length > 0 && websiteItems[0].slideshow) {
+          galleryImages = await this.getSlideshowImages(websiteItems[0].slideshow);
+        }
+      } catch (error) {
+        console.log(`[getProductById] Error loading Website Item for ${productId}:`, error);
+      }
+
       // Ak má produkt varianty, načítaj ich
       let variants = undefined;
       if (Boolean(item.has_variants)) {
@@ -1297,6 +1364,7 @@ export class ERPNextService {
         variants: variants,
         vatRate: vatRate, // Sadzba DPH v percentách
         priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
+        galleryImages: galleryImages.length > 0 ? galleryImages : undefined, // Galéria obrázkov zo slideshow
       };
       
     } catch (error) {

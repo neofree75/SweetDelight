@@ -175,6 +175,8 @@ export const productSchema = z.object({
   // VAT information
   vatRate: z.number().default(0), // Sadzba DPH v percentách (napr. 20 pre 20%)
   priceWithVat: z.number(), // Cena s DPH
+  // Gallery images from Website Slideshow
+  galleryImages: z.array(z.string()).optional(), // Ďalšie obrázky produktu z slideshow
 });
 
 // Frontend Customer schema (for checkout form)

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
 
@@ -22,6 +23,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   const [inputValue, setInputValue] = useState('1');
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantityError, setQuantityError] = useState('');
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   // Fetch product detail from API
   const { data: product, isLoading, error } = useQuery({
@@ -44,6 +46,39 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
       setInputValue(minQty.toString());
     }
   }, [product]);
+
+  // Keyboard navigation for image gallery
+  useEffect(() => {
+    if (selectedImageIndex === null) return;
+    
+    const allImages = product ? [product.image, ...(product.galleryImages || [])] : [];
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedImageIndex === null) return;
+      
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (selectedImageIndex > 0) {
+          setSelectedImageIndex(selectedImageIndex - 1);
+        } else {
+          setSelectedImageIndex(allImages.length - 1);
+        }
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (selectedImageIndex < allImages.length - 1) {
+          setSelectedImageIndex(selectedImageIndex + 1);
+        } else {
+          setSelectedImageIndex(0);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedImageIndex(null);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImageIndex, product]);
 
   const handleGoBack = () => {
     setLocation('/obchod');
@@ -191,7 +226,10 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
           <div className="space-y-4">
             <Card>
               <CardContent className="p-0">
-                <div className="aspect-square overflow-hidden rounded-lg">
+                <div 
+                  className="aspect-square overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setSelectedImageIndex(0)}
+                >
                   <img
                     src={product.image}
                     alt={product.name}
@@ -201,6 +239,25 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                 </div>
               </CardContent>
             </Card>
+            
+            {/* Gallery Thumbnails */}
+            {product.galleryImages && product.galleryImages.length > 0 && (
+              <div className="grid grid-cols-4 gap-2">
+                {product.galleryImages.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="aspect-square overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-opacity border-2 border-transparent hover:border-primary"
+                    onClick={() => setSelectedImageIndex(index + 1)}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`${product.name} - obrázok ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Details */}
@@ -450,6 +507,90 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
             )}
           </div>
         </div>
+        
+        {/* Image Gallery Lightbox */}
+        {product && (() => {
+          const allImages = [product.image, ...(product.galleryImages || [])];
+          const currentImageIndex = selectedImageIndex !== null ? selectedImageIndex : 0;
+          const currentImage = allImages[currentImageIndex];
+          
+          const goToPreviousImage = () => {
+            if (selectedImageIndex === null) return;
+            if (selectedImageIndex > 0) {
+              setSelectedImageIndex(selectedImageIndex - 1);
+            } else {
+              setSelectedImageIndex(allImages.length - 1);
+            }
+          };
+          
+          const goToNextImage = () => {
+            if (selectedImageIndex === null) return;
+            if (selectedImageIndex < allImages.length - 1) {
+              setSelectedImageIndex(selectedImageIndex + 1);
+            } else {
+              setSelectedImageIndex(0);
+            }
+          };
+          
+          return (
+            <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => {
+              if (!open) setSelectedImageIndex(null);
+            }}>
+              <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-hidden">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center justify-between">
+                    <span>{product.name}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>
+                        {currentImageIndex + 1} / {allImages.length}
+                      </span>
+                    </div>
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <div className="relative w-full grid grid-cols-[auto_1fr_auto] items-center gap-4">
+                  {/* Left arrow */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-white/90 hover:bg-white border-2 shadow-lg justify-self-start"
+                    onClick={goToPreviousImage}
+                    disabled={allImages.length <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  {/* Image container */}
+                  <div className="flex justify-center">
+                    <img
+                      src={currentImage}
+                      alt={`${product.name} - obrázok ${currentImageIndex + 1}`}
+                      className="max-w-full max-h-[60vh] object-contain rounded-lg"
+                    />
+                  </div>
+
+                  {/* Right arrow */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-white/90 hover:bg-white border-2 shadow-lg justify-self-end"
+                    onClick={goToNextImage}
+                    disabled={allImages.length <= 1}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Keyboard navigation hint */}
+                {allImages.length > 1 && (
+                  <p className="text-sm text-muted-foreground text-center mt-4">
+                    Použite šípky na klávesnici pre navigáciu
+                  </p>
+                )}
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
       </div>
     </div>
   );

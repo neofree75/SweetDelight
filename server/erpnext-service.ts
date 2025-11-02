@@ -183,45 +183,132 @@ export class ERPNextService {
   async getItems(): Promise<ERPNextItem[]> {
     this.refreshClient();
     try {
+      console.log('[getItems] Starting to fetch items from Website Item doctype...');
+      
       // Najprv načítaj Website Items, ktoré sú published
-      const websiteItemsResponse = await this.client.get('/resource/Website Item', {
+      // Používame URL encoding pre medzery v názve doctype
+      const websiteItemsResponse = await this.client.get('/resource/Website%20Item', {
         params: {
-          fields: '["name","item_code","published","route","website_image","description","web_item_name"]',
-          filters: '[["published","=",1]]',
+          fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name"]),
+          filters: JSON.stringify([["published", "=", 1]]),
           limit_page_length: 100
         }
+      });
+
+      console.log('[getItems] Website Items API response:', {
+        status: websiteItemsResponse.status,
+        dataLength: websiteItemsResponse.data?.data?.length || 0,
+        hasData: !!websiteItemsResponse.data?.data
       });
 
       const websiteItems = websiteItemsResponse.data.data || [];
       console.log(`[getItems] Found ${websiteItems.length} published Website Items`);
+      
+      if (websiteItems.length > 0) {
+        console.log('[getItems] Sample Website Items:', websiteItems.slice(0, 3).map((wi: any) => ({
+          name: wi.name,
+          item_code: wi.item_code,
+          published: wi.published,
+          web_item_name: wi.web_item_name
+        })));
+      }
 
       if (websiteItems.length === 0) {
-        return [];
+        console.log('[getItems] No published Website Items found, trying without published filter...');
+        
+        // Skús načítať všetky Website Items bez filtru published
+        try {
+          const allWebsiteItemsResponse = await this.client.get('/resource/Website%20Item', {
+            params: {
+              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name"]),
+              limit_page_length: 100
+            }
+          });
+          
+          const allWebsiteItems = allWebsiteItemsResponse.data.data || [];
+          console.log(`[getItems] Found ${allWebsiteItems.length} total Website Items (without filter)`);
+          
+          if (allWebsiteItems.length > 0) {
+            console.log('[getItems] Sample Website Items data:', allWebsiteItems.slice(0, 3));
+            // Použi všetky Website Items, aj keď nie sú published
+            const itemCodes = allWebsiteItems.map((wi: any) => wi.item_code).filter(Boolean);
+            if (itemCodes.length > 0) {
+              websiteItems.push(...allWebsiteItems);
+            }
+          }
+        } catch (fallbackError) {
+          console.log('[getItems] Failed to fetch all Website Items, falling back to Item doctype');
+        }
+        
+        if (websiteItems.length === 0) {
+          return await this.fallbackToItemDoctype();
+        }
       }
 
       // Získaj všetky item_code z Website Items
       const itemCodes = websiteItems.map((wi: any) => wi.item_code).filter(Boolean);
+      console.log(`[getItems] Extracted ${itemCodes.length} item codes:`, itemCodes.slice(0, 5));
       
       if (itemCodes.length === 0) {
         console.log('[getItems] No item codes found in Website Items');
-        return [];
+        return await this.fallbackToItemDoctype();
       }
 
-      // Načítaj skutočné Item záznamy podľa item_code
-      // ERPNext API používa "in" filter inak - musíme vytvoriť OR filtre alebo použiť jeden filter na name
-      const itemsResponse = await this.client.get('/resource/Item', {
-        params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","attributes"]',
-          filters: JSON.stringify([
-            ["name", "in", itemCodes],
-            ["disabled", "=", "0"]
-          ]),
-          limit_page_length: 100
-        }
-      });
+      // ERPNext "in" filter môže byť problém - skúsme načítať Items jeden po druhom alebo použiť alternatívny prístup
+      // Najprv skúsime s "in" filtrom
+      let items: any[] = [];
+      
+      try {
+        // ERPNext API "in" filter syntax
+        const itemsResponse = await this.client.get('/resource/Item', {
+          params: {
+            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","attributes"]',
+            filters: JSON.stringify([["name", "in", itemCodes]]),
+            limit_page_length: 100
+          }
+        });
 
-      const items = itemsResponse.data.data || [];
-      console.log(`[getItems] Found ${items.length} corresponding Items`);
+        items = itemsResponse.data.data || [];
+        console.log(`[getItems] Found ${items.length} corresponding Items using "in" filter`);
+      } catch (inFilterError: any) {
+        console.log('[getItems] "in" filter failed, trying individual requests...', inFilterError.message);
+        
+        // Fallback: načítaj Items jeden po druhom (pomalšie, ale funguje)
+        items = [];
+        for (const itemCode of itemCodes.slice(0, 50)) { // Limit na 50 aby to netrvalo príliš dlho
+          try {
+            const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`);
+            if (itemResponse.data.data && !itemResponse.data.data.disabled) {
+              items.push(itemResponse.data.data);
+            }
+          } catch (itemError) {
+            console.log(`[getItems] Failed to fetch Item ${itemCode}:`, itemError);
+          }
+        }
+        console.log(`[getItems] Found ${items.length} Items using individual requests`);
+      }
+
+      if (items.length === 0) {
+        console.log('[getItems] No Items found, using Website Items directly...');
+        // Ak sa nepodarilo načítať Items, použijeme Website Items priamo
+        return websiteItems.map((wi: any) => ({
+          name: wi.item_code || wi.name,
+          item_name: wi.web_item_name || wi.item_code || wi.name,
+          description: wi.description || '',
+          item_group: 'Uncategorized', // Default ak nemáme Item data
+          stock_uom: 'Nos',
+          is_stock_item: true,
+          disabled: false,
+          image: wi.website_image || '',
+          valuation_rate: 0,
+          has_variants: false,
+          variant_of: null,
+          custom_min_mnozstvo_obj_predaj: 1,
+          attributes: [],
+          published: wi.published || 0,
+          route: wi.route
+        }));
+      }
 
       // Map Website Item data onto Item records
       const itemsWithWebsiteData = items.map((item: any) => {
@@ -242,25 +329,36 @@ export class ERPNextService {
         };
       });
 
+      console.log(`[getItems] Returning ${itemsWithWebsiteData.length} items with Website Item data`);
       return itemsWithWebsiteData;
     } catch (error) {
       this.logError('Error fetching items from ERPNext:', error);
+      console.log('[getItems] Error occurred, trying fallback...');
+      return await this.fallbackToItemDoctype();
+    }
+  }
+
+  // Fallback method to load items directly from Item doctype
+  private async fallbackToItemDoctype(): Promise<ERPNextItem[]> {
+    try {
+      console.log('[getItems] Fallback: Loading from Item doctype with published filter...');
+      const response = await this.client.get('/resource/Item', {
+        params: {
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]',
+          filters: JSON.stringify([
+            ["disabled", "=", "0"],
+            ["published", "=", "1"]
+          ]),
+          limit_page_length: 100
+        }
+      });
       
-      // Fallback: skús načítať priamo z Item ak Website Item zlyhá
-      console.log('[getItems] Falling back to Item doctype...');
-      try {
-        const response = await this.client.get('/resource/Item', {
-          params: {
-            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]',
-            filters: '[["disabled","=","0"],["published","=","1"]]',
-            limit_page_length: 100
-          }
-        });
-        return response.data.data || [];
-      } catch (fallbackError) {
-        this.logError('Error in fallback Item fetch:', fallbackError);
-        return [];
-      }
+      const items = response.data.data || [];
+      console.log(`[getItems] Fallback: Found ${items.length} items from Item doctype`);
+      return items;
+    } catch (fallbackError) {
+      this.logError('Error in fallback Item fetch:', fallbackError);
+      return [];
     }
   }
 
@@ -292,9 +390,9 @@ export class ERPNextService {
       const variantCodes = itemVariants.map((v: any) => v.name);
       
       // Nájdi Website Items pre tieto varianty
-      const websiteItemsResponse = await this.client.get('/resource/Website Item', {
+      const websiteItemsResponse = await this.client.get('/resource/Website%20Item', {
         params: {
-          fields: '["name","item_code","published","web_item_name","description","website_image"]',
+          fields: JSON.stringify(["name", "item_code", "published", "web_item_name", "description", "website_image"]),
           filters: JSON.stringify([
             ["item_code", "in", variantCodes],
             ["published", "=", 1]

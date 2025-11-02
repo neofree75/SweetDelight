@@ -98,6 +98,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint - test Website Items directly
+  app.get("/api/debug/website-items", async (req, res) => {
+    try {
+      // Načítaj Website Items cez axios priamo
+      const axios = (await import('axios')).default;
+      const baseUrl = process.env.ERPNEXT_URL || '';
+      const apiKey = process.env.ERPNEXT_API_KEY || '';
+      const apiSecret = process.env.ERPNEXT_API_SECRET || '';
+      
+      const client = axios.create({
+        baseURL: baseUrl ? `${baseUrl}/api` : '',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `token ${apiKey}:${apiSecret}`
+        },
+        timeout: 10000
+      });
+      
+      // Test Website Items API - používame URL encoding
+      const websiteItemsResponse = await client.get('/resource/Website%20Item', {
+        params: {
+          fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name"]),
+          filters: JSON.stringify([["published", "=", 1]]),
+          limit_page_length: 100
+        }
+      });
+
+      const websiteItems = websiteItemsResponse.data.data || [];
+      
+      res.json({
+        total: websiteItems.length,
+        websiteItems: websiteItems,
+        sample: websiteItems.slice(0, 5).map((wi: any) => ({
+          name: wi.name,
+          item_code: wi.item_code,
+          published: wi.published,
+          web_item_name: wi.web_item_name,
+          description: wi.description,
+          website_image: wi.website_image
+        }))
+      });
+    } catch (error: any) {
+      console.error("Error fetching Website Items:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch Website Items",
+        message: error.message,
+        details: error.response?.data,
+        status: error.response?.status
+      });
+    }
+  });
+
   // Debug endpoint - refresh products cache
   app.post("/api/debug/refresh-cache", async (req, res) => {
     try {

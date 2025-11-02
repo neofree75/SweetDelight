@@ -187,9 +187,10 @@ export class ERPNextService {
       
       // Najprv načítaj Website Items, ktoré sú published
       // Používame URL encoding pre medzery v názve doctype
+      // POZOR: List endpoint môže nevrátiť všetky polia, preto budeme načítavať detail pre každý
       const websiteItemsResponse = await this.client.get('/resource/Website%20Item', {
         params: {
-          fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name"]),
+          fields: JSON.stringify(["name", "published"]), // Len minimálne polia pre list
           filters: JSON.stringify([["published", "=", 1]]),
           limit_page_length: 100
         }
@@ -201,8 +202,27 @@ export class ERPNextService {
         hasData: !!websiteItemsResponse.data?.data
       });
 
-      const websiteItems = websiteItemsResponse.data.data || [];
-      console.log(`[getItems] Found ${websiteItems.length} published Website Items`);
+      const websiteItemsList = websiteItemsResponse.data.data || [];
+      console.log(`[getItems] Found ${websiteItemsList.length} published Website Items in list`);
+      
+      // Načítaj detail pre každý Website Item paralelne, aby sme získali item_code a ostatné polia
+      const websiteItemsPromises = websiteItemsList.slice(0, 100).map(async (wi: any) => {
+        try {
+          const detailResponse = await this.client.get(`/resource/Website%20Item/${encodeURIComponent(wi.name)}`);
+          if (detailResponse.data.data) {
+            return detailResponse.data.data;
+          }
+          return null;
+        } catch (error) {
+          console.log(`[getItems] Failed to fetch detail for Website Item ${wi.name}:`, error);
+          return null;
+        }
+      });
+      
+      const websiteItemsResults = await Promise.all(websiteItemsPromises);
+      const websiteItems = websiteItemsResults.filter((wi: any) => wi !== null);
+      
+      console.log(`[getItems] Loaded ${websiteItems.length} Website Item details`);
       
       if (websiteItems.length > 0) {
         console.log('[getItems] Sample Website Items:', websiteItems.slice(0, 3).map((wi: any) => ({
@@ -294,36 +314,62 @@ export class ERPNextService {
       }
 
       if (items.length === 0) {
-        console.log('[getItems] No Items found, using Website Items directly...');
-        console.log('[getItems] Converting Website Items to Item format...');
+        console.log('[getItems] No Items found, trying to load Items by item_code from Website Items...');
         
-        // Ak sa nepodarilo načítať Items, použijeme Website Items priamo
-        // Website Item name môže byť aj item_code, alebo môže byť samostatný identifikátor
-        const convertedItems = websiteItems.map((wi: any) => {
-          const itemCode = wi.item_code || wi.name;
-          console.log(`[getItems] Converting Website Item: name=${wi.name}, item_code=${wi.item_code}`);
+        // Skús načítať Items podľa item_code z Website Items
+        const itemCodesToLoad = websiteItems
+          .map((wi: any) => ({ code: wi.item_code, name: wi.name }))
+          .filter((obj: any) => obj.code && obj.code !== obj.name) // Len ak item_code existuje a nie je to len name
+          .map((obj: any) => obj.code);
+        
+        if (itemCodesToLoad.length > 0) {
+          console.log(`[getItems] Trying to load ${itemCodesToLoad.length} Items by item_code...`);
+          for (const itemCode of itemCodesToLoad.slice(0, 50)) {
+            try {
+              const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`);
+              if (itemResponse.data.data && !itemResponse.data.data.disabled) {
+                items.push(itemResponse.data.data);
+              }
+            } catch (itemError) {
+              console.log(`[getItems] Item ${itemCode} not found or disabled`);
+            }
+          }
+        }
+        
+        if (items.length === 0) {
+          console.log('[getItems] No Items found, using Website Items directly (without price)...');
+          console.log('[getItems] Converting Website Items to Item format...');
           
-          return {
-            name: itemCode,
-            item_name: wi.web_item_name || wi.name || itemCode,
-            description: wi.description || '',
-            item_group: 'Uncategorized', // Default ak nemáme Item data
-            stock_uom: 'Nos',
-            is_stock_item: true,
-            disabled: false,
-            image: wi.website_image || '',
-            valuation_rate: 0,
-            has_variants: false,
-            variant_of: null,
-            custom_min_mnozstvo_obj_predaj: 1,
-            attributes: [],
-            published: wi.published || 1,
-            route: wi.route
-          };
-        });
-        
-        console.log(`[getItems] Returning ${convertedItems.length} converted Website Items`);
-        return convertedItems;
+          // Ak sa nepodarilo načítať Items, použijeme Website Items priamo
+          // POZNÁMKA: Bez valuation_rate, cena bude 0
+          const convertedItems = websiteItems.map((wi: any) => {
+            const itemCode = wi.item_code || wi.name;
+            console.log(`[getItems] Converting Website Item: name=${wi.name}, item_code=${wi.item_code}`);
+            
+            return {
+              name: itemCode,
+              item_name: wi.web_item_name || wi.item_name || wi.name || itemCode,
+              description: wi.description || '',
+              item_group: wi.item_group || 'Uncategorized',
+              stock_uom: wi.stock_uom || 'Nos',
+              is_stock_item: true,
+              include_item_in_manufacturing: false,
+              disabled: false,
+              image: wi.website_image || '',
+              valuation_rate: 0, // Website Item nemá valuation_rate, použijeme 0
+              has_variants: Boolean(wi.has_variants) || false,
+              variant_of: undefined,
+              custom_min_mnozstvo_obj_predaj: 1,
+              custom_is_eshop: true, // Website Items sú určené pre eshop
+              attributes: [],
+              published: wi.published || 1,
+              route: wi.route
+            } as ERPNextItem;
+          });
+          
+          console.log(`[getItems] Returning ${convertedItems.length} converted Website Items`);
+          return convertedItems;
+        }
       }
 
       // Map Website Item data onto Item records

@@ -7,9 +7,12 @@ echo ""
 
 cd /var/www/SweetDelight || exit 1
 
-# Load environment variables
+# Load environment variables (safe way - handles special characters)
 if [ -f ".env" ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    # Use set -a to export all variables, but source instead of export $(cat...)
+    set -a
+    source .env
+    set +a
     echo "✅ Environment variables loaded"
 else
     echo "❌ .env file not found!"
@@ -38,12 +41,30 @@ fi
 
 echo ""
 
+# Check if server is running
+echo "2. Checking if Node.js server is running..."
+if lsof -i:5001 > /dev/null 2>&1; then
+    PID=$(lsof -t -i:5001)
+    echo "✅ Server is running on port 5001 (PID: $PID)"
+else
+    echo "❌ Server is NOT running on port 5001!"
+    echo "   → Start server: pm2 start dist/index.js --name SweetDelight"
+    echo "   → Or check: pm2 status"
+    echo ""
+fi
+
 # Test API debug endpoint
-echo "2. Testing /api/debug/config endpoint..."
+echo ""
+echo "3. Testing /api/debug/config endpoint..."
 CONFIG_RESPONSE=$(curl -s http://localhost:5001/api/debug/config 2>&1)
-if echo "$CONFIG_RESPONSE" | grep -q "<!DOCTYPE html"; then
-    echo "❌ API still returns HTML!"
-    echo "   Response: $(echo "$CONFIG_RESPONSE" | head -c 200)"
+if echo "$CONFIG_RESPONSE" | grep -q "<!DOCTYPE html\|<html"; then
+    echo "❌ API returns HTML instead of JSON!"
+    echo "   This means nginx is serving static files instead of proxying to Node.js"
+    echo "   → Check nginx config: sudo cat /etc/nginx/sites-available/sweetdelight.conf | grep -A 5 'location /api'"
+    echo "   → Ensure location /api comes BEFORE location /"
+    echo "   → Reload nginx: sudo systemctl reload nginx"
+    echo ""
+    echo "   Response preview: $(echo "$CONFIG_RESPONSE" | head -c 200)"
 else
     echo "✅ API returns JSON"
     echo "$CONFIG_RESPONSE" | jq '.' 2>/dev/null || echo "$CONFIG_RESPONSE"
@@ -52,7 +73,7 @@ fi
 echo ""
 
 # Test Website Items directly
-echo "3. Testing ERPNext Website Items API directly..."
+echo "4. Testing ERPNext Website Items API directly..."
 if [ -n "$ERPNEXT_URL" ] && [ -n "$ERPNEXT_API_KEY" ] && [ -n "$ERPNEXT_API_SECRET" ]; then
     echo "   URL: ${ERPNEXT_URL}"
     echo "   API Key: ${ERPNEXT_API_KEY:0:15}..."
@@ -72,9 +93,18 @@ if [ -n "$ERPNEXT_URL" ] && [ -n "$ERPNEXT_API_KEY" ] && [ -n "$ERPNEXT_API_SECR
         echo "$WEBSITE_ITEMS" | head -c 500
         echo ""
     elif echo "$WEBSITE_ITEMS" | grep -q '"data"'; then
-        COUNT=$(echo "$WEBSITE_ITEMS" | jq '.data | length' 2>/dev/null || echo "unknown")
+        # Try to parse count, handle both array and object formats
+        if echo "$WEBSITE_ITEMS" | jq -e '.data | type == "array"' > /dev/null 2>&1; then
+            COUNT=$(echo "$WEBSITE_ITEMS" | jq '.data | length' 2>/dev/null)
+        elif echo "$WEBSITE_ITEMS" | jq -e '.data' > /dev/null 2>&1; then
+            COUNT=$(echo "$WEBSITE_ITEMS" | jq '[.data] | length' 2>/dev/null)
+        else
+            COUNT="unknown"
+        fi
+        
         echo "✅ Website Items API response received"
         echo "   Published Website Items: $COUNT"
+        echo "   Raw response preview: $(echo "$WEBSITE_ITEMS" | head -c 200)"
         
         if [ "$COUNT" = "0" ] || [ -z "$COUNT" ] || [ "$COUNT" = "unknown" ]; then
             echo ""
@@ -88,8 +118,17 @@ if [ -n "$ERPNEXT_URL" ] && [ -n "$ERPNEXT_API_KEY" ] && [ -n "$ERPNEXT_API_SECR
                 -G --data-urlencode 'fields=["name","item_code","published","route"]' \
                 --data-urlencode "limit_page_length=100" 2>&1)
             
-            ALL_COUNT=$(echo "$ALL_ITEMS" | jq '.data | length' 2>/dev/null || echo "unknown")
+            # Try to parse count
+            if echo "$ALL_ITEMS" | jq -e '.data | type == "array"' > /dev/null 2>&1; then
+                ALL_COUNT=$(echo "$ALL_ITEMS" | jq '.data | length' 2>/dev/null)
+            elif echo "$ALL_ITEMS" | jq -e '.data' > /dev/null 2>&1; then
+                ALL_COUNT=$(echo "$ALL_ITEMS" | jq '[.data] | length' 2>/dev/null)
+            else
+                ALL_COUNT="unknown"
+            fi
+            
             echo "   Total Website Items (all): $ALL_COUNT"
+            echo "   Raw response preview: $(echo "$ALL_ITEMS" | head -c 200)"
             
             if [ "$ALL_COUNT" != "0" ] && [ -n "$ALL_COUNT" ] && [ "$ALL_COUNT" != "unknown" ]; then
                 echo ""
@@ -132,7 +171,7 @@ fi
 echo ""
 
 # Test debug endpoints
-echo "4. Testing /api/debug/website-items endpoint..."
+echo "5. Testing /api/debug/website-items endpoint..."
 WEBSITE_ITEMS_RESPONSE=$(curl -s http://localhost:5001/api/debug/website-items 2>&1)
 if echo "$WEBSITE_ITEMS_RESPONSE" | grep -q "<!DOCTYPE html"; then
     echo "❌ Returns HTML"
@@ -143,7 +182,7 @@ fi
 
 echo ""
 
-echo "5. Testing /api/products endpoint..."
+echo "6. Testing /api/products endpoint..."
 PROD_RESPONSE=$(curl -s http://localhost:5001/api/products 2>&1)
 PROD_COUNT=$(echo "$PROD_RESPONSE" | jq 'length' 2>/dev/null || echo "unknown")
 

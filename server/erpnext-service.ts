@@ -288,9 +288,10 @@ export class ERPNextService {
       
       try {
         // ERPNext API "in" filter syntax
+        // POZOR: custom polia nemôžu byť v fields pri list queries - musia sa načítať individuálne
         const itemsResponse = await this.client.get('/resource/Item', {
           params: {
-            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","attributes"]',
+            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","attributes"]',
             filters: JSON.stringify([["name", "in", itemCodes]]),
             limit_page_length: 100
           }
@@ -424,7 +425,7 @@ export class ERPNextService {
       try {
         const response = await this.client.get('/resource/Item', {
           params: {
-            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]',
+            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","published","show_in_website","attributes"]',
             filters: JSON.stringify([
               ["disabled", "=", "0"],
               ["published", "=", "1"]
@@ -445,7 +446,7 @@ export class ERPNextService {
       // Ak published filter nefunguje, skús custom_is_eshop (starý spôsob)
       const response = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","custom_is_eshop","attributes"]',
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_is_eshop","attributes"]',
           filters: JSON.stringify([
             ["disabled", "=", "0"],
             ["custom_is_eshop", "=", "1"]
@@ -472,7 +473,7 @@ export class ERPNextService {
       // Najprv nájdi všetky Item varianty
       const itemVariantsResponse = await this.client.get('/resource/Item', {
         params: {
-          fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","attributes","valuation_rate","disabled"]',
+          fields: '["name","item_name","description","variant_of","attributes","valuation_rate","disabled"]',
           filters: JSON.stringify([
             ["variant_of", "=", templateName],
             ["disabled", "=", "0"]
@@ -531,7 +532,7 @@ export class ERPNextService {
       try {
         const response = await this.client.get('/resource/Item', {
           params: {
-            fields: '["name","item_name","description","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes","valuation_rate","disabled"]',
+            fields: '["name","item_name","description","variant_of","published","show_in_website","attributes","valuation_rate","disabled"]',
             filters: JSON.stringify([
               ["variant_of", "=", templateName],
               ["disabled", "=", "0"],
@@ -1053,7 +1054,7 @@ export class ERPNextService {
     try {
       const response = await this.client.get(`/resource/Item/${productId}`, {
         params: {
-          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_min_mnozstvo_obj_predaj","published","show_in_website","attributes"]'
+          fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","published","show_in_website","attributes"]'
         }
       });
 

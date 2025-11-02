@@ -33,8 +33,15 @@ else
     echo "ℹ️  Žiadne obrázky na zálohovanie"
 fi
 
+echo "🔧 Opravujem vlastníctvo súborov v dist/..."
+# Zmeň vlastníctvo všetkých súborov v dist/ na frappe:frappe, aby sme mohli vymazať
+if [ -d "dist" ]; then
+    sudo chown -R frappe:frappe dist/ 2>/dev/null || chown -R frappe:frappe dist/ 2>/dev/null || true
+    sudo chmod -R 755 dist/ 2>/dev/null || chmod -R 755 dist/ 2>/dev/null || true
+fi
+
 echo "🧹 Čistím starý build..."
-rm -rf dist/*
+rm -rf dist/* || sudo rm -rf dist/* || { echo "⚠️  Niektoré súbory sa nedali vymazať, pokračujem..." ; }
 
 echo "📁 Zabezpečujem assets priečinky..."
 # Ensure both attached_assets and dist/public/assets directories exist
@@ -60,8 +67,12 @@ fi
 
 echo "📝 Načítavam environment variables pre build..."
 # Načítaj .env súbor pre Vite build (VITE_ variables)
+# Používame set -a aby sa exportovali všetky premenné
 if [ -f "$APP_DIR/.env" ]; then
-    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
+    # Použijeme set -a namiesto export $(cat...), ktorý môže mať problémy s medzerami
+    set -a
+    source "$APP_DIR/.env" 2>/dev/null || . "$APP_DIR/.env" 2>/dev/null
+    set +a
     echo "✅ Environment variables načítané"
 else
     echo "⚠️ .env súbor sa nenašiel!"
@@ -73,12 +84,21 @@ NODE_ENV=production npm run build || { echo "❌ Build zlyhal"; exit 1; }
 echo "📥 Obnovujem zálohované obrázky..."
 # Obnov zálohované obrázky po build (build skopíruje z attached_assets, ale my chceme aj produkčné)
 if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
+    mkdir -p dist/public/assets/gallery
     cp -r "$BACKUP_DIR"/* dist/public/assets/gallery/ 2>/dev/null || true
+    # Zabezpeč správne vlastníctvo obnovených súborov
+    chown -R frappe:frappe dist/public/assets/gallery/ 2>/dev/null || sudo chown -R frappe:frappe dist/public/assets/gallery/ 2>/dev/null || true
+    chmod -R 755 dist/public/assets/gallery/ 2>/dev/null || sudo chmod -R 755 dist/public/assets/gallery/ 2>/dev/null || true
     echo "✅ Obnovených $(ls -1 "$BACKUP_DIR" 2>/dev/null | wc -l) obrázkov"
     rm -rf "$BACKUP_DIR"
 else
     echo "ℹ️  Žiadne obrázky na obnovenie"
 fi
+
+echo "🔧 Nastavujem správne vlastníctvo pre dist/..."
+# Zabezpeč, že všetky súbory v dist/ sú vlastnené frappe:frappe
+chown -R frappe:frappe dist/ 2>/dev/null || sudo chown -R frappe:frappe dist/ 2>/dev/null || true
+chmod -R 755 dist/ 2>/dev/null || sudo chmod -R 755 dist/ 2>/dev/null || true
 
 echo "🔎 Kontrolujem proces na porte $PORT..."
 PID=$(lsof -t -i:$PORT)
@@ -96,11 +116,9 @@ pm2 delete $APP_NAME || true
 echo "📝 Nastavujem environment variables pre PM2..."
 # PM2 potrebuje env variables explicitne alebo cez ecosystem file
 # Použijeme --update-env aby PM2 načítal env z prostredia
+# Env variables sú už načítané vyššie cez source .env
 if [ -f "$APP_DIR/.env" ]; then
-    echo "✅ Našiel som .env súbor, načítavam pre PM2..."
-    # Načítaj env variables do shellu (už sú exportované vyššie)
-    export $(cat $APP_DIR/.env | grep -v '^#' | xargs)
-    # PM2 automaticky dedí env variables z shellu pri --update-env
+    echo "✅ Našiel som .env súbor, env variables sú už načítané"
 else
     echo "⚠️  .env súbor sa nenašiel v $APP_DIR"
 fi

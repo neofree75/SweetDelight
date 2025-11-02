@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingBag, CreditCard, Banknote, Loader2 } from 'lucide-react';
+import { ShoppingBag, CreditCard, Banknote, Loader2, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { formatPrice } from '@/lib/format-price';

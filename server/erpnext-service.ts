@@ -571,32 +571,48 @@ export class ERPNextService {
   async getItemPrice(itemCode: string, priceList?: string): Promise<number> {
     this.refreshClient();
     try {
-      // Default price list is usually "Standard Selling" or similar
-      const priceListName = priceList || process.env.ERPNEXT_PRICE_LIST || 'Standard Selling';
-      
+      // Try to get any selling price for this item (without price list filter first)
       const response = await this.client.get('/resource/Item%20Price', {
         params: {
-          fields: '["price_list_rate","item_code"]',
+          fields: '["price_list_rate","item_code","price_list"]',
           filters: JSON.stringify([
             ["item_code", "=", itemCode],
-            ["price_list", "=", priceListName],
             ["selling", "=", 1]
           ]),
-          limit_page_length: 1,
-          order_by: 'valid_from desc' // Get the most recent price
+          limit_page_length: 100
         }
       });
 
       const prices = response.data.data || [];
-      if (prices.length > 0 && prices[0].price_list_rate) {
-        return Number(prices[0].price_list_rate) || 0;
+      if (prices.length > 0) {
+        // If specific price list requested, try to find it
+        if (priceList || process.env.ERPNEXT_PRICE_LIST) {
+          const priceListName = priceList || process.env.ERPNEXT_PRICE_LIST;
+          const matchingPrice = prices.find((p: any) => 
+            p.price_list === priceListName && p.price_list_rate
+          );
+          if (matchingPrice && matchingPrice.price_list_rate) {
+            const price = Number(matchingPrice.price_list_rate) || 0;
+            console.log(`[getItemPrice] Found price for ${itemCode} in "${priceListName}": ${price}`);
+            return price;
+          }
+        }
+        
+        // Otherwise, use the first available price
+        const firstPrice = prices.find((p: any) => p.price_list_rate);
+        if (firstPrice && firstPrice.price_list_rate) {
+          const price = Number(firstPrice.price_list_rate) || 0;
+          console.log(`[getItemPrice] Found price for ${itemCode} in "${firstPrice.price_list}": ${price}`);
+          return price;
+        }
       }
 
       // If no price found, return 0 (valuation_rate fallback will be used)
+      console.log(`[getItemPrice] No Item Price found for ${itemCode}, will use valuation_rate fallback`);
       return 0;
     } catch (error) {
       // If Item Price fails, return 0 and use valuation_rate fallback
-      console.log(`[getItemPrice] Could not fetch price for ${itemCode}, using valuation_rate fallback`);
+      console.log(`[getItemPrice] Error fetching price for ${itemCode}: ${error instanceof Error ? error.message : 'Unknown error'}, using valuation_rate fallback`);
       return 0;
     }
   }

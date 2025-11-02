@@ -248,7 +248,18 @@ export class ERPNextService {
           name: wi.name,
           item_code: wi.item_code,
           published: wi.published,
-          web_item_name: wi.web_item_name
+          web_item_name: wi.web_item_name,
+          website_specifications: wi.website_specifications,
+          min_pocet_from_specs: (() => {
+            const spec = wi.website_specifications?.find((s: any) => s.label === 'min-pocet' || s.label === 'min_pocet');
+            if (spec?.description) {
+              const htmlStripped = spec.description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+              return htmlStripped;
+            }
+            return null;
+          })(),
+          custom_min_mnozstvo_obj_predaj: wi.custom_min_mnozstvo_obj_predaj,
+          allFields: Object.keys(wi).filter(k => k.toLowerCase().includes('spec'))
         })));
       }
 
@@ -364,7 +375,23 @@ export class ERPNextService {
           // POZNÁMKA: Bez valuation_rate, cena bude 0
           const convertedItems = websiteItems.map((wi: any) => {
             const itemCode = wi.item_code || wi.name;
-            console.log(`[getItems] Converting Website Item: name=${wi.name}, item_code=${wi.item_code}`);
+            // Získať min-pocet z Website Item website_specifications
+            // Hodnota je v description poli (ktoré obsahuje HTML)
+            let websiteItemMinQty = null;
+            if (wi.website_specifications && Array.isArray(wi.website_specifications)) {
+              const minPocetSpec = wi.website_specifications.find((spec: any) => 
+                spec.label === 'min-pocet' || spec.label === 'min_pocet'
+              );
+              if (minPocetSpec && minPocetSpec.description) {
+                // Extrahovať hodnotu z description (ktoré môže obsahovať HTML)
+                const descriptionValue = this.stripHtmlTags(minPocetSpec.description).trim();
+                const parsedValue = parseFloat(descriptionValue);
+                if (!isNaN(parsedValue) && parsedValue > 0) {
+                  websiteItemMinQty = parsedValue;
+                }
+              }
+            }
+            console.log(`[getItems] Converting Website Item: name=${wi.name}, item_code=${wi.item_code}, min_pocet=${websiteItemMinQty}`);
             
             return {
               name: itemCode,
@@ -379,7 +406,7 @@ export class ERPNextService {
               valuation_rate: 0, // Website Item nemá valuation_rate, použijeme 0
               has_variants: Boolean(wi.has_variants) || false,
               variant_of: undefined,
-              custom_min_mnozstvo_obj_predaj: 1,
+              custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : 1,
               custom_is_eshop: true, // Website Items sú určené pre eshop
               attributes: [],
               published: wi.published || 1,
@@ -400,6 +427,23 @@ export class ERPNextService {
           (!wi.item_code && wi.name === item.name)
         );
         
+        // Získať min-pocet z Website Item website_specifications
+        // Hodnota je v description poli (ktoré obsahuje HTML)
+        let websiteItemMinQty = null;
+        if (websiteItem?.website_specifications && Array.isArray(websiteItem.website_specifications)) {
+          const minPocetSpec = websiteItem.website_specifications.find((spec: any) => 
+            spec.label === 'min-pocet' || spec.label === 'min_pocet'
+          );
+          if (minPocetSpec && minPocetSpec.description) {
+            // Extrahovať hodnotu z description (ktoré môže obsahovať HTML)
+            const descriptionValue = this.stripHtmlTags(minPocetSpec.description).trim();
+            const parsedValue = parseFloat(descriptionValue);
+            if (!isNaN(parsedValue) && parsedValue > 0) {
+              websiteItemMinQty = parsedValue;
+            }
+          }
+        }
+        
         return {
           ...item,
           // Použi web_item_name z Website Item ak existuje, inak item_name
@@ -412,7 +456,9 @@ export class ERPNextService {
           // Published status z Website Item
           published: websiteItem?.published || 0,
           // Route z Website Item
-          route: websiteItem?.route
+          route: websiteItem?.route,
+          // Min quantity z Website Item website_specifications (ak existuje, použije sa v getProductsForFrontend)
+          custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : item.custom_min_mnozstvo_obj_predaj
         };
       });
 

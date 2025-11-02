@@ -1189,7 +1189,11 @@ export class ERPNextService {
       // Načítať slideshow obrázky ak existuje slideshow
       let galleryImages: string[] = [];
       if ((item as any).slideshow) {
+        console.log(`[getProductsForFrontend] Product ${item.name} has slideshow: "${(item as any).slideshow}"`);
         galleryImages = await this.getSlideshowImages((item as any).slideshow);
+        console.log(`[getProductsForFrontend] Loaded ${galleryImages.length} gallery images for ${item.name}`);
+      } else {
+        console.log(`[getProductsForFrontend] Product ${item.name} has no slideshow`);
       }
 
       // Ak má produkt varianty, načítaj ich
@@ -1234,6 +1238,7 @@ export class ERPNextService {
         variants: variants,
         vatRate: vatRate, // Sadzba DPH v percentách
         priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
+        galleryImages: galleryImages.length > 0 ? galleryImages : undefined, // Galéria obrázkov zo slideshow
       };
     }));
 

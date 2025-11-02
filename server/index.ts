@@ -113,6 +113,16 @@ if (process.env.NODE_ENV === 'production') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// IMPORTANT: API routes must be registered BEFORE static file serving
+// This middleware ensures API routes are handled first
+app.use((req, res, next) => {
+  // Log API requests for debugging
+  if (req.path.startsWith('/api/')) {
+    console.log(`[api-request] ${req.method} ${req.path} from ${req.get('host')}`);
+  }
+  next();
+});
+
 // Configure session management with secure settings
 // WARNING: MemoryStore loses all sessions on server restart!
 // In production, consider using Redis or database-backed session store

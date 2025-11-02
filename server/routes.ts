@@ -37,7 +37,8 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
+  console.log('[registerRoutes] Registering API routes...');
+  
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
     try {
@@ -1966,5 +1967,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Log registered routes for debugging
+  const routes = [];
+  app._router?.stack?.forEach((middleware: any) => {
+    if (middleware.route) {
+      routes.push(`${Object.keys(middleware.route.methods).join(', ').toUpperCase()} ${middleware.route.path}`);
+    }
+  });
+  console.log(`[registerRoutes] Registered ${routes.filter((r: string) => r.includes('/api')).length} API routes`);
+  console.log(`[registerRoutes] Sample API routes:`, routes.filter((r: string) => r.includes('/api')).slice(0, 5));
+  
   return httpServer;
 }

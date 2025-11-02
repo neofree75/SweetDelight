@@ -17,11 +17,56 @@ echo ""
 
 # Check if reverse proxy is configured
 echo "3. Checking nginx configuration (if exists):"
-if [ -f /etc/nginx/sites-enabled/default ]; then
-  echo "Found nginx config:"
-  cat /etc/nginx/sites-enabled/default | grep -A 10 "location"
+if command -v nginx &> /dev/null; then
+  echo "✅ Nginx is installed"
+  
+  # Check multiple possible locations
+  NGINX_CONFIG=""
+  if [ -f /etc/nginx/sites-enabled/default ]; then
+    NGINX_CONFIG="/etc/nginx/sites-enabled/default"
+  elif [ -f /etc/nginx/sites-enabled/sweet-delight ]; then
+    NGINX_CONFIG="/etc/nginx/sites-enabled/sweet-delight"
+  elif [ -f /etc/nginx/nginx.conf ]; then
+    NGINX_CONFIG="/etc/nginx/nginx.conf"
+  fi
+  
+  if [ -n "$NGINX_CONFIG" ]; then
+    echo "Found nginx config: $NGINX_CONFIG"
+    echo ""
+    echo "Location blocks:"
+    grep -n "location" "$NGINX_CONFIG" | head -20
+    echo ""
+    
+    # Check if /api/ location exists
+    if grep -q "location /api/" "$NGINX_CONFIG"; then
+      echo "✅ Found location /api/ block"
+      # Check order - /api/ should come before /
+      API_LINE=$(grep -n "location /api/" "$NGINX_CONFIG" | cut -d: -f1)
+      ROOT_LINE=$(grep -n "location /" "$NGINX_CONFIG" | grep -v "/api/" | head -1 | cut -d: -f1)
+      
+      if [ -n "$API_LINE" ] && [ -n "$ROOT_LINE" ] && [ "$API_LINE" -lt "$ROOT_LINE" ]; then
+        echo "✅ /api/ location is before / location (correct order)"
+      else
+        echo "⚠️  /api/ location may be after / location (wrong order!)"
+      fi
+    else
+      echo "❌ No location /api/ block found! This is the problem!"
+      echo "   You need to add location /api/ before location /"
+    fi
+  else
+    echo "⚠️  No nginx config found in standard locations"
+    echo "   Checked: /etc/nginx/sites-enabled/default"
+    echo "   Checked: /etc/nginx/sites-enabled/sweet-delight"
+    echo "   Checked: /etc/nginx/nginx.conf"
+  fi
+  
+  # Test nginx config
+  echo ""
+  echo "Testing nginx configuration:"
+  sudo nginx -t 2>&1 || echo "⚠️  Nginx config test failed"
 else
-  echo "⚠️  No nginx config found in /etc/nginx/sites-enabled/default"
+  echo "⚠️  Nginx is not installed or not in PATH"
+  echo "   You might be using a different reverse proxy (Apache, Caddy, etc.)"
 fi
 echo ""
 

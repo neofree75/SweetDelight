@@ -20,7 +20,7 @@ export NVM_DIR="$HOME/.nvm"
 nvm use 20 || { echo "❌ Nepodarilo sa prepnúť na Node 20"; exit 1; }
 
 echo "📦 Inštalujem závislosti..."
-npm install || { echo "❌ NPM install zlyhal"; exit 1; }
+npm install --include=dev || { echo "❌ NPM install zlyhal"; exit 1; }
 
 echo "💾 Backing up nahrané obrázky z dist/public/assets/gallery..."
 # Backup obrázkov nahraných priamo v produkcii pred vymazaním dist/

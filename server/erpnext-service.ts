@@ -23,6 +23,8 @@ export class ERPNextService {
   private vatRateCache: { rate: number; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
   private readonly VAT_CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre sadzbu DPH
+  private readonly WEBSITE_ITEMS_LIMIT = 500; // Max počet Website Items načítaných naraz
+  private readonly ITEM_FETCH_LIMIT = 500; // Max počet Item záznamov načítaných naraz
   private customerCreationLocks: Map<string, Promise<string | null>> = new Map();
 
 
@@ -211,7 +213,7 @@ export class ERPNextService {
         params: {
           fields: JSON.stringify(["name", "published"]), // Len minimálne polia pre list
           filters: JSON.stringify([["published", "=", 1]]),
-          limit_page_length: 100
+          limit_page_length: this.WEBSITE_ITEMS_LIMIT
         }
       });
 
@@ -223,9 +225,12 @@ export class ERPNextService {
 
       const websiteItemsList = websiteItemsResponse.data.data || [];
       console.log(`[getItems] Found ${websiteItemsList.length} published Website Items in list`);
+      if (websiteItemsList.length > this.WEBSITE_ITEMS_LIMIT) {
+        console.log(`[getItems] Warning: trimming to first ${this.WEBSITE_ITEMS_LIMIT} Website Items (total: ${websiteItemsList.length})`);
+      }
       
       // Načítaj detail pre každý Website Item paralelne, aby sme získali item_code a ostatné polia
-      const websiteItemsPromises = websiteItemsList.slice(0, 100).map(async (wi: any) => {
+      const websiteItemsPromises = websiteItemsList.slice(0, this.WEBSITE_ITEMS_LIMIT).map(async (wi: any) => {
         try {
           const detailResponse = await this.client.get(`/resource/Website%20Item/${encodeURIComponent(wi.name)}`);
           if (detailResponse.data.data) {
@@ -271,7 +276,7 @@ export class ERPNextService {
           const allWebsiteItemsResponse = await this.client.get('/resource/Website%20Item', {
             params: {
               fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow"]),
-              limit_page_length: 100
+              limit_page_length: this.WEBSITE_ITEMS_LIMIT
             }
           });
           
@@ -316,11 +321,12 @@ export class ERPNextService {
       try {
         // ERPNext API "in" filter syntax
         // POZOR: custom polia nemôžu byť v fields pri list queries - musia sa načítať individuálne
+        const itemsFetchLimit = Math.max(itemCodes.length, this.ITEM_FETCH_LIMIT);
         const itemsResponse = await this.client.get('/resource/Item', {
           params: {
             fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","attributes"]',
             filters: JSON.stringify([["name", "in", itemCodes]]),
-            limit_page_length: 100
+            limit_page_length: itemsFetchLimit
           }
         });
 
@@ -331,7 +337,10 @@ export class ERPNextService {
         
         // Fallback: načítaj Items jeden po druhom (pomalšie, ale funguje)
         items = [];
-        for (const itemCode of itemCodes.slice(0, 50)) { // Limit na 50 aby to netrvalo príliš dlho
+        if (itemCodes.length > this.ITEM_FETCH_LIMIT) {
+          console.log(`[getItems] Warning: individual Item fetch limited to ${this.ITEM_FETCH_LIMIT} of ${itemCodes.length} item codes`);
+        }
+        for (const itemCode of itemCodes.slice(0, this.ITEM_FETCH_LIMIT)) {
           try {
             const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`);
             if (itemResponse.data.data && !itemResponse.data.data.disabled) {
@@ -355,7 +364,10 @@ export class ERPNextService {
         
         if (itemCodesToLoad.length > 0) {
           console.log(`[getItems] Trying to load ${itemCodesToLoad.length} Items by item_code...`);
-          for (const itemCode of itemCodesToLoad.slice(0, 50)) {
+          if (itemCodesToLoad.length > this.ITEM_FETCH_LIMIT) {
+            console.log(`[getItems] Warning: unable to fetch ${itemCodesToLoad.length - this.ITEM_FETCH_LIMIT} Item Website details due to limit ${this.ITEM_FETCH_LIMIT}`);
+          }
+          for (const itemCode of itemCodesToLoad.slice(0, this.ITEM_FETCH_LIMIT)) {
             try {
               const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`);
               if (itemResponse.data.data && !itemResponse.data.data.disabled) {
@@ -495,7 +507,7 @@ export class ERPNextService {
               ["disabled", "=", "0"],
               ["published", "=", "1"]
             ]),
-            limit_page_length: 100
+            limit_page_length: this.ITEM_FETCH_LIMIT
           }
         });
         
@@ -516,7 +528,7 @@ export class ERPNextService {
             ["disabled", "=", "0"],
             ["custom_is_eshop", "=", "1"]
           ]),
-          limit_page_length: 100
+          limit_page_length: this.ITEM_FETCH_LIMIT
         }
       });
       
@@ -543,7 +555,7 @@ export class ERPNextService {
             ["variant_of", "=", templateName],
             ["disabled", "=", "0"]
           ]),
-          limit_page_length: 50
+          limit_page_length: this.ITEM_FETCH_LIMIT
         }
       });
 
@@ -564,7 +576,7 @@ export class ERPNextService {
             ["item_code", "in", variantCodes],
             ["published", "=", 1]
           ]),
-          limit_page_length: 50
+          limit_page_length: this.ITEM_FETCH_LIMIT
         }
       });
 
@@ -603,7 +615,7 @@ export class ERPNextService {
               ["disabled", "=", "0"],
               ["published", "=", "1"]
             ]),
-            limit_page_length: 50
+            limit_page_length: this.ITEM_FETCH_LIMIT
           }
         });
         return response.data.data || [];

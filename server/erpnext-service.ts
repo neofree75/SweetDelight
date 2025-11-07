@@ -53,6 +53,75 @@ export class ERPNextService {
       .trim(); // Remove leading/trailing whitespace
   }
 
+  // Normalize Website Item specifications into a frontend-friendly structure
+  private normalizeWebsiteSpecifications(specs: any[]): { key: string; label: string; value: string }[] {
+    if (!Array.isArray(specs)) {
+      return [];
+    }
+
+    const normalized: { key: string; label: string; value: string }[] = [];
+    const labelOverrides: Record<string, string> = {
+      'hmotnost': 'Hmotnosť',
+      'hmotnost balenia': 'Hmotnosť balenia',
+      'hmotnost balika': 'Hmotnosť balíka',
+      'hmotnost balík': 'Hmotnosť balíka',
+      'hmotnost balicku': 'Hmotnosť balíčka',
+      'alergeny': 'Alergény',
+      'alergeny (obsahuje)': 'Alergény',
+      'alergeny obsahuje': 'Alergény',
+      'min pocet': 'Minimálny počet',
+      'min pocet objednavky': 'Minimálny počet objednávky',
+    };
+
+    for (const spec of specs) {
+      if (!spec) continue;
+
+      const rawLabel = typeof spec.label === 'string' ? spec.label.trim() : '';
+      const rawDescription = typeof spec.description === 'string' ? spec.description : '';
+
+      if (!rawLabel) {
+        continue;
+      }
+
+      const cleanedValue = this.stripHtmlTags(rawDescription).trim();
+      if (!cleanedValue) {
+        continue;
+      }
+
+      const normalizedLabel = rawLabel
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!normalizedLabel) {
+        continue;
+      }
+
+      const baseKey = normalizedLabel.toLowerCase().replace(/\s+/g, '-');
+      let uniqueKey = baseKey || rawLabel.toLowerCase() || `spec-${normalized.length}`;
+      let counter = 1;
+      while (normalized.some(entry => entry.key === uniqueKey)) {
+        uniqueKey = `${baseKey}-${counter}`;
+        counter += 1;
+      }
+
+      const normalizedKeyForLabel = normalizedLabel
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
+      const displayLabel = labelOverrides[normalizedKeyForLabel] || (normalizedLabel.charAt(0).toUpperCase() + normalizedLabel.slice(1));
+
+      normalized.push({
+        key: uniqueKey,
+        label: displayLabel,
+        value: cleanedValue,
+      });
+    }
+
+    return normalized;
+  }
+
   // Safely log errors without exposing sensitive information like authorization tokens
   private logError(context: string, error: any) {
     if (axios.isAxiosError(error)) {
@@ -416,10 +485,11 @@ export class ERPNextService {
               variant_of: undefined,
               custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : 1,
               custom_is_eshop: true, // Website Items sú určené pre eshop
-              attributes: [],
-              published: wi.published || 1,
-              route: wi.route
-            } as ERPNextItem;
+            attributes: [],
+            published: wi.published || 1,
+            route: wi.route,
+            website_specifications: Array.isArray(wi.website_specifications) ? wi.website_specifications : [],
+          } as ERPNextItem;
           });
           
           console.log(`[getItems] Returning ${convertedItems.length} converted Website Items`);
@@ -468,7 +538,8 @@ export class ERPNextService {
           // Min quantity z Website Item website_specifications (ak existuje, použije sa v getProductsForFrontend)
           custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : item.custom_min_mnozstvo_obj_predaj,
           // Slideshow name z Website Item (použije sa neskôr na načítanie obrázkov)
-          slideshow: websiteItem?.slideshow || null
+          slideshow: websiteItem?.slideshow || null,
+          website_specifications: Array.isArray(websiteItem?.website_specifications) ? websiteItem.website_specifications : []
         };
       });
 
@@ -1235,6 +1306,9 @@ export class ERPNextService {
         console.log(`Debug: Mapped ${variants.length} variants for ${item.name}`);
       }
 
+      const websiteSpecificationsRaw = (item as any).website_specifications || [];
+      const normalizedSpecifications = this.normalizeWebsiteSpecifications(websiteSpecificationsRaw);
+
       return {
         id: item.name,
         name: item.item_name,
@@ -1249,6 +1323,7 @@ export class ERPNextService {
         vatRate: vatRate, // Sadzba DPH v percentách
         priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
         galleryImages: galleryImages.length > 0 ? galleryImages : undefined, // Galéria obrázkov zo slideshow
+        specifications: normalizedSpecifications.length > 0 ? normalizedSpecifications : undefined,
       };
     }));
 
@@ -1323,11 +1398,12 @@ export class ERPNextService {
 
       // Načítať slideshow obrázky z Website Item
       let galleryImages: string[] = [];
+      let websiteSpecificationsRaw: any[] = [];
       try {
         // Skús nájsť Website Item pre tento produkt
         const websiteItemResponse = await this.client.get('/resource/Website%20Item', {
           params: {
-            fields: JSON.stringify(['slideshow']),
+            fields: JSON.stringify(['slideshow', 'website_specifications']),
             filters: JSON.stringify([['item_code', '=', productId]]),
             limit_page_length: 1
           }
@@ -1335,6 +1411,9 @@ export class ERPNextService {
         const websiteItems = websiteItemResponse.data.data || [];
         if (websiteItems.length > 0 && websiteItems[0].slideshow) {
           galleryImages = await this.getSlideshowImages(websiteItems[0].slideshow);
+        }
+        if (websiteItems.length > 0 && Array.isArray(websiteItems[0].website_specifications)) {
+          websiteSpecificationsRaw = websiteItems[0].website_specifications;
         }
       } catch (error) {
         console.log(`[getProductById] Error loading Website Item for ${productId}:`, error);
@@ -1366,6 +1445,8 @@ export class ERPNextService {
         }));
       }
 
+      const normalizedSpecifications = this.normalizeWebsiteSpecifications(websiteSpecificationsRaw);
+
       return {
         id: item.name,
         name: item.item_name,
@@ -1380,6 +1461,7 @@ export class ERPNextService {
         vatRate: vatRate, // Sadzba DPH v percentách
         priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
         galleryImages: galleryImages.length > 0 ? galleryImages : undefined, // Galéria obrázkov zo slideshow
+        specifications: normalizedSpecifications.length > 0 ? normalizedSpecifications : undefined,
       };
       
     } catch (error) {

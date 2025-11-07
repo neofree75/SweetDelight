@@ -177,6 +177,12 @@ export const productSchema = z.object({
   priceWithVat: z.number(), // Cena s DPH
   // Gallery images from Website Slideshow
   galleryImages: z.array(z.string()).optional(), // Ďalšie obrázky produktu z slideshow
+  // Additional product specifications sourced from Website Item
+  specifications: z.array(z.object({
+    key: z.string(),
+    label: z.string(),
+    value: z.string(),
+  })).optional(),
 });
 
 // Frontend Customer schema (for checkout form)

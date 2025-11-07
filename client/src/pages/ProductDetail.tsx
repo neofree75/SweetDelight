@@ -25,6 +25,10 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   const [quantityError, setQuantityError] = useState('');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
+  const stripDiacritics = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const prioritizedSpecificationKeys = ['hmotnost', 'hmotnosť', 'hmotnost-balenia', 'hmotnosť-balenia', 'alergeny', 'alergény'];
+  const normalizedPrioritizedSpecKeys = prioritizedSpecificationKeys.map(key => stripDiacritics(key.toLowerCase()));
+
   // Fetch product detail from API
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['/api/products', id],
@@ -205,6 +209,46 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
     );
   }
 
+  const specificationsForDisplay = (() => {
+    if (!product.specifications) {
+      return [] as Array<{ key: string; label: string; value: string }>;
+    }
+
+    const entriesWithIndex = product.specifications.map((spec, index) => ({
+      ...spec,
+      originalIndex: index,
+    }));
+
+    const filtered = entriesWithIndex.filter(spec => {
+      const normalizedKey = stripDiacritics(spec.key.toLowerCase());
+      if (
+        normalizedKey.startsWith('min-pocet') ||
+        normalizedKey.startsWith('min pocet') ||
+        normalizedKey.startsWith('min_pocet')
+      ) {
+        return false;
+      }
+      return Boolean(spec.value?.trim());
+    });
+
+    const getPriority = (specKey: string, fallback: number) => {
+      const normalizedKey = stripDiacritics(specKey.toLowerCase());
+      const index = normalizedPrioritizedSpecKeys.indexOf(normalizedKey);
+      return index === -1 ? normalizedPrioritizedSpecKeys.length + fallback : index;
+    };
+
+    const sorted = [...filtered].sort((a, b) => {
+      const priorityA = getPriority(a.key, a.originalIndex);
+      const priorityB = getPriority(b.key, b.originalIndex);
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return a.originalIndex - b.originalIndex;
+    });
+
+    return sorted.map(({ key, label, value }) => ({ key, label, value }));
+  })();
+
   return (
     <div className="min-h-screen bg-background pt-8">
       <div className="container mx-auto px-4 py-12">
@@ -309,6 +353,31 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
               >
                 {product.description}
               </p>
+
+              {specificationsForDisplay.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-xl font-serif">Parametre produktu</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <dl className="grid gap-y-4 gap-x-6 sm:grid-cols-2">
+                      {specificationsForDisplay.map((spec) => {
+                        const normalizedKey = stripDiacritics(spec.key.toLowerCase());
+                        const isAllergen = normalizedKey.includes('alergen');
+                        const valueClasses = isAllergen
+                          ? 'text-base font-semibold text-destructive'
+                          : 'text-base text-foreground';
+                        return (
+                          <div key={spec.key} className="space-y-1">
+                            <dt className="text-sm font-medium text-muted-foreground">{spec.label}</dt>
+                            <dd className={valueClasses}>{spec.value}</dd>
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Product Variants */}

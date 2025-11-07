@@ -23,8 +23,9 @@ export class ERPNextService {
   private vatRateCache: { rate: number; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
   private readonly VAT_CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre sadzbu DPH
-  private readonly WEBSITE_ITEMS_LIMIT = 500; // Max počet Website Items načítaných naraz
-  private readonly ITEM_FETCH_LIMIT = 500; // Max počet Item záznamov načítaných naraz
+  private readonly WEBSITE_ITEMS_LIMIT = 1000; // Max počet Website Items načítaných naraz
+  private readonly ITEM_FETCH_LIMIT = 1000; // Max počet Item záznamov načítaných naraz
+  private readonly ERP_PAGE_SIZE = 100; // Počet záznamov načítaných v jednej stránke z ERPNext API
   private customerCreationLocks: Map<string, Promise<string | null>> = new Map();
 
 
@@ -209,24 +210,19 @@ export class ERPNextService {
       // Najprv načítaj Website Items, ktoré sú published
       // Používame URL encoding pre medzery v názve doctype
       // POZOR: List endpoint môže nevrátiť všetky polia, preto budeme načítavať detail pre každý
-      const websiteItemsResponse = await this.client.get('/resource/Website%20Item', {
-        params: {
+      const websiteItemsList = await this.fetchAllRecords<any>(
+        '/resource/Website%20Item',
+        {
           fields: JSON.stringify(["name", "published"]), // Len minimálne polia pre list
-          filters: JSON.stringify([["published", "=", 1]]),
-          limit_page_length: this.WEBSITE_ITEMS_LIMIT
-        }
-      });
+          filters: JSON.stringify([["published", "=", 1]])
+        },
+        this.WEBSITE_ITEMS_LIMIT,
+        'Website Item (published)'
+      );
 
-      console.log('[getItems] Website Items API response:', {
-        status: websiteItemsResponse.status,
-        dataLength: websiteItemsResponse.data?.data?.length || 0,
-        hasData: !!websiteItemsResponse.data?.data
-      });
-
-      const websiteItemsList = websiteItemsResponse.data.data || [];
       console.log(`[getItems] Found ${websiteItemsList.length} published Website Items in list`);
-      if (websiteItemsList.length > this.WEBSITE_ITEMS_LIMIT) {
-        console.log(`[getItems] Warning: trimming to first ${this.WEBSITE_ITEMS_LIMIT} Website Items (total: ${websiteItemsList.length})`);
+      if (websiteItemsList.length >= this.WEBSITE_ITEMS_LIMIT) {
+        console.log(`[getItems] Warning: reached WEBSITE_ITEMS_LIMIT ${this.WEBSITE_ITEMS_LIMIT}, results may be truncated`);
       }
       
       // Načítaj detail pre každý Website Item paralelne, aby sme získali item_code a ostatné polia
@@ -273,14 +269,14 @@ export class ERPNextService {
         
         // Skús načítať všetky Website Items bez filtru published
         try {
-          const allWebsiteItemsResponse = await this.client.get('/resource/Website%20Item', {
-            params: {
-              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow"]),
-              limit_page_length: this.WEBSITE_ITEMS_LIMIT
-            }
-          });
-          
-          const allWebsiteItems = allWebsiteItemsResponse.data.data || [];
+          const allWebsiteItems = await this.fetchAllRecords<any>(
+            '/resource/Website%20Item',
+            {
+              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow"])
+            },
+            this.WEBSITE_ITEMS_LIMIT,
+            'Website Item (all)'
+          );
           console.log(`[getItems] Found ${allWebsiteItems.length} total Website Items (without filter)`);
           
           if (allWebsiteItems.length > 0) {
@@ -500,39 +496,41 @@ export class ERPNextService {
       
       // Najprv skús s published filterom
       try {
-        const response = await this.client.get('/resource/Item', {
-          params: {
+        const publishedItems = await this.fetchAllRecords<any>(
+          '/resource/Item',
+          {
             fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","published","show_in_website","attributes"]',
             filters: JSON.stringify([
               ["disabled", "=", "0"],
               ["published", "=", "1"]
-            ]),
-            limit_page_length: this.ITEM_FETCH_LIMIT
-          }
-        });
-        
-        const items = response.data.data || [];
-        if (items.length > 0) {
-          console.log(`[getItems] Fallback: Found ${items.length} items from Item doctype with published filter`);
-          return items;
+            ])
+          },
+          this.ITEM_FETCH_LIMIT,
+          'Item fallback (published)'
+        );
+
+        if (publishedItems.length > 0) {
+          console.log(`[getItems] Fallback: Found ${publishedItems.length} items from Item doctype with published filter`);
+          return publishedItems;
         }
       } catch (publishedError) {
         console.log('[getItems] Fallback: Published filter failed, trying custom_is_eshop...');
       }
       
       // Ak published filter nefunguje, skús custom_is_eshop (starý spôsob)
-      const response = await this.client.get('/resource/Item', {
-        params: {
+      const items = await this.fetchAllRecords<any>(
+        '/resource/Item',
+        {
           fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","custom_is_eshop","attributes"]',
           filters: JSON.stringify([
             ["disabled", "=", "0"],
             ["custom_is_eshop", "=", "1"]
-          ]),
-          limit_page_length: this.ITEM_FETCH_LIMIT
-        }
-      });
+          ])
+        },
+        this.ITEM_FETCH_LIMIT,
+        'Item fallback (custom_is_eshop)'
+      );
       
-      const items = response.data.data || [];
       console.log(`[getItems] Fallback: Found ${items.length} items from Item doctype with custom_is_eshop filter`);
       return items;
     } catch (fallbackError) {
@@ -2872,6 +2870,41 @@ export class ERPNextService {
         error: error instanceof Error ? error.message : 'Nepodarilo sa zmeniť stav objednávky' 
       };
     }
+  }
+
+  private async fetchAllRecords<T>(endpoint: string, params: Record<string, any>, maxRecords: number, logContext = endpoint, pageSize = this.ERP_PAGE_SIZE): Promise<T[]> {
+    const results: T[] = [];
+    let page = 0;
+
+    while (results.length < maxRecords) {
+      const remaining = maxRecords - results.length;
+      const limit = Math.min(pageSize, remaining);
+
+      const response = await this.client.get(endpoint, {
+        params: {
+          ...params,
+          limit_page_length: limit,
+          limit_start: page * pageSize
+        }
+      });
+
+      const data: T[] = response.data?.data || [];
+      results.push(...data);
+
+      console.log(`[fetchAllRecords] ${logContext}: page ${page + 1} fetched ${data.length} records (total ${results.length})`);
+
+      if (data.length < limit) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    if (results.length >= maxRecords) {
+      console.log(`[fetchAllRecords] ${logContext}: reached maxRecords limit ${maxRecords}, stopping pagination`);
+    }
+
+    return results;
   }
 }
 

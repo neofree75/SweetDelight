@@ -353,7 +353,6 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
               >
                 {product.description}
               </p>
-<p>aSASAS</p>
               {specificationsForDisplay.length > 0 && (
                 <Card>
                   <CardHeader>

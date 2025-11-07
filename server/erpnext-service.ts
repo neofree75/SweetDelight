@@ -77,13 +77,24 @@ export class ERPNextService {
       if (!spec) continue;
 
       const rawLabel = typeof spec.label === 'string' ? spec.label.trim() : '';
-      const rawDescription = typeof spec.description === 'string' ? spec.description : '';
+      const rawDescriptionCandidate = (() => {
+        if (typeof spec.description === 'string' && spec.description.trim().length > 0) {
+          return spec.description;
+        }
+        if (typeof spec.value === 'string' && spec.value.trim().length > 0) {
+          return spec.value;
+        }
+        if (typeof spec.value === 'number') {
+          return String(spec.value);
+        }
+        return '';
+      })();
 
       if (!rawLabel) {
         continue;
       }
 
-      const cleanedValue = this.stripHtmlTags(rawDescription).trim();
+      const cleanedValue = this.stripHtmlTags(rawDescriptionCandidate).trim();
       if (!cleanedValue) {
         continue;
       }

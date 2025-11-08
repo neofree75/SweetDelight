@@ -870,8 +870,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userEmail = session.user.email;
       const profileResult = await erpNextService.getUserProfile(userEmail);
       
-      if (!profileResult.success) {
-        return res.status(404).json({ error: profileResult.message });
+      if (!profileResult.success || !profileResult.data) {
+        console.log(`[profile] Falling back to session user data for ${userEmail}: ${profileResult.message}`);
+        const fallbackData = {
+          firstName: session.user?.firstName || '',
+          lastName: session.user?.lastName || '',
+          email: session.user?.email || userEmail,
+          customerName: session.user?.customerName || session.user?.name || '',
+          customerId: session.user?.customerId || '',
+          mobile: session.user?.mobile || '',
+          phone: session.user?.phone || '',
+          customerGroup: session.user?.customerGroup || '',
+          territory: session.user?.territory || '',
+          customerType: session.user?.customerType || '',
+          contactId: session.user?.contactId || '',
+          addressId: session.user?.addressId || '',
+          isAdmin: session.user?.isAdmin || false,
+          userType: session.user?.userType || 'Website User'
+        };
+
+        return res.json({
+          success: true,
+          data: fallbackData,
+          fallback: true,
+          message: profileResult.message
+        });
       }
 
       res.json({

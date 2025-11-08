@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,9 @@ import { CalendarDays, Clock, CreditCard, Banknote, QrCode, ShoppingBag, Loader2
 import { formatPrice } from '@/lib/format-price';
 import { calculateDeposit, getDepositReason, getPaymentOptions, getPaymentMethods } from '@/lib/deposit-utils';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import { CartItem } from '@shared/schema';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -27,12 +28,15 @@ export default function Checkout({ cartItems }: CheckoutProps) {
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Get user profile if logged in
-  const { data: userProfile } = useQuery({
+  const { data: userProfile, isLoading: isProfileLoading } = useQuery({
     queryKey: ['/api/profile'],
+    queryFn: getQueryFn<{ success: boolean; data?: any }>({ on401: 'returnNull' }),
     staleTime: 300000,
     retry: false
   });
@@ -100,17 +104,33 @@ export default function Checkout({ cartItems }: CheckoutProps) {
         };
       });
 
-      // Get customer info from user session if logged in, otherwise use placeholder data
-      const customerInfo = (userProfile && typeof userProfile === 'object' && 'email' in userProfile) ? {
-        firstName: (userProfile as any).firstName || (userProfile as any).name || 'Guest',
-        lastName: (userProfile as any).lastName || 'Customer',  
-        email: (userProfile as any).email || 'guest@marsela.sk',
-        phone: (userProfile as any).mobile || '+421000000000'
-      } : {
-        firstName: 'Guest',
-        lastName: 'Customer',
-        email: 'guest@marsela.sk',
-        phone: '+421000000000'
+      let profileResponse = userProfile;
+
+      if (profileResponse === undefined) {
+        profileResponse = await queryClient.fetchQuery({
+          queryKey: ['/api/profile'],
+          queryFn: getQueryFn<{ success: boolean; data?: any }>({ on401: 'returnNull' })
+        });
+      }
+
+      if (!profileResponse || profileResponse === null || !profileResponse.success || !profileResponse.data) {
+        setShowAuthDialog(true);
+        toast({
+          title: "Prihláste sa",
+          description: "Pre dokončenie objednávky je potrebné prihlásenie alebo registrácia.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const profileData = profileResponse.data || {};
+
+      const customerInfo = {
+        firstName: profileData.firstName || profileData.customerName || profileData.name || 'Guest',
+        lastName: profileData.lastName || 'Customer',
+        email: profileData.email || 'guest@marsela.sk',
+        phone: profileData.mobile || '+421000000000'
       };
 
       const deliveryInfo = {
@@ -482,6 +502,25 @@ export default function Checkout({ cartItems }: CheckoutProps) {
           </div>
         </div>
       </div>
+
+      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Prihlásenie je potrebné</DialogTitle>
+            <DialogDescription>
+              Pre dokončenie objednávky sa prosím prihláste alebo si vytvorte nový účet. Po úspešnom prihlásení sa vrátite späť do košíka.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <Button className="flex-1" onClick={() => setLocation('/prihlasenie')}>
+              Prihlásiť sa
+            </Button>
+            <Button className="flex-1" variant="outline" onClick={() => setLocation('/registracia')}>
+              Registrovať sa
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1149,13 +1149,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate deposit and total amounts
       const depositCalculation = calculateDeposit(cartItems);
-      const { subtotal, depositAmount, depositPercentage, requiresDeposit } = depositCalculation;
-      const totalWithVat = roundCurrency(cartItems.reduce((sum, item) => {
-        const grossPrice = typeof item.priceWithVat === 'number'
-          ? item.priceWithVat
-          : item.price * (1 + ((item.vatRate ?? 0) / 100));
-        return sum + (grossPrice * item.quantity);
-      }, 0));
+      const {
+        subtotal: subtotalWithVat,
+        subtotalNet: subtotalWithoutVatRaw,
+        depositAmount,
+        depositPercentage,
+        requiresDeposit
+      } = depositCalculation;
+      const totalWithVat = subtotalWithVat;
+      const totalWithoutVat = roundCurrency(subtotalWithoutVatRaw);
       const depositAmountWithVat = requiresDeposit
         ? roundCurrency(totalWithVat * (depositPercentage / 100))
         : 0;
@@ -1191,7 +1193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               description: item.additional_notes || '',
               warehouse: erpDefaultWarehouse
             })),
-            total: subtotal,
+            total: totalWithoutVat,
             grand_total: totalWithVat,
             currency: 'EUR',
             set_warehouse: erpDefaultWarehouse
@@ -1269,7 +1271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: item.additional_notes || '',
           warehouse: erpDefaultWarehouse
         })),
-        total: subtotal,
+        total: totalWithoutVat,
         grand_total: totalWithVat,
         currency: 'EUR',
         set_warehouse: erpDefaultWarehouse
@@ -1418,10 +1420,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Apply deposit calculation logic
       const depositCalculation = calculateDeposit(orderItems);
-      const { subtotal, depositAmount, depositPercentage, requiresDeposit } = depositCalculation;
+      const {
+        subtotal: subtotalWithVat,
+        subtotalNet: subtotalWithoutVatRaw,
+        depositAmount,
+        depositPercentage,
+        requiresDeposit
+      } = depositCalculation;
 
       // Use the grand_total from ERPNext if available, otherwise use calculated subtotal
-      const grandTotal = salesOrder.grand_total || subtotal;
+      const grandTotal = salesOrder.grand_total || subtotalWithVat;
+      const totalWithoutVat = roundCurrency(subtotalWithoutVatRaw);
 
       // Determine payment amounts and options
       const depositAmountWithVat = requiresDeposit

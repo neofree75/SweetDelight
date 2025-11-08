@@ -45,3 +45,5 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 8:33:18 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
 8:36:48 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
 8:40:08 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
+9:23:53 PM [vite] hmr update /src/pages/Payment.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
+9:24:00 PM [vite] hmr update /src/pages/Payment.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi

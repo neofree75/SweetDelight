@@ -69,6 +69,20 @@ export default function Payment() {
     setLocation('/order-success');
   };
 
+const formatDate = (dateString?: string) => {
+  if (!dateString) {
+    return '';
+  }
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+};
+
   if (!checkoutData || !salesOrderId) {
     return (
       <div className="min-h-screen bg-background">
@@ -142,7 +156,7 @@ export default function Payment() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <p><strong>Dátum:</strong> {checkoutData?.deliveryDate}</p>
+                <p><strong>Dátum:</strong> {formatDate(checkoutData?.deliveryDate)}</p>
                     <p><strong>Čas:</strong> {checkoutData?.deliveryTime}</p>
                     <p><strong>Platobná metóda:</strong> {
                       (checkoutData?.paymentMethod === 'qr_transfer' || checkoutData?.paymentMethod === 'bank_transfer') ? 'Platba QR kódom / Prevodom' :

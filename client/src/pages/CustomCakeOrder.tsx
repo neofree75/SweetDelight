@@ -180,6 +180,8 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     );
   }
 
+  const selectedOptionCount = configurationOptions.filter(option => Boolean(selectedAttributes[option.id])).length;
+
   if (websiteItemError) {
     return (
       <div className="container mx-auto py-8">
@@ -297,45 +299,31 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                         </p>
                       )}
                     </div>
-                    {websiteItem.specifications && websiteItem.specifications.length > 0 && (
-                      <dl className="space-y-2 text-sm">
-                        {websiteItem.specifications.map(spec => {
-                          const chosen = selectedAttributes[spec.key];
-                          if (!chosen) {
-                            return null;
-                          }
-                          return (
-                            <div key={spec.key} className="flex justify-between gap-2">
-                              <dt className="text-muted-foreground">{spec.label}:</dt>
-                              <dd className="font-medium text-right">{chosen}</dd>
-                            </div>
-                          );
-                        })}
-                      </dl>
-                    )}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <h4 className="font-medium">Vybraté možnosti:</h4>
-                  {Object.entries(selectedAttributes).length > 0 ? (
-                    <div className="space-y-2">
-                      {configurationOptions.map(option => {
-                        const selectedValue = selectedAttributes[option.id];
-                        return selectedValue ? (
-                          <div key={option.id} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{option.name}:</span>
-                            <span className="font-medium" data-testid={`summary-${option.id}`}>
-                              {selectedValue}
-                            </span>
-                          </div>
-                        ) : null;
-                      })}
+                    <div className="pt-3 border-t">
+                      <h4 className="font-medium text-sm mb-2">Vybraté možnosti:</h4>
+                      {selectedOptionCount > 0 ? (
+                        <dl className="space-y-2 text-sm">
+                          {websiteItem.specifications && websiteItem.specifications.length > 0 && (
+                            websiteItem.specifications.map(spec => {
+                              const chosen = selectedAttributes[spec.key];
+                              if (!chosen) {
+                                return null;
+                              }
+                              return (
+                                <div key={spec.key} className="flex justify-between gap-2">
+                                  <dt className="text-muted-foreground">{spec.label}:</dt>
+                                  <dd className="font-medium text-right">{chosen}</dd>
+                                </div>
+                              );
+                            })
+                          )}
+                        </dl>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Zatiaľ ste nevybrali žiadne možnosti
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Zatiaľ ste nevybrali žiadne možnosti
-                    </p>
                   )}
                 </div>
 

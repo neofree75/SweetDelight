@@ -1182,17 +1182,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             company: erpCompany,
             delivery_date: deliveryInfo.date,
             transaction_date: new Date().toISOString().split('T')[0],
-            items: cartItems.map((item: any) => ({
-              item_code: item.id,
-              qty: item.quantity,
-              rate: item.price,
-              amount: item.price * item.quantity,
-              stock_uom: 'Nos',
-              parentfield: 'items',
-              item_name: item.name,
-              description: item.additional_notes || '',
-              warehouse: erpDefaultWarehouse
-            })),
+            items: cartItems.map((item: any) => {
+              const isCustomCakeItem = typeof item.id === 'string' && item.id.startsWith('custom-cake-');
+              const itemCode = isCustomCakeItem ? 'TORTCUS001' : item.id;
+              return {
+                item_code: itemCode,
+                qty: item.quantity,
+                rate: item.price,
+                amount: item.price * item.quantity,
+                stock_uom: 'Nos',
+                parentfield: 'items',
+                item_name: isCustomCakeItem ? 'Torta na mieru' : item.name,
+                description: item.additional_notes || item.description || '',
+                warehouse: erpDefaultWarehouse
+              };
+            }),
             total: totalWithoutVat,
             grand_total: totalWithVat,
             currency: 'EUR',
@@ -1260,17 +1264,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         company: erpCompany,
         delivery_date: deliveryInfo.date,
         transaction_date: new Date().toISOString().split('T')[0],
-        items: cartItems.map((item: any) => ({
-          item_code: item.id,
-          qty: item.quantity,
-          rate: item.price,
-          amount: item.price * item.quantity,
-          stock_uom: 'Nos',
-          parentfield: 'items',
-          item_name: item.name,
-          description: item.additional_notes || '',
-          warehouse: erpDefaultWarehouse
-        })),
+        items: cartItems.map((item: any) => {
+          const isCustomCakeItem = typeof item.id === 'string' && item.id.startsWith('custom-cake-');
+          const itemCode = isCustomCakeItem ? 'TORTCUS001' : item.id;
+          return {
+            item_code: itemCode,
+            qty: item.quantity,
+            rate: item.price,
+            amount: item.price * item.quantity,
+            stock_uom: 'Nos',
+            parentfield: 'items',
+            item_name: isCustomCakeItem ? 'Torta na mieru' : item.name,
+            description: item.additional_notes || item.description || '',
+            warehouse: erpDefaultWarehouse
+          };
+        }),
         total: totalWithoutVat,
         grand_total: totalWithVat,
         currency: 'EUR',

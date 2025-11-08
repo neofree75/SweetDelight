@@ -27,12 +27,13 @@ interface DepositCalculation {
  * - Otherwise → deposit = 0 €
  */
 export function calculateDeposit(cartItems: CartItem[]): DepositCalculation {
-  const subtotal = cartItems.reduce((sum, item) => {
+  const grossSubtotalRaw = cartItems.reduce((sum, item) => {
     const grossPrice = typeof item.priceWithVat === 'number'
       ? item.priceWithVat
       : item.price * (1 + ((item.vatRate ?? 0) / 100));
     return sum + (grossPrice * item.quantity);
   }, 0);
+  const subtotal = Math.round((grossSubtotalRaw + Number.EPSILON) * 100) / 100;
   
   // Check if any item contains cake categories
   const containsTorta = cartItems.some(item => 
@@ -63,7 +64,7 @@ export function calculateDeposit(cartItems: CartItem[]): DepositCalculation {
   }
   
   const depositPercentage = requiresDeposit ? 50 : 0;
-  const depositAmount = requiresDeposit ? subtotal * 0.5 : 0;
+  const depositAmount = requiresDeposit ? Math.round((subtotal * 0.5 + Number.EPSILON) * 100) / 100 : 0;
   
   return {
     subtotal,

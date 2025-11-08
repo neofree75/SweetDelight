@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Clock, ArrowRight } from 'lucide-react';
+import { formatPrice } from '@/lib/format-price';
 
 export default function PaymentSuccess() {
   const [, setLocation] = useLocation();
@@ -12,7 +13,6 @@ export default function PaymentSuccess() {
     // Get order details from checkout data or URL params BEFORE clearing
     const storedCheckoutData = localStorage.getItem('checkoutData');
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentIntentId = urlParams.get('payment_intent');
     const salesOrderId = urlParams.get('salesOrderId');
     
     if (storedCheckoutData) {
@@ -21,13 +21,11 @@ export default function PaymentSuccess() {
         salesOrderId: checkoutData.salesOrderId,
         amount: checkoutData.amounts?.payNow,
         paymentMode: checkoutData.amounts?.mode,
-        paymentIntentId,
         timestamp: new Date()
       });
     } else if (salesOrderId) {
       setOrderDetails({
         salesOrderId,
-        paymentIntentId,
         timestamp: new Date()
       });
     }
@@ -54,10 +52,10 @@ export default function PaymentSuccess() {
           <div className="text-center mb-8">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <h1 className="text-3xl font-serif text-green-800 mb-2">
-              Platba úspešná!
+              Objednávka zaznamenaná
             </h1>
             <p className="text-muted-foreground">
-              Ďakujeme za vašu objednávku. Platba bola úspešne spracovaná.
+              Ďakujeme za vašu objednávku. Pokyny na platbu sme uložili a objednávku spracujeme po prijatí platby.
             </p>
           </div>
 
@@ -83,7 +81,7 @@ export default function PaymentSuccess() {
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Uhradená suma:</span>
                   <span className="font-semibold text-lg">
-                    €{orderDetails.amount.toFixed(2)}
+                    {formatPrice(orderDetails.amount)}
                   </span>
                 </div>
               )}
@@ -93,15 +91,6 @@ export default function PaymentSuccess() {
                   <p className="text-sm text-blue-700">
                     <strong>Záloha uhradená.</strong> Zostatok uhradíte pri prevzatí objednávky.
                   </p>
-                </div>
-              )}
-              
-              {orderDetails?.paymentIntentId && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">ID platby:</span>
-                  <span className="font-mono text-sm">
-                    {orderDetails.paymentIntentId}
-                  </span>
                 </div>
               )}
               

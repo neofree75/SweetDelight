@@ -70,13 +70,7 @@ app.use((req, res, next) => {
     'http://localhost:3000'
   ];
 
-  // ✅ Stripe domény musia byť povolené
-  const stripeOrigins = [
-    'https://checkout.stripe.com',
-    'https://js.stripe.com'
-  ];
-
-  const baseAllowlist = [...defaultOrigins, ...stripeOrigins];
+  const baseAllowlist = [...defaultOrigins];
 
   // Ak máš v .env vlastný CORS_ORIGINS, použijeme tie, inak základný zoznam
   const allowedOrigins = process.env.CORS_ORIGINS 
@@ -89,11 +83,6 @@ app.use((req, res, next) => {
     res.header('Vary', 'Origin');
   }
 
-  // Povoľ webhooky bez Origin (Stripe webhooks často nemajú Origin hlavičku)
-  if (!origin && req.originalUrl.startsWith('/webhook')) {
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');

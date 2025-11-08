@@ -124,7 +124,7 @@ export const erpNextPaymentEntrySchema = z.object({
   received_amount: z.number(), // Prijatá suma (po smernom kurze)
   currency: z.string().default("EUR"),
   posting_date: z.string(), // Dátum zaúčtovania
-  reference_no: z.string().optional(), // Referenčné číslo (napr. Stripe Payment Intent ID)
+    reference_no: z.string().optional(), // Referenčné číslo externej platby
   reference_date: z.string().optional(), // Dátum referencie
   // Pre advance payment proti Sales Order
   references: z.array(z.object({

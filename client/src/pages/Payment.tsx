@@ -3,10 +3,8 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, CreditCard, Banknote, QrCode, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Banknote, QrCode, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
-import { calculateDeposit, getPaymentOptions } from '@/lib/deposit-utils';
-import StripeCheckout from '@/components/StripeCheckout';
 import QRPayment from '@/components/QRPayment';
 
 interface CartItem {
@@ -23,7 +21,6 @@ export default function Payment() {
   const [, setLocation] = useLocation();
   const [salesOrderId, setSalesOrderId] = useState('');
   const [checkoutData, setCheckoutData] = useState<any>(null);
-  const [showStripeCheckout, setShowStripeCheckout] = useState(false);
 
   useEffect(() => {
     // Get checkout data from localStorage (created by checkout/start API)
@@ -46,15 +43,15 @@ export default function Payment() {
   const paymentOptions = checkoutData?.paymentOptions || [];
   const amounts = checkoutData?.amounts || { total: 0, deposit: 0, payNow: 0 };
 
-  const handlePaymentSuccess = (paymentIntent: any) => {
-    console.log('Payment successful:', paymentIntent);
+  const handlePaymentSuccess = () => {
+    console.log('Payment instructions acknowledged');
     
     // Clear checkout data and redirect to success page with order context
     localStorage.removeItem('cartItems');
     localStorage.removeItem('checkoutData');
     localStorage.removeItem('checkoutItemNotes');
     
-    setLocation(`/payment-success?salesOrderId=${salesOrderId}&paymentIntentId=${paymentIntent.paymentIntentId || ''}`);
+    setLocation(`/payment-success?salesOrderId=${salesOrderId}`);
   };
 
   const handlePaymentError = (error: any) => {

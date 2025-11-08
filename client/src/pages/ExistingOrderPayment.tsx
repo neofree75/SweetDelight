@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, CreditCard, Banknote, ShoppingBag, Package, Calendar, FileText } from 'lucide-react';
+import { ArrowLeft, Banknote, ShoppingBag, Package, Calendar, FileText } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -18,7 +18,6 @@ export default function ExistingOrderPayment() {
   const [orderId, setOrderId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('qr_transfer');
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
-  const [showStripeCheckout, setShowStripeCheckout] = useState(false);
   const [orderPaymentData, setOrderPaymentData] = useState<any>(null);
 
   // Get order ID from URL params
@@ -56,13 +55,13 @@ export default function ExistingOrderPayment() {
     enabled: !!orderId
   });
 
-  const handlePaymentSuccess = (paymentIntent: any) => {
-    console.log('Payment successful:', paymentIntent);
+  const handlePaymentSuccess = () => {
+    console.log('Payment instructions acknowledged');
     
     // Clear stored data and redirect to success page
     localStorage.removeItem('orderPaymentData');
     
-    setLocation(`/payment-success?salesOrderId=${orderId}&paymentIntentId=${paymentIntent.paymentIntentId || ''}`);
+    setLocation(`/payment-success?salesOrderId=${orderId}`);
   };
 
   const handlePaymentError = (error: any) => {
@@ -223,10 +222,10 @@ export default function ExistingOrderPayment() {
                       </div>
                       <div className="text-right">
                         <div className="text-sm text-muted-foreground">
-                          {item.quantity} × {formatPrice(item.price)}
+                          {item.quantity} × {formatPrice(item.priceWithVat ?? item.price)}
                         </div>
                         <div className="font-semibold">
-                          {formatPrice(item.price * item.quantity)}
+                          {formatPrice((item.priceWithVat ?? item.price) * item.quantity)}
                         </div>
                       </div>
                     </div>

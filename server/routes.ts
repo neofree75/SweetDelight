@@ -3,7 +3,6 @@ import type { Session } from "express-session";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { erpNextService } from "./erpnext-service";
-import Stripe from "stripe";
 import { 
   insertCustomerSchema, 
   insertOrderSchema,
@@ -25,16 +24,6 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
-// Initialize Stripe (optional for development)
-let stripe: Stripe | null = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-08-27.basil",
-  });
-  console.log('✅ Stripe initialized successfully');
-} else {
-  console.log('⚠️  Stripe not initialized - STRIPE_SECRET_KEY not found. Payment features will not work.');
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log('[registerRoutes] Registering API routes...');
@@ -1049,13 +1038,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Server-side deposit calculation logic
   function calculateDeposit(cartItems: any[]) {
-    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const subtotalWithVat = cartItems.reduce((sum, item) => {
+    const netSubtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const grossSubtotalRaw = cartItems.reduce((sum, item) => {
       const grossPrice = typeof item.priceWithVat === 'number'
         ? item.priceWithVat
         : item.price * (1 + ((item.vatRate ?? 0) / 100));
       return sum + (grossPrice * item.quantity);
     }, 0);
+    const subtotal = roundCurrency(grossSubtotalRaw);
     
     // Check if any item contains cake categories
     const containsTorta = cartItems.some(item => 
@@ -1086,11 +1076,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const depositPercentage = requiresDeposit ? 50 : 0;
-    const depositAmount = requiresDeposit ? subtotal * 0.5 : 0;
+    const depositAmount = requiresDeposit ? roundCurrency(subtotal * 0.5) : 0;
     
     return {
       subtotal,
-      subtotalWithVat,
+      subtotalNet: netSubtotal,
       depositAmount,
       depositPercentage,
       requiresDeposit,
@@ -1347,21 +1337,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Convert Sales Order items to format expected by calculateDeposit
-      const orderItems = (salesOrder.items || []).map((item: any) => ({
-        id: item.item_code,
-        name: item.item_name,
-        price: item.rate,
-        quantity: item.qty,
-        // Try to determine category from item code or name patterns
-        category: item.item_code === 'TORTCUS001' || 
-                 (item.item_name && item.item_name.toLowerCase().includes('torta na mieru')) || 
-                 item.item_code.startsWith('custom-cake-') 
-                   ? 'Torty na mieru' 
-                   : item.item_code.startsWith('TORT') || 
-                     (item.item_name && item.item_name.toLowerCase().includes('torta'))
-                   ? 'Torty'
-                   : 'Zákusky'
-      }));
+      const orderItems = (salesOrder.items || []).map((item: any) => {
+        let vatRate = 0;
+        if (item.item_tax_rate) {
+          try {
+            const parsed = JSON.parse(item.item_tax_rate);
+            const values = Object.values(parsed);
+            if (values.length > 0 && typeof values[0] === 'number') {
+              vatRate = values[0] as number;
+            }
+          } catch {
+            vatRate = 0;
+          }
+        } else if (Array.isArray(salesOrder.taxes) && salesOrder.taxes.length > 0 && typeof salesOrder.taxes[0].rate === 'number') {
+          vatRate = salesOrder.taxes[0].rate;
+        }
+
+        const priceWithVat = roundCurrency(item.rate * (1 + (vatRate / 100)));
+
+        return {
+          id: item.item_code,
+          name: item.item_name,
+          price: item.rate,
+          priceWithVat,
+          vatRate,
+          quantity: item.qty,
+          // Try to determine category from item code or name patterns
+          category: item.item_code === 'TORTCUS001' || 
+                   (item.item_name && item.item_name.toLowerCase().includes('torta na mieru')) || 
+                   item.item_code.startsWith('custom-cake-') 
+                     ? 'Torty na mieru' 
+                     : item.item_code.startsWith('TORT') || 
+                       (item.item_name && item.item_name.toLowerCase().includes('torta'))
+                     ? 'Torty'
+                     : 'Zákusky'
+        };
+      });
 
       // Apply deposit calculation logic
       const depositCalculation = calculateDeposit(orderItems);
@@ -1426,309 +1437,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         error: "Failed to prepare order for payment",
         message: error.message
-      });
-    }
-  });
-
-  // Stripe payment intent endpoint (secured with Sales Order validation)
-  app.post("/api/create-payment-intent", async (req, res) => {
-    try {
-      const { salesOrderId, paymentMode = 'full', currency = 'eur' } = req.body;
-      
-      if (!salesOrderId) {
-        return res.status(400).json({ error: "Sales Order ID is required" });
-      }
-
-      if (!['full', 'deposit'].includes(paymentMode)) {
-        return res.status(400).json({ error: "Invalid payment mode. Must be 'full' or 'deposit'" });
-      }
-
-      // Get Sales Order from ERPNext to validate and calculate amount
-      const salesOrder = await erpNextService.getSalesOrderById(salesOrderId);
-      if (!salesOrder) {
-        return res.status(404).json({ error: "Sales Order not found" });
-      }
-
-      // Server-side calculation of expected amount
-      const grandTotal = salesOrder.grand_total || 0;
-      let expectedAmount = grandTotal;
-
-      if (paymentMode === 'deposit') {
-        // Calculate deposit based on server-side rules
-        const orderItems = salesOrder.items || [];
-        const depositCalculation = calculateDeposit(orderItems.map((item: any) => ({
-          id: item.item_code,
-          name: item.item_name,
-          price: item.rate,
-          quantity: item.qty,
-          category: item.category // This might not be available from Sales Order
-        })));
-        
-        if (!depositCalculation.requiresDeposit) {
-          return res.status(400).json({ error: "Deposit not required for this order" });
-        }
-        
-        expectedAmount = roundCurrency(grandTotal * (depositCalculation.depositPercentage / 100));
-      }
-
-      if (expectedAmount <= 0) {
-        return res.status(400).json({ error: "Invalid order amount" });
-      }
-
-      // Generate idempotency key from session, order, mode, and amount
-      const sessionId = req.sessionID || `session-${Date.now()}`;
-      const idempotencyKey = `${sessionId}-${salesOrderId}-${paymentMode}-${Math.round(expectedAmount * 100)}`;
-
-      // Get authenticated user's email and find their correct customer ID
-      const session = req.session as Session & { user?: any };
-      const userEmail = session?.user?.email;
-      
-      // Find the correct customer for the authenticated user
-      let correctCustomerId = salesOrder.customer; // Default to order customer
-      if (userEmail) {
-        const customer = await erpNextService.findCustomerByEmail(userEmail);
-        if (customer) {
-          correctCustomerId = customer.customerId;
-          console.log(`Using correct customer ${correctCustomerId} for payment intent instead of order customer ${salesOrder.customer}`);
-        }
-      }
-
-      if (!stripe) {
-        return res.status(503).json({ 
-          error: "Payment service unavailable", 
-          message: "Stripe not configured. Please contact administrator." 
-        });
-      }
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(expectedAmount * 100), // Convert to cents
-        currency,
-        metadata: {
-          salesOrderId,
-          customerId: correctCustomerId,
-          expectedAmount: expectedAmount.toString(),
-          paymentMode,
-          sessionId,
-          userEmail: userEmail || '',
-          source: 'marsela-bakery'
-        },
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      }, {
-        idempotencyKey // Prevent duplicate payments
-      });
-
-      console.log(`Payment Intent created: ${paymentIntent.id} for Sales Order ${salesOrderId}, mode: ${paymentMode}, amount: €${expectedAmount}`);
-
-      res.json({ 
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        salesOrderId,
-        expectedAmount,
-        paymentMode
-      });
-    } catch (error: any) {
-      console.error('Error creating payment intent:', error);
-      res.status(500).json({ 
-        error: "Error creating payment intent",
-        message: error.message 
-      });
-    }
-  });
-
-  // Stripe webhook endpoint with signature verification
-  app.post("/api/stripe/webhook", async (req, res) => {
-    let event: any;
-
-    try {
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!webhookSecret) {
-        console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
-        return res.status(400).json({ error: 'Webhook secret not configured' });
-      }
-
-      const sig = req.headers['stripe-signature'];
-      if (!sig) {
-        return res.status(400).json({ error: 'Missing stripe signature' });
-      }
-
-      // Verify webhook signature
-      if (!stripe) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } catch (err: any) {
-      console.error('Webhook signature verification failed:', err.message);
-      return res.status(400).json({ error: 'Invalid signature' });
-    }
-
-    try {
-      // Handle different event types
-      switch (event.type) {
-        case 'payment_intent.succeeded':
-          await handlePaymentSuccess(event.data.object);
-          break;
-        case 'payment_intent.payment_failed':
-        case 'payment_intent.canceled':
-          await handlePaymentFailed(event.data.object);
-          break;
-        default:
-          console.log(`Unhandled event type: ${event.type}`);
-      }
-
-      res.json({ received: true });
-    } catch (error: any) {
-      console.error('Error processing webhook:', error);
-      res.status(500).json({ error: 'Webhook processing failed' });
-    }
-  });
-
-  // Handle successful payment
-  async function handlePaymentSuccess(paymentIntent: any) {
-    const { 
-      id: paymentIntentId,
-      amount,
-      currency,
-      metadata: { salesOrderId, customerId, expectedAmount, paymentMode, sessionId, userEmail } 
-    } = paymentIntent;
-
-    console.log(`Processing successful payment: ${paymentIntentId} for Sales Order ${salesOrderId}, User: ${userEmail}`);
-
-    // Validate payment amount matches expected amount
-    const expectedAmountCents = Math.round(parseFloat(expectedAmount) * 100);
-    if (amount !== expectedAmountCents) {
-      console.error(`Payment amount mismatch: expected ${expectedAmountCents} cents, got ${amount} cents`);
-      return;
-    }
-
-    // Check idempotency to prevent duplicate processing
-    const idempotencyKey = `webhook-${paymentIntentId}`;
-    // TODO: Store and check processed webhook events in storage/database
-    
-    try {
-      // Find the correct customer for invoice creation
-      let invoiceCustomerId = customerId; // Default to order customer
-      
-      if (userEmail) {
-        // If we have the user's email, find their proper customer record
-        const customer = await erpNextService.findCustomerByEmail(userEmail);
-        if (customer) {
-          invoiceCustomerId = customer.customerId;
-          console.log(`Using customer ${invoiceCustomerId} (${userEmail}) for invoice instead of order customer ${customerId}`);
-        }
-      }
-      
-      if (paymentMode === 'full') {
-        // Full payment: Create Sales Invoice and Payment Entry
-        const salesInvoiceId = await erpNextService.createSalesInvoiceFromOrder(salesOrderId, undefined, invoiceCustomerId);
-        if (salesInvoiceId) {
-          console.log(`Sales Invoice ${salesInvoiceId} created for full payment of Sales Order ${salesOrderId} under customer ${invoiceCustomerId}`);
-          
-          // Create Payment Entry against the Sales Invoice
-          const paymentData = {
-            payment_type: 'Receive' as const,
-            party_type: 'Customer' as const,
-            party: invoiceCustomerId,
-            company: erpCompany,
-            mode_of_payment: 'Card Payment',
-            paid_amount: parseFloat(expectedAmount),
-            received_amount: parseFloat(expectedAmount),
-            currency: 'EUR',
-            posting_date: new Date().toISOString().split('T')[0],
-            reference_no: paymentIntentId,
-            reference_date: new Date().toISOString().split('T')[0],
-            references: [{
-              reference_doctype: 'Sales Invoice',
-              reference_name: salesInvoiceId,
-              allocated_amount: parseFloat(expectedAmount),
-              parentfield: 'references'
-            }]
-          };
-          
-          const paymentEntryId = await erpNextService.createPaymentEntry(paymentData);
-          if (paymentEntryId) {
-            console.log(`Payment Entry ${paymentEntryId} created for Sales Invoice ${salesInvoiceId}`);
-            
-            // Update Sales Order status to "Uhradená" (Paid) for full payment
-            const statusUpdated = await erpNextService.updateSalesOrderStatus(salesOrderId, 'Paid');
-            if (statusUpdated) {
-              console.log(`Sales Order ${salesOrderId} status updated to "Paid" after full payment`);
-            }
-          }
-        }
-      } else if (paymentMode === 'deposit') {
-        // Deposit payment: Create advance Payment Entry against Sales Order
-        const paymentEntryId = await erpNextService.createAdvancePayment(
-          salesOrderId, 
-          parseFloat(expectedAmount),
-          paymentIntentId
-        );
-        if (paymentEntryId) {
-          console.log(`Advance Payment Entry ${paymentEntryId} created for deposit payment of Sales Order ${salesOrderId}`);
-        }
-      }
-    } catch (error) {
-      console.error('Error processing payment in ERPNext:', error);
-      // TODO: Store failed webhook processing for retry
-    }
-  }
-
-  // Handle failed/canceled payment
-  async function handlePaymentFailed(paymentIntent: any) {
-    const { 
-      id: paymentIntentId,
-      metadata: { salesOrderId }
-    } = paymentIntent;
-
-    console.log(`Payment failed/canceled: ${paymentIntentId} for Sales Order ${salesOrderId}`);
-    
-    // Sales Order remains open for retry or cash payment
-    // No action needed in ERPNext - order stays as draft/pending payment
-  }
-
-  // Confirm payment and process order (legacy endpoint - kept for compatibility)
-  app.post("/api/confirm-payment", async (req, res) => {
-    try {
-      const { paymentIntentId, orderData } = req.body;
-      
-      if (!paymentIntentId || !orderData) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-
-      // Retrieve the payment intent to verify status
-      if (!stripe) {
-        return res.status(503).json({ 
-          error: "Payment service unavailable", 
-          message: "Stripe not configured. Please contact administrator." 
-        });
-      }
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      
-      if (paymentIntent.status !== 'succeeded') {
-        return res.status(400).json({ 
-          error: "Payment not completed",
-          status: paymentIntent.status 
-        });
-      }
-
-      // Process the order in ERPNext
-      console.log('Processing order after successful payment:', orderData);
-      
-      // Here you would create the sales order in ERPNext
-      // For now, return success response
-      res.json({
-        success: true,
-        paymentStatus: paymentIntent.status,
-        amount: paymentIntent.amount / 100,
-        currency: paymentIntent.currency
-      });
-
-    } catch (error: any) {
-      console.error('Error confirming payment:', error);
-      res.status(500).json({ 
-        error: "Error confirming payment",
-        message: error.message 
       });
     }
   });

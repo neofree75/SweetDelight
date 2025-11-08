@@ -37,6 +37,14 @@ export class ERPNextService {
     this.refreshClient();
   }
 
+  private getDefaultCompany(): string {
+    return process.env.ERPNEXT_COMPANY || 'Glam cake s. r. o.';
+  }
+
+  private getDefaultWarehouse(): string {
+    return process.env.ERPNEXT_DEFAULT_WAREHOUSE || 'Hotový tovar - Gcsro';
+  }
+
   // Helper function to strip HTML tags from text
   private stripHtmlTags(html: string): string {
     if (!html) return '';
@@ -217,7 +225,7 @@ export class ERPNextService {
       };
     }
 
-    const company = process.env.ERPNEXT_COMPANY || 'DEMO - Glam cake s. r. o.';
+    const company = this.getDefaultCompany();
     if (!company || company === 'Your Company Name') {
       return {
         valid: false,
@@ -237,7 +245,7 @@ export class ERPNextService {
 
       // Verify company exists - use correct company name
       try {
-        const correctCompanyName = 'DEMO - Glam cake s. r. o.';
+        const correctCompanyName = this.getDefaultCompany();
         const companyResponse = await this.client.get(`/resource/Company?fields=["name"]&filters=[["name","=","${correctCompanyName}"]]`);
         if (!companyResponse.data.data || companyResponse.data.data.length === 0) {
           return {
@@ -943,7 +951,18 @@ export class ERPNextService {
   async createSalesOrder(orderData: ERPNextSalesOrder): Promise<string | null> {
     this.refreshClient();
     try {
-      const response = await this.client.post('/resource/Sales%20Order', orderData);
+      const defaultWarehouse = this.getDefaultWarehouse();
+      const payload: ERPNextSalesOrder = {
+        ...orderData,
+        company: orderData.company || this.getDefaultCompany(),
+        set_warehouse: orderData.set_warehouse || defaultWarehouse,
+        items: orderData.items.map(item => ({
+          ...item,
+          warehouse: item.warehouse || defaultWarehouse
+        }))
+      };
+
+      const response = await this.client.post('/resource/Sales%20Order', payload);
 
       return response.data.data.name;
     } catch (error) {
@@ -1016,7 +1035,7 @@ export class ERPNextService {
       // Create Sales Invoice based on Sales Order
       const salesInvoiceData = {
         customer: overrideCustomerId || salesOrder.customer,
-        company: salesOrder.company || 'DEMO - Glam cake s. r. o.',
+        company: salesOrder.company || this.getDefaultCompany(),
         posting_date: new Date().toISOString().split('T')[0],
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
         currency: salesOrder.currency || 'EUR',
@@ -1103,7 +1122,7 @@ export class ERPNextService {
         payment_type: 'Receive',
         party_type: 'Customer',
         party: salesOrder.customer,
-        company: salesOrder.company || 'DEMO - Glam cake s. r. o.',
+        company: salesOrder.company || this.getDefaultCompany(),
         mode_of_payment: 'Card Payment',
         paid_amount: amount,
         received_amount: amount,

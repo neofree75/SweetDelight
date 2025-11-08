@@ -1,0 +1,131 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+ERPNext Config Debug:
+      URL: ""
+      API Key: "NOT SET"
+      API Secret: "NOT SET"
+      Full Base URL: "EMPTY"
+    
+⚠️  Stripe not initialized - STRIPE_SECRET_KEY not found. Payment features will not work.
+[dotenv@17.2.2] injecting env (8) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+ERPNext Config Debug:
+      URL: "https://marselabakery.erpnext.sk"
+      API Key: "6b0f210f..."
+      API Secret: "0bbdfa5a..."
+      Full Base URL: "https://marselabakery.erpnext.sk/api"
+    
+10:50:00 AM [express] ✅ ERPNext credentials validated successfully
+[registerRoutes] Registering API routes...
+[registerRoutes] Registered 38 API routes
+[registerRoutes] Sample API routes: [
+  'GET /api/test',
+  'GET /api/health',
+  'GET /api/debug/config',
+  'GET /api/products',
+  'GET /api/products/:productId'
+]
+[index] Checking route order...
+[index] Found 38 registered API routes before static serving
+10:50:00 AM [express] serving on port 5001
+[api-request] POST /api/login from localhost:5001
+Logging in user: rado.sloboda@gmail.com
+ERPNext Config Debug:
+      URL: "https://marselabakery.erpnext.sk"
+      API Key: "6b0f210f..."
+      API Secret: "0bbdfa5a..."
+      Full Base URL: "https://marselabakery.erpnext.sk/api"
+    
+Logging in user: rado.sloboda@gmail.com
+[login] Fetching user profile for: rado.sloboda@gmail.com
+ERPNext Config Debug:
+      URL: "https://marselabakery.erpnext.sk"
+      API Key: "6b0f210f..."
+      API Secret: "0bbdfa5a..."
+      Full Base URL: "https://marselabakery.erpnext.sk/api"
+    
+[getUserProfile] Starting profile fetch for: rado.sloboda@gmail.com
+[getUserProfile] ERPNext client configured: { hasUrl: false, hasApiKey: false, hasApiSecret: false }
+Primary contact found: Radoslav2 Sloboda2-Radoslav2 Sloboda2
+Address query with customer field failed, trying generic search...
+Could not load address data. Address fields will be empty.
+ERPNext Config Debug:
+      URL: "https://marselabakery.erpnext.sk"
+      API Key: "6b0f210f..."
+      API Secret: "0bbdfa5a..."
+      Full Base URL: "https://marselabakery.erpnext.sk/api"
+    
+Checking if user is System User: rado.sloboda@gmail.com
+User rado.sloboda@gmail.com is System User: false (user_type: Website User, enabled: 1)
+[login] Profile result: { success: true, hasData: true, message: 'Profil načítaný úspešne' }
+[login] Profile data keys: [
+  'customerId',   'customerName',
+  'firstName',    'lastName',
+  'email',        'mobile',
+  'phone',        'addressLine1',
+  'addressLine2', 'city',
+  'state',        'pincode',
+  'country',      'customerGroup',
+  'territory',    'customerType',
+  'created',      'modified',
+  'contactId',    'addressId',
+  'isAdmin',      'userType'
+]
+[login] Session user before response: {
+  email: 'rado.sloboda@gmail.com',
+  isAdmin: false,
+  userType: 'Website User',
+  keys: [
+    'email',         'name',
+    'firstName',     'lastName',
+    'customerId',    'customerName',
+    'mobile',        'phone',
+    'addressLine1',  'addressLine2',
+    'city',          'state',
+    'pincode',       'country',
+    'customerGroup', 'territory',
+    'customerType',  'created',
+    'modified',      'contactId',
+    'addressId',     'isAdmin',
+    'userType'
+  ]
+}
+[login] Complete user data: {
+  email: 'rado.sloboda@gmail.com',
+  isAdmin: false,
+  userType: 'Website User',
+  keys: [
+    'email',         'name',
+    'firstName',     'lastName',
+    'customerId',    'customerName',
+    'mobile',        'phone',
+    'addressLine1',  'addressLine2',
+    'city',          'state',
+    'pincode',       'country',
+    'customerGroup', 'territory',
+    'customerType',  'created',
+    'modified',      'contactId',
+    'addressId',     'isAdmin',
+    'userType'
+  ]
+}
+10:50:10 AM [express] POST /api/login 200 in 769ms :: {"success":true,"user":{"email":"rado.sloboda@g…
+[login] Session saved successfully
+[api-request] POST /api/checkout/start from localhost:5001
+ERPNext Config Debug:
+      URL: "https://marselabakery.erpnext.sk"
+      API Key: "6b0f210f..."
+      API Secret: "0bbdfa5a..."
+      Full Base URL: "https://marselabakery.erpnext.sk/api"
+    
+Found existing customer: Radoslav2 Sloboda2 (Radoslav2 Sloboda2), group: Internetový predaj, needs update: false
+Using authenticated user's customer: Radoslav2 Sloboda2 instead of form data
+ERPNext Config Debug:
+      URL: "https://marselabakery.erpnext.sk"
+      API Key: "6b0f210f..."
+      API Secret: "0bbdfa5a..."
+      Full Base URL: "https://marselabakery.erpnext.sk/api"
+    
+Sales Order SAL-ORD-2025-00003 created for authenticated customer Radoslav2 Sloboda2
+10:50:17 AM [express] POST /api/checkout/start 200 in 1264ms :: {"success":true,"salesOrderId":"SAL-O…

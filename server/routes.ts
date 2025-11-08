@@ -38,6 +38,8 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log('[registerRoutes] Registering API routes...');
+  const erpCompany = process.env.ERPNEXT_COMPANY || 'Glam cake s. r. o.';
+  const erpDefaultWarehouse = process.env.ERPNEXT_DEFAULT_WAREHOUSE || 'Hotový tovar - Gcsro';
   
   // Simple test endpoint that should always work
   app.get("/api/test", (req, res) => {
@@ -456,13 +458,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const salesOrderId = await erpNextService.createSalesOrder({
           customer: customerId,
-          company: 'DEMO - Glam cake s. r. o.',
+          company: erpCompany,
           delivery_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
           transaction_date: new Date().toISOString().split('T')[0],
-          items: salesOrderItems,
+          items: salesOrderItems.map((item) => ({
+            ...item,
+            warehouse: erpDefaultWarehouse
+          })),
           total: orderData.total,
           grand_total: orderData.total,
-          currency: "EUR"
+          currency: "EUR",
+          set_warehouse: erpDefaultWarehouse
         });
 
         if (!salesOrderId) {
@@ -1122,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create Sales Order directly with authenticated user's customer
           const salesOrderData = {
             customer: customerId,
-            company: 'DEMO - Glam cake s. r. o.',
+            company: erpCompany,
             delivery_date: deliveryInfo.date,
             transaction_date: new Date().toISOString().split('T')[0],
             items: cartItems.map((item: any) => ({
@@ -1133,11 +1139,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               stock_uom: 'Nos',
               parentfield: 'items',
               item_name: item.name,
-              description: item.additional_notes || ''
+              description: item.additional_notes || '',
+              warehouse: erpDefaultWarehouse
             })),
             total: subtotal,
             grand_total: subtotal,
-            currency: 'EUR'
+            currency: 'EUR',
+            set_warehouse: erpDefaultWarehouse
           };
 
           const salesOrderId = await erpNextService.createSalesOrder(salesOrderData);
@@ -1198,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create Sales Order in ERPNext
       const salesOrderData = {
         customer: customerId,
-        company: 'DEMO - Glam cake s. r. o.',
+        company: erpCompany,
         delivery_date: deliveryInfo.date,
         transaction_date: new Date().toISOString().split('T')[0],
         items: cartItems.map((item: any) => ({
@@ -1209,11 +1217,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stock_uom: 'Nos',
           parentfield: 'items',
           item_name: item.name,
-          description: item.additional_notes || ''
+          description: item.additional_notes || '',
+          warehouse: erpDefaultWarehouse
         })),
         total: subtotal,
         grand_total: subtotal,
-        currency: 'EUR'
+        currency: 'EUR',
+        set_warehouse: erpDefaultWarehouse
       };
 
       const salesOrderId = await erpNextService.createSalesOrder(salesOrderData);
@@ -1599,7 +1609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             payment_type: 'Receive' as const,
             party_type: 'Customer' as const,
             party: invoiceCustomerId,
-            company: 'DEMO - Glam cake s. r. o.',
+            company: erpCompany,
             mode_of_payment: 'Card Payment',
             paid_amount: parseFloat(expectedAmount),
             received_amount: parseFloat(expectedAmount),
@@ -1987,7 +1997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Log registered routes for debugging
-  const routes = [];
+  const routes: string[] = [];
   app._router?.stack?.forEach((middleware: any) => {
     if (middleware.route) {
       routes.push(`${Object.keys(middleware.route.methods).join(', ').toUpperCase()} ${middleware.route.path}`);

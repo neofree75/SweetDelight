@@ -73,6 +73,7 @@ export const erpNextSalesOrderSchema = z.object({
   company: z.string(), // Company field required by ERPNext
   delivery_date: z.string(), // ISO date string
   transaction_date: z.string(), // Transaction date
+  set_warehouse: z.string().optional(), // Default warehouse for the order
   items: z.array(z.object({
     item_code: z.string(),
     qty: z.number(),
@@ -82,6 +83,7 @@ export const erpNextSalesOrderSchema = z.object({
     parentfield: z.string().default("items"), // Povinné pole pre API
     item_name: z.string(), // Názov položky
     description: z.string().optional(), // Poznámky k položke v ERPNext
+    warehouse: z.string().optional(), // Sklad pre konkretnu položku
   })),
   total: z.number(),
   grand_total: z.number(),

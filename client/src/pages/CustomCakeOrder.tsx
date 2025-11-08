@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,21 @@ function useCustomCakeProduct() {
   });
 }
 
+function useWebsiteItem(websiteItemId: string) {
+  return useQuery({
+    queryKey: ['/api/website-items', websiteItemId],
+    queryFn: async () => {
+      const response = await fetch(`/api/website-items/${websiteItemId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch website item');
+      }
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000,
+    enabled: Boolean(websiteItemId)
+  });
+}
+
 interface CustomCakeOrderProps {
   onAddToCart: (product: any, quantity: number) => void;
   onCartOpen: () => void;
@@ -51,7 +66,6 @@ interface CustomCakeOrderProps {
 export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeOrderProps) {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [estimatedPrice] = useState(25.00); // Base price for custom cake
   const { toast } = useToast();
 
   // Fetch custom cake attributes from ERPNext
@@ -59,8 +73,10 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   
   // Fetch custom cake product for min order quantity
   const { data: customCakeProduct, isLoading: productLoading } = useCustomCakeProduct();
+
+  const { data: websiteItem, isLoading: websiteItemLoading, error: websiteItemError } = useWebsiteItem('WEB-ITM-0004');
   
-  const isLoading = attributesLoading || productLoading;
+  const isLoading = attributesLoading || productLoading || websiteItemLoading;
 
   const handleAttributeChange = (attributeId: string, value: string) => {
     setSelectedAttributes(prev => ({
@@ -68,6 +84,32 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
       [attributeId]: value
     }));
   };
+
+  const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+  const priceData = useMemo(() => {
+    const vatRate = customCakeProduct?.vatRate ?? 0;
+    const priceWithoutVat = customCakeProduct?.price ??
+      (customCakeProduct?.priceWithVat !== undefined && vatRate > 0
+        ? roundCurrency(customCakeProduct.priceWithVat / (1 + vatRate / 100))
+        : undefined);
+    const priceWithVat = customCakeProduct?.priceWithVat ??
+      (priceWithoutVat !== undefined && vatRate > 0
+        ? roundCurrency(priceWithoutVat * (1 + vatRate / 100))
+        : undefined);
+
+    const fallbackPriceWithVat = websiteItem?.priceWithVat ?? websiteItem?.price ?? 25;
+    const computedPriceWithVat = priceWithVat ?? roundCurrency(fallbackPriceWithVat);
+    const computedPriceWithoutVat = priceWithoutVat ??
+      roundCurrency(computedPriceWithVat / (1 + (vatRate || 20) / 100));
+    const effectiveVatRate = vatRate || roundCurrency(((computedPriceWithVat / computedPriceWithoutVat) - 1) * 100);
+
+    return {
+      priceWithoutVat: computedPriceWithoutVat,
+      priceWithVat: computedPriceWithVat,
+      vatRate: effectiveVatRate
+    };
+  }, [customCakeProduct, websiteItem]);
 
   const handleAddToCart = () => {
     // Convert attribute IDs to names for proper display in cart
@@ -79,15 +121,26 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
       }
     });
 
+    const attributesText = Object.entries(customAttributesWithNames)
+      .map(([name, value]) => `${name}: ${value}`)
+      .join(', ');
+
+    const baseDescription = websiteItem?.description?.trim();
+    const descriptionParts = [
+      baseDescription,
+      attributesText ? `Vybrané možnosti: ${attributesText}` : undefined,
+      specialInstructions ? `Poznámky: ${specialInstructions}` : undefined
+    ].filter(Boolean);
+
     // Create a custom cake product object
     const customCakeProductObject = {
       id: `custom-cake-${Date.now()}`,
       name: 'Torta na mieru',
-      description: `Vlastná torta s atribútmi: ${Object.entries(customAttributesWithNames)
-        .map(([name, value]) => `${name}: ${value}`)
-        .join(', ')}${specialInstructions ? `, Poznámky: ${specialInstructions}` : ''}`,
-      price: estimatedPrice,
-      image: '/api/placeholder/300/200', // Default custom cake image
+      description: descriptionParts.join(' | '),
+      price: priceData.priceWithoutVat,
+      priceWithVat: priceData.priceWithVat,
+      vatRate: priceData.vatRate,
+      image: websiteItem?.image ?? customCakeProduct?.image ?? '/placeholder-product.jpg',
       category: 'Torty na mieru',
       inStock: true,
       minOrderQuantity: customCakeProduct?.minOrderQuantity || 1, // Použij minimálne množstvo z ERPNext
@@ -124,7 +177,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     );
   }
 
-  if (error) {
+  if (error || websiteItemError) {
     return (
       <div className="container mx-auto py-8">
         <Card className="max-w-2xl mx-auto">
@@ -253,6 +306,36 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                 <CardTitle>Súhrn objednávky</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {websiteItem && (
+                  <div className="space-y-3">
+                    {websiteItem.image && (
+                      <img
+                        src={websiteItem.image}
+                        alt={websiteItem.title}
+                        className="w-full h-48 object-cover rounded-lg border"
+                      />
+                    )}
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold">{websiteItem.title}</h3>
+                      {websiteItem.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {websiteItem.description}
+                        </p>
+                      )}
+                    </div>
+                    {websiteItem.specifications && websiteItem.specifications.length > 0 && (
+                      <dl className="space-y-2 text-sm">
+                        {websiteItem.specifications.map(spec => (
+                          <div key={spec.key} className="flex justify-between gap-2">
+                            <dt className="text-muted-foreground">{spec.label}:</dt>
+                            <dd className="font-medium text-right">{spec.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <h4 className="font-medium">Vybraté možnosti:</h4>
                   {Object.entries(selectedAttributes).length > 0 ? (
@@ -287,9 +370,9 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
 
                 <div className="pt-4 border-t">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg font-medium">Záloha:</span>
+                    <span className="text-lg font-medium">Orientačná cena:</span>
                     <span className="text-2xl font-bold text-primary" data-testid="estimated-price">
-{formatPrice(estimatedPrice)}
+                      {formatPrice(priceData.priceWithVat)}
                     </span>
                   </div>
                   

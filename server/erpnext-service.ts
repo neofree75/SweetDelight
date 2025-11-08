@@ -2985,6 +2985,86 @@ export class ERPNextService {
     }
   }
 
+  async getWebsiteItemByName(websiteItemName: string): Promise<{
+    id: string;
+    title: string;
+    description: string;
+    image: string;
+    route?: string;
+    price?: number;
+    priceWithVat?: number;
+    currency?: string;
+    specifications?: { key: string; label: string; value: string }[];
+  } | null> {
+    this.refreshClient();
+    try {
+      const fields = [
+        "name",
+        "web_item_name",
+        "item_name",
+        "item_code",
+        "price",
+        "website_price",
+        "price_with_vat",
+        "currency",
+        "website_image",
+        "image",
+        "description",
+        "long_description",
+        "route",
+        "website_specifications"
+      ];
+      const response = await this.client.get(`/resource/Website%20Item/${encodeURIComponent(websiteItemName)}`, {
+        params: {
+          fields: JSON.stringify(fields)
+        }
+      });
+
+      const websiteItem = response.data?.data;
+      if (!websiteItem) {
+        console.log(`[getWebsiteItemByName] Website Item ${websiteItemName} not found`);
+        return null;
+      }
+
+      let imageUrl = '/placeholder-product.jpg';
+      const candidateImage = websiteItem.website_image || websiteItem.image;
+      if (typeof candidateImage === 'string' && candidateImage.trim().length > 0) {
+        imageUrl = candidateImage.startsWith('/files/')
+          ? `${this.baseUrl}${candidateImage}`
+          : candidateImage;
+      }
+
+      const specs = this.normalizeWebsiteSpecifications(Array.isArray(websiteItem.website_specifications) ? websiteItem.website_specifications : []);
+
+      const parseNumber = (value: any): number | undefined => {
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string' && value.trim() !== '') {
+          const parsed = Number(value);
+          return Number.isFinite(parsed) ? parsed : undefined;
+        }
+        return undefined;
+      };
+
+      const price = parseNumber(websiteItem.price ?? websiteItem.website_price);
+      const priceWithVat = parseNumber(websiteItem.price_with_vat);
+
+      return {
+        id: websiteItem.name,
+        title: websiteItem.web_item_name || websiteItem.item_name || websiteItem.name,
+        description: this.stripHtmlTags(websiteItem.long_description || websiteItem.description || ''),
+        image: imageUrl,
+        route: websiteItem.route || undefined,
+        price,
+        priceWithVat,
+        currency: websiteItem.currency || 'EUR',
+        specifications: specs.length > 0 ? specs : undefined
+      };
+    } catch (error) {
+      this.logError(`Error fetching Website Item ${websiteItemName}:`, error);
+      return null;
+    }
+  }
+
   private async fetchAllRecords<T>(endpoint: string, params: Record<string, any>, maxRecords: number, logContext = endpoint, pageSize = this.ERP_PAGE_SIZE): Promise<T[]> {
     const results: T[] = [];
     let page = 0;

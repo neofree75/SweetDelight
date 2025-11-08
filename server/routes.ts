@@ -272,6 +272,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/website-items/:websiteItemId", async (req, res) => {
+    try {
+      const { websiteItemId } = req.params;
+      if (!websiteItemId) {
+        return res.status(400).json({ error: "Website Item ID is required" });
+      }
+
+      const websiteItem = await erpNextService.getWebsiteItemByName(websiteItemId);
+      if (!websiteItem) {
+        return res.status(404).json({ error: "Website Item not found" });
+      }
+
+      res.json(websiteItem);
+    } catch (error: any) {
+      console.error("Error fetching website item:", error);
+      res.status(500).json({ error: "Failed to fetch website item", message: error.message });
+    }
+  });
+
   // Cart management
   app.get("/api/cart", async (req, res) => {
     try {

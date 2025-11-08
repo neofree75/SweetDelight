@@ -2,31 +2,13 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Cake, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { CustomCakeAttribute, CustomCakeAttributeValue } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
 import SEO from '@/components/SEO';
-
-// Hook to fetch custom cake attributes from ERPNext
-function useCustomCakeAttributes() {
-  return useQuery({
-    queryKey: ['/api/custom-cake-attributes'],
-    queryFn: async (): Promise<CustomCakeAttribute[]> => {
-      const response = await fetch('/api/custom-cake-attributes');
-      if (!response.ok) {
-        throw new Error('Failed to fetch custom cake attributes');
-      }
-      return response.json();
-    },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-}
 
 // Hook to fetch custom cake product (TORTCUS001) for min order quantity
 function useCustomCakeProduct() {
@@ -58,6 +40,12 @@ function useWebsiteItem(websiteItemId: string) {
   });
 }
 
+interface SpecificationOption {
+  id: string;
+  name: string;
+  options: string[];
+}
+
 interface CustomCakeOrderProps {
   onAddToCart: (product: any, quantity: number) => void;
   onCartOpen: () => void;
@@ -68,15 +56,12 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   const [specialInstructions, setSpecialInstructions] = useState('');
   const { toast } = useToast();
 
-  // Fetch custom cake attributes from ERPNext
-  const { data: attributes = [], isLoading: attributesLoading, error } = useCustomCakeAttributes();
-  
   // Fetch custom cake product for min order quantity
   const { data: customCakeProduct, isLoading: productLoading } = useCustomCakeProduct();
 
   const { data: websiteItem, isLoading: websiteItemLoading, error: websiteItemError } = useWebsiteItem('WEB-ITM-0004');
   
-  const isLoading = attributesLoading || productLoading || websiteItemLoading;
+  const isLoading = productLoading || websiteItemLoading;
 
   const handleAttributeChange = (attributeId: string, value: string) => {
     setSelectedAttributes(prev => ({
@@ -114,10 +99,10 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   const handleAddToCart = () => {
     // Convert attribute IDs to names for proper display in cart
     const customAttributesWithNames: Record<string, string> = {};
-    Object.entries(selectedAttributes).forEach(([attrId, value]) => {
-      const attr = attributes.find(a => a.id === attrId);
-      if (attr) {
-        customAttributesWithNames[attr.name] = value;
+    configurationOptions.forEach(option => {
+      const selectedValue = selectedAttributes[option.id];
+      if (selectedValue) {
+        customAttributesWithNames[option.name] = selectedValue;
       }
     });
 
@@ -161,8 +146,26 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     setSpecialInstructions('');
   };
 
-  const isFormValid = attributes.length > 0 && 
-    attributes.every(attr => selectedAttributes[attr.id] || attr.isNumeric);
+  const configurationOptions: SpecificationOption[] = useMemo(() => {
+    if (!websiteItem?.specifications) {
+      return [];
+    }
+    return websiteItem.specifications.map(spec => {
+      const rawValues = spec.value
+        .split(',')
+        .map(value => value.trim())
+        .filter(value => value.length > 0);
+      const uniqueValues = Array.from(new Set(rawValues));
+      return {
+        id: spec.key,
+        name: spec.label,
+        options: uniqueValues
+      };
+    });
+  }, [websiteItem]);
+
+  const isFormValid = configurationOptions.length === 0 ||
+    configurationOptions.every(option => Boolean(selectedAttributes[option.id]));
 
   if (isLoading) {
     return (
@@ -177,7 +180,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     );
   }
 
-  if (error || websiteItemError) {
+  if (websiteItemError) {
     return (
       <div className="container mx-auto py-8">
         <Card className="max-w-2xl mx-auto">
@@ -227,57 +230,28 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {attributes.map((attribute) => (
-                  <div key={attribute.id} className="space-y-3">
-                    <Label className="text-base font-medium">{attribute.name}</Label>
-                    
-                    {attribute.isNumeric ? (
-                      // Numeric attribute (range input)
-                      <div className="space-y-2">
-                        <Input
-                          type="number"
-                          min={attribute.fromRange || 0}
-                          max={attribute.toRange || 100}
-                          step={attribute.increment || 1}
-                          value={selectedAttributes[attribute.id] || ''}
-                          onChange={(e) => handleAttributeChange(attribute.id, e.target.value)}
-                          placeholder={`Od ${attribute.fromRange || 0} do ${attribute.toRange || 100}`}
-                          data-testid={`input-attribute-${attribute.id}`}
-                        />
-                        {attribute.fromRange !== undefined && attribute.toRange !== undefined && (
-                          <p className="text-sm text-muted-foreground">
-                            Rozsah: {attribute.fromRange} - {attribute.toRange}
-                            {attribute.increment && ` (krok: ${attribute.increment})`}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      // Text attribute (select dropdown)
-                      <Select
-                        value={selectedAttributes[attribute.id] || ''}
-                        onValueChange={(value) => handleAttributeChange(attribute.id, value)}
-                      >
-                        <SelectTrigger data-testid={`select-attribute-${attribute.id}`}>
-                          <SelectValue placeholder={`Vyberte ${attribute.name.toLowerCase()}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {attribute.values?.map((value, index) => (
-                            <SelectItem 
-                              key={index} 
-                              value={value.attribute_value}
-                              data-testid={`option-${attribute.id}-${value.attribute_value}`}
-                            >
-                              {value.attribute_value}
-                              {value.abbreviation && (
-                                <Badge variant="secondary" className="ml-2 text-xs">
-                                  {value.abbreviation}
-                                </Badge>
-                              )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                {configurationOptions.map((option) => (
+                  <div key={option.id} className="space-y-3">
+                    <Label className="text-base font-medium">{option.name}</Label>
+                    <Select
+                      value={selectedAttributes[option.id] || ''}
+                      onValueChange={(value) => handleAttributeChange(option.id, value)}
+                    >
+                      <SelectTrigger data-testid={`select-attribute-${option.id}`}>
+                        <SelectValue placeholder={`Vyberte ${option.name.toLowerCase()}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {option.options.map((value) => (
+                          <SelectItem 
+                            key={value} 
+                            value={value}
+                            data-testid={`option-${option.id}-${value}`}
+                          >
+                            {value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ))}
 
@@ -340,13 +314,13 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                   <h4 className="font-medium">Vybraté možnosti:</h4>
                   {Object.entries(selectedAttributes).length > 0 ? (
                     <div className="space-y-2">
-                      {Object.entries(selectedAttributes).map(([attrId, value]) => {
-                        const attr = attributes.find(a => a.id === attrId);
-                        return attr ? (
-                          <div key={attrId} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{attr.name}:</span>
-                            <span className="font-medium" data-testid={`summary-${attrId}`}>
-                              {value}
+                      {configurationOptions.map(option => {
+                        const selectedValue = selectedAttributes[option.id];
+                        return selectedValue ? (
+                          <div key={option.id} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">{option.name}:</span>
+                            <span className="font-medium" data-testid={`summary-${option.id}`}>
+                              {selectedValue}
                             </span>
                           </div>
                         ) : null;

@@ -36,3 +36,5 @@ Browserslist: browsers data (caniuse-lite) is 13 months old. Please run:
 A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
 2:28:19 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
 2:29:30 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
+2:38:06 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi
+2:38:32 PM [vite] hmr update /src/pages/CustomCakeOrder.tsx, /src/index.css?v=OXrTFCYAd5lv9GKYN9Dxi

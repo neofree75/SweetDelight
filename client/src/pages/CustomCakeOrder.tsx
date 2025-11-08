@@ -299,12 +299,18 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                     </div>
                     {websiteItem.specifications && websiteItem.specifications.length > 0 && (
                       <dl className="space-y-2 text-sm">
-                        {websiteItem.specifications.map(spec => (
-                          <div key={spec.key} className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">{spec.label}:</dt>
-                            <dd className="font-medium text-right">{spec.value}</dd>
-                          </div>
-                        ))}
+                        {websiteItem.specifications.map(spec => {
+                          const chosen = selectedAttributes[spec.key];
+                          if (!chosen) {
+                            return null;
+                          }
+                          return (
+                            <div key={spec.key} className="flex justify-between gap-2">
+                              <dt className="text-muted-foreground">{spec.label}:</dt>
+                              <dd className="font-medium text-right">{chosen}</dd>
+                            </div>
+                          );
+                        })}
                       </dl>
                     )}
                   </div>

@@ -2,6 +2,8 @@ interface CartItem {
   id: string;
   name: string;
   price: number;
+  priceWithVat?: number;
+  vatRate?: number;
   quantity: number;
   image: string;
   additional_notes?: string;
@@ -25,7 +27,12 @@ interface DepositCalculation {
  * - Otherwise → deposit = 0 €
  */
 export function calculateDeposit(cartItems: CartItem[]): DepositCalculation {
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    const grossPrice = typeof item.priceWithVat === 'number'
+      ? item.priceWithVat
+      : item.price * (1 + ((item.vatRate ?? 0) / 100));
+    return sum + (grossPrice * item.quantity);
+  }, 0);
   
   // Check if any item contains cake categories
   const containsTorta = cartItems.some(item => 

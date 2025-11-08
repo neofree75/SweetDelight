@@ -40,6 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('[registerRoutes] Registering API routes...');
   const erpCompany = process.env.ERPNEXT_COMPANY || 'Glam cake s. r. o.';
   const erpDefaultWarehouse = process.env.ERPNEXT_DEFAULT_WAREHOUSE || 'Hotový tovar - Gcsro';
+  const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
   
   // Simple test endpoint that should always work
   app.get("/api/test", (req, res) => {
@@ -1049,6 +1050,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Server-side deposit calculation logic
   function calculateDeposit(cartItems: any[]) {
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotalWithVat = cartItems.reduce((sum, item) => {
+      const grossPrice = typeof item.priceWithVat === 'number'
+        ? item.priceWithVat
+        : item.price * (1 + ((item.vatRate ?? 0) / 100));
+      return sum + (grossPrice * item.quantity);
+    }, 0);
     
     // Check if any item contains cake categories
     const containsTorta = cartItems.some(item => 
@@ -1083,6 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     return {
       subtotal,
+      subtotalWithVat,
       depositAmount,
       depositPercentage,
       requiresDeposit,
@@ -1109,7 +1117,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate deposit and total amounts
       const depositCalculation = calculateDeposit(cartItems);
-      const { subtotal, depositAmount, requiresDeposit } = depositCalculation;
+      const { subtotal, depositAmount, depositPercentage, requiresDeposit } = depositCalculation;
+      const totalWithVat = roundCurrency(cartItems.reduce((sum, item) => {
+        const grossPrice = typeof item.priceWithVat === 'number'
+          ? item.priceWithVat
+          : item.price * (1 + ((item.vatRate ?? 0) / 100));
+        return sum + (grossPrice * item.quantity);
+      }, 0));
+      const depositAmountWithVat = requiresDeposit
+        ? roundCurrency(totalWithVat * (depositPercentage / 100))
+        : 0;
 
       // Check if user is authenticated and use their information instead of form data
       const session = req.session as Session & { user?: any };
@@ -1143,7 +1160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               warehouse: erpDefaultWarehouse
             })),
             total: subtotal,
-            grand_total: subtotal,
+            grand_total: totalWithVat,
             currency: 'EUR',
             set_warehouse: erpDefaultWarehouse
           };
@@ -1157,12 +1174,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Sales Order ${salesOrderId} created for authenticated customer ${customerId}`);
 
           // Determine payment amounts and options
-          let payNow = subtotal; // Default to full amount
+          let payNow = totalWithVat; // Default to full amount (with VAT)
           let paymentMode = 'full';
           
           if ((paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') && requiresDeposit) {
             // For online payments, offer both deposit and full options
-            payNow = depositAmount; // Default to deposit for required cases
+            payNow = depositAmountWithVat || payNow; // Default to deposit for required cases
             paymentMode = 'deposit';
           }
 
@@ -1171,19 +1188,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             salesOrderId,
             customerId,
             amounts: {
-              total: subtotal,
-              deposit: depositAmount,
+              total: totalWithVat,
+              deposit: depositAmountWithVat,
               payNow,
               requiresDeposit,
               mode: paymentMode
             },
             paymentOptions: requiresDeposit 
               ? [
-                  { id: 'deposit', label: 'Uhradiť zálohu', amount: depositAmount, description: `Záloha ${Math.round((depositAmount / subtotal) * 100)}%` },
-                  { id: 'full', label: 'Uhradiť celú sumu', amount: subtotal, description: 'Celková platba' }
+                  { id: 'deposit', label: 'Uhradiť zálohu', amount: depositAmountWithVat, description: `Záloha ${depositPercentage}% z celkovej sumy` },
+                  { id: 'full', label: 'Uhradiť celú sumu', amount: totalWithVat, description: `Celková platba ${totalWithVat.toFixed(2)} €` }
                 ]
               : [
-                  { id: 'full', label: 'Uhradiť celú sumu', amount: subtotal, description: 'Celková platba' }
+                  { id: 'full', label: 'Uhradiť celú sumu', amount: totalWithVat, description: `Celková platba ${totalWithVat.toFixed(2)} €` }
                 ]
           });
         }
@@ -1221,7 +1238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           warehouse: erpDefaultWarehouse
         })),
         total: subtotal,
-        grand_total: subtotal,
+        grand_total: totalWithVat,
         currency: 'EUR',
         set_warehouse: erpDefaultWarehouse
       };
@@ -1235,12 +1252,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Sales Order ${salesOrderId} created for customer ${customerId}`);
 
       // Determine payment amounts and options
-      let payNow = subtotal; // Default to full amount
+      let payNow = totalWithVat; // Default to full amount with VAT
       let paymentMode = 'full';
       
       if (paymentMethod === 'card' && requiresDeposit) {
         // For online payments, offer both deposit and full options
-        payNow = depositAmount; // Default to deposit for required cases
+        payNow = depositAmountWithVat || payNow; // Default to deposit for required cases
         paymentMode = 'deposit';
       }
 
@@ -1249,9 +1266,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         salesOrderId,
         customerId,
         amounts: {
-          total: subtotal,
-          deposit: depositAmount,
-          payNow: payNow,
+          total: totalWithVat,
+          deposit: depositAmountWithVat,
+          payNow,
           requiresDeposit,
           mode: paymentMode
         },
@@ -1259,21 +1276,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             id: 'deposit',
             label: 'Uhradiť zálohu (50%)',
-            amount: depositAmount,
-            description: `Záloha ${depositAmount.toFixed(2)} € z celkovej sumy ${subtotal.toFixed(2)} €`
+            amount: depositAmountWithVat,
+            description: `Záloha ${depositPercentage}% z celkovej sumy ${totalWithVat.toFixed(2)} €`
           },
           {
             id: 'full',
             label: 'Uhradiť celú sumu',
-            amount: subtotal,
-            description: `Celková platba ${subtotal.toFixed(2)} €`
+            amount: totalWithVat,
+            description: `Celková platba ${totalWithVat.toFixed(2)} €`
           }
         ] : [
           {
             id: 'full',
             label: 'Uhradiť celú sumu',
-            amount: subtotal,
-            description: 'Celková platba'
+            amount: totalWithVat,
+            description: `Celková platba ${totalWithVat.toFixed(2)} €`
           }
         ]
       });
@@ -1348,18 +1365,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Apply deposit calculation logic
       const depositCalculation = calculateDeposit(orderItems);
-      const { subtotal, depositAmount, requiresDeposit } = depositCalculation;
+      const { subtotal, depositAmount, depositPercentage, requiresDeposit } = depositCalculation;
 
       // Use the grand_total from ERPNext if available, otherwise use calculated subtotal
       const grandTotal = salesOrder.grand_total || subtotal;
 
       // Determine payment amounts and options
+      const depositAmountWithVat = requiresDeposit
+        ? roundCurrency(grandTotal * (depositPercentage / 100))
+        : 0;
+
       let payNow = grandTotal; // Default to full amount
       let paymentMode = 'full';
       
       if (requiresDeposit) {
         // For orders requiring deposits, default to deposit
-        payNow = depositAmount;
+        payNow = depositAmountWithVat || grandTotal;
         paymentMode = 'deposit';
       }
 
@@ -1371,7 +1392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deliveryDate: salesOrder.delivery_date,
         amounts: {
           total: grandTotal,
-          deposit: depositAmount,
+          deposit: depositAmountWithVat,
           payNow: payNow,
           requiresDeposit,
           mode: paymentMode
@@ -1380,8 +1401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             id: 'deposit',
             label: 'Uhradiť zálohu (50%)',
-            amount: depositAmount,
-            description: `Záloha ${depositAmount.toFixed(2)} € z celkovej sumy ${grandTotal.toFixed(2)} €`
+            amount: depositAmountWithVat,
+            description: `Záloha ${depositPercentage}% z celkovej sumy ${grandTotal.toFixed(2)} €`
           },
           {
             id: 'full',
@@ -1447,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Deposit not required for this order" });
         }
         
-        expectedAmount = depositCalculation.depositAmount;
+        expectedAmount = roundCurrency(grandTotal * (depositCalculation.depositPercentage / 100));
       }
 
       if (expectedAmount <= 0) {

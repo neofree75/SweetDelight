@@ -61,7 +61,7 @@ export class ERPNextService {
 
     const normalized: { key: string; label: string; value: string }[] = [];
     const labelOverrides: Record<string, string> = {
-      'hmotnost': 'Hmotnosť',
+      'hmotnost': 'Hmotnosť (g)',
       'hmotnost balenia': 'Hmotnosť balenia',
       'hmotnost balika': 'Hmotnosť balíka',
       'hmotnost balík': 'Hmotnosť balíka',
@@ -71,6 +71,7 @@ export class ERPNextService {
       'alergeny obsahuje': 'Alergény',
       'min pocet': 'Minimálny počet',
       'min pocet objednavky': 'Minimálny počet objednávky',
+      'trvanlivost': 'Trvanlivosť (hod.)',
     };
 
     for (const spec of specs) {

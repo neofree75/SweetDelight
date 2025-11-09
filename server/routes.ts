@@ -703,7 +703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: registrationResult.message
+        message: `${registrationResult.message} Používateľovi boli odoslané emaily s podrobnými informáciami o vytvorení hesla.`
       });
 
     } catch (error) {

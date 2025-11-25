@@ -351,7 +351,7 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                           <span className="text-muted-foreground">Dátum doručenia:</span>
                           <span>
                             {formatDateTime(orderData.deliveryDate)}
-                            {getDeliveryTime() && ` ${getDeliveryTime()}`}
+                            {getDeliveryTime()}
                           </span>
                         </div>
                       )}

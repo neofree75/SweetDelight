@@ -397,67 +397,122 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                 <CardHeader>
                   <CardTitle className="text-lg font-serif">Položky objednávky</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {paymentData.items.map((item: any, index: number) => {
-                    const netAmount = item.netAmount ?? (item.price * item.quantity);
-                    const vatAmount = item.vatAmount ?? (netAmount * (item.vatRate || 0) / 100);
-                    const amountWithVat = item.amountWithVat ?? (netAmount + vatAmount);
-                    const priceWithoutVat = item.price ?? (item.priceWithVat / (1 + (item.vatRate || 0) / 100));
-                    const priceWithVat = item.priceWithVat ?? (priceWithoutVat * (1 + (item.vatRate || 0) / 100));
-                    
-                    return (
-                      <div key={index} className="p-3 rounded-md bg-muted/30 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h5 className="font-medium">{item.name}</h5>
-                            <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground italic mt-1">{item.description}</p>
+                <CardContent>
+                  {/* Mobile view - List */}
+                  <div className="space-y-3 md:hidden">
+                    {paymentData.items.map((item: any, index: number) => {
+                      const netAmount = item.netAmount ?? (item.price * item.quantity);
+                      const vatAmount = item.vatAmount ?? (netAmount * (item.vatRate || 0) / 100);
+                      const amountWithVat = item.amountWithVat ?? (netAmount + vatAmount);
+                      const priceWithoutVat = item.price ?? (item.priceWithVat / (1 + (item.vatRate || 0) / 100));
+                      const priceWithVat = item.priceWithVat ?? (priceWithoutVat * (1 + (item.vatRate || 0) / 100));
+                      
+                      return (
+                        <div key={index} className="p-3 rounded-md bg-muted/30 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h5 className="font-medium">{item.name}</h5>
+                              <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
+                              {item.description && (
+                                <p className="text-xs text-muted-foreground italic mt-1">{item.description}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-muted-foreground">
+                                {item.quantity} × {formatPrice(priceWithVat)}
+                              </div>
+                              <div className="font-semibold">
+                                {formatPrice(amountWithVat)}
+                              </div>
+                            </div>
+                          </div>
+                          {/* VAT breakdown for each item */}
+                          <div className="pt-2 border-t border-muted text-xs space-y-1">
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Cena bez DPH:</span>
+                              <span>{formatPrice(priceWithoutVat)}</span>
+                            </div>
+                            {item.vatRate > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>DPH ({item.vatRate}%):</span>
+                                <span>{formatPrice(vatAmount / item.quantity)}</span>
+                              </div>
                             )}
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm text-muted-foreground">
-                              {item.quantity} × {formatPrice(priceWithVat)}
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Cena s DPH:</span>
+                              <span>{formatPrice(priceWithVat)}</span>
                             </div>
-                            <div className="font-semibold">
-                              {formatPrice(amountWithVat)}
+                            <div className="flex justify-between text-muted-foreground pt-1 border-t border-muted">
+                              <span>Celkom bez DPH:</span>
+                              <span>{formatPrice(netAmount)}</span>
+                            </div>
+                            {item.vatRate > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>DPH celkom:</span>
+                                <span>{formatPrice(vatAmount)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-medium text-foreground">
+                              <span>Celkom s DPH:</span>
+                              <span>{formatPrice(amountWithVat)}</span>
                             </div>
                           </div>
                         </div>
-                        {/* VAT breakdown for each item */}
-                        <div className="pt-2 border-t border-muted text-xs space-y-1">
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Cena bez DPH:</span>
-                            <span>{formatPrice(priceWithoutVat)}</span>
-                          </div>
-                          {item.vatRate > 0 && (
-                            <div className="flex justify-between text-muted-foreground">
-                              <span>DPH ({item.vatRate}%):</span>
-                              <span>{formatPrice(vatAmount / item.quantity)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Cena s DPH:</span>
-                            <span>{formatPrice(priceWithVat)}</span>
-                          </div>
-                          <div className="flex justify-between text-muted-foreground pt-1 border-t border-muted">
-                            <span>Celkom bez DPH:</span>
-                            <span>{formatPrice(netAmount)}</span>
-                          </div>
-                          {item.vatRate > 0 && (
-                            <div className="flex justify-between text-muted-foreground">
-                              <span>DPH celkom:</span>
-                              <span>{formatPrice(vatAmount)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between font-medium text-foreground">
-                            <span>Celkom s DPH:</span>
-                            <span>{formatPrice(amountWithVat)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop view - Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-3 font-medium text-sm text-muted-foreground">Položka</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">Množstvo</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">Cena bez DPH</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">DPH</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">Cena s DPH</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">Celkom bez DPH</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">DPH celkom</th>
+                          <th className="text-right p-3 font-medium text-sm text-muted-foreground">Celkom s DPH</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentData.items.map((item: any, index: number) => {
+                          const netAmount = item.netAmount ?? (item.price * item.quantity);
+                          const vatAmount = item.vatAmount ?? (netAmount * (item.vatRate || 0) / 100);
+                          const amountWithVat = item.amountWithVat ?? (netAmount + vatAmount);
+                          const priceWithoutVat = item.price ?? (item.priceWithVat / (1 + (item.vatRate || 0) / 100));
+                          const priceWithVat = item.priceWithVat ?? (priceWithoutVat * (1 + (item.vatRate || 0) / 100));
+                          
+                          return (
+                            <tr key={index} className="border-b hover:bg-muted/30">
+                              <td className="p-3">
+                                <div>
+                                  <div className="font-medium">{item.name}</div>
+                                  <div className="text-xs text-muted-foreground">Kód: {item.id}</div>
+                                  {item.description && (
+                                    <div className="text-xs text-muted-foreground italic mt-1">{item.description}</div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 text-right">{item.quantity}</td>
+                              <td className="p-3 text-right">{formatPrice(priceWithoutVat)}</td>
+                              <td className="p-3 text-right">
+                                {item.vatRate > 0 ? `${item.vatRate}%` : '-'}
+                              </td>
+                              <td className="p-3 text-right">{formatPrice(priceWithVat)}</td>
+                              <td className="p-3 text-right">{formatPrice(netAmount)}</td>
+                              <td className="p-3 text-right">
+                                {item.vatRate > 0 ? formatPrice(vatAmount) : '-'}
+                              </td>
+                              <td className="p-3 text-right font-medium">{formatPrice(amountWithVat)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </CardContent>
               </Card>
 

@@ -188,10 +188,29 @@ export default function ExistingOrderPayment() {
                       </div>
                     )}
                     
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Celková suma:</span>
-                      <span>{formatPrice(paymentData.amounts.total)}</span>
-                    </div>
+                    <Separator />
+                    
+                    {/* VAT breakdown */}
+                    {paymentData.amounts.totalWithoutVat !== undefined && (
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Celková suma bez DPH:</span>
+                          <span>{formatPrice(paymentData.amounts.totalWithoutVat)}</span>
+                        </div>
+                        {paymentData.amounts.totalVat !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">DPH:</span>
+                            <span>{formatPrice(paymentData.amounts.totalVat)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-semibold pt-1 border-t">
+                          <span>Celková suma s DPH:</span>
+                          <span>{formatPrice(paymentData.amounts.total)}</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <Separator />
                     
                     <div className="flex justify-between text-lg font-semibold">
                       <span>K úhrade:</span>
@@ -214,22 +233,66 @@ export default function ExistingOrderPayment() {
                   <CardTitle className="text-lg font-serif">Položky objednávky</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {paymentData.items.map((item: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-md bg-muted/30">
-                      <div className="flex-1">
-                        <h5 className="font-medium">{item.name}</h5>
-                        <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-muted-foreground">
-                          {item.quantity} × {formatPrice(item.priceWithVat ?? item.price)}
+                  {paymentData.items.map((item: any, index: number) => {
+                    const netAmount = item.netAmount ?? (item.price * item.quantity);
+                    const vatAmount = item.vatAmount ?? (netAmount * (item.vatRate || 0) / 100);
+                    const amountWithVat = item.amountWithVat ?? (netAmount + vatAmount);
+                    const priceWithoutVat = item.price ?? (item.priceWithVat / (1 + (item.vatRate || 0) / 100));
+                    const priceWithVat = item.priceWithVat ?? (priceWithoutVat * (1 + (item.vatRate || 0) / 100));
+                    
+                    return (
+                      <div key={index} className="p-3 rounded-md bg-muted/30 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h5 className="font-medium">{item.name}</h5>
+                            <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground italic mt-1">{item.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-muted-foreground">
+                              {item.quantity} × {formatPrice(priceWithVat)}
+                            </div>
+                            <div className="font-semibold">
+                              {formatPrice(amountWithVat)}
+                            </div>
+                          </div>
                         </div>
-                        <div className="font-semibold">
-                          {formatPrice((item.priceWithVat ?? item.price) * item.quantity)}
+                        {/* VAT breakdown for each item */}
+                        <div className="pt-2 border-t border-muted text-xs space-y-1">
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Cena bez DPH:</span>
+                            <span>{formatPrice(priceWithoutVat)}</span>
+                          </div>
+                          {item.vatRate > 0 && (
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>DPH ({item.vatRate}%):</span>
+                              <span>{formatPrice(vatAmount / item.quantity)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Cena s DPH:</span>
+                            <span>{formatPrice(priceWithVat)}</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground pt-1 border-t border-muted">
+                            <span>Celkom bez DPH:</span>
+                            <span>{formatPrice(netAmount)}</span>
+                          </div>
+                          {item.vatRate > 0 && (
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>DPH celkom:</span>
+                              <span>{formatPrice(vatAmount)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-medium text-foreground">
+                            <span>Celkom s DPH:</span>
+                            <span>{formatPrice(amountWithVat)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 

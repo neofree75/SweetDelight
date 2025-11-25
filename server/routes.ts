@@ -1617,15 +1617,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           vatRate = salesOrder.taxes[0].rate;
         }
 
-        const priceWithVat = roundCurrency(item.rate * (1 + (vatRate / 100)));
+        // Calculate prices with and without VAT
+        const priceWithoutVat = item.rate; // rate is typically without VAT in ERPNext
+        const priceWithVat = roundCurrency(priceWithoutVat * (1 + (vatRate / 100)));
+        const netAmount = roundCurrency(priceWithoutVat * item.qty);
+        const vatAmount = roundCurrency(netAmount * (vatRate / 100));
+        const amountWithVat = roundCurrency(netAmount + vatAmount);
 
         return {
           id: item.item_code,
           name: item.item_name,
-          price: item.rate,
+          price: priceWithoutVat,
           priceWithVat,
           vatRate,
           quantity: item.qty,
+          netAmount,
+          vatAmount,
+          amountWithVat,
+          description: item.description || '',
           // Try to determine category from item code or name patterns
           category: item.item_code === 'TORTCUS001' || 
                    (item.item_name && item.item_name.toLowerCase().includes('torta na mieru')) || 
@@ -1651,6 +1660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the grand_total from ERPNext if available, otherwise use calculated subtotal
       const grandTotal = salesOrder.grand_total || subtotalWithVat;
       const totalWithoutVat = roundCurrency(subtotalWithoutVatRaw);
+      const totalVat = roundCurrency(grandTotal - totalWithoutVat);
 
       // Determine payment amounts and options
       const depositAmountWithVat = requiresDeposit
@@ -1674,6 +1684,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deliveryDate: salesOrder.delivery_date,
         amounts: {
           total: grandTotal,
+          totalWithoutVat,
+          totalVat,
           deposit: depositAmountWithVat,
           payNow: payNow,
           requiresDeposit,

@@ -443,22 +443,18 @@ export function Orders() {
                 </div>
               </div>
 
-              {/* Pay button for orders with "New" status */}
-              {isOrderNew(order.status) && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => handlePayOrder(order)}
-                      className="w-full sm:w-auto"
-                      data-testid={`button-pay-order-${order.id}`}
-                    >
-                      <Eye className="mr-2 h-4 w-4" />
-                      Detail objednávky
-                    </Button>
-                  </div>
-                </>
-              )}
+              {/* View Order Details button */}
+              <Separator className="my-4" />
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setLocation(`/order-detail?orderId=${order.id}`)}
+                  className="w-full sm:w-auto"
+                  data-testid={`button-view-order-detail-${order.id}`}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Detail objednávky
+                </Button>
+              </div>
             </CardContent>
           </Card>
         );

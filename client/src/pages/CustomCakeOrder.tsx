@@ -44,23 +44,7 @@ interface SpecificationOption {
   id: string;
   name: string;
   options: string[];
-  optionPrices: Map<string, number>; // Mapuje hodnotu na cenu
-}
-
-// Pomocná funkcia na parsovanie cien z atribútov
-// Napr. "Vanilka {5}" → {name: "Vanilka", price: 5}
-function parseAttributeWithPrice(value: string): { name: string; price: number } {
-  const match = value.match(/^(.+?)\s*\{(\d+(?:\.\d+)?)\}/);
-  if (match) {
-    return {
-      name: match[1].trim(),
-      price: parseFloat(match[2])
-    };
-  }
-  return {
-    name: value.trim(),
-    price: 0
-  };
+  optionPrices: Record<string, number>; // Mapuje hodnotu na cenu
 }
 
 interface CustomCakeOrderProps {
@@ -69,6 +53,21 @@ interface CustomCakeOrderProps {
 }
 
 export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeOrderProps) {
+  // Pomocná funkcia na parsovanie cien z atribútov
+  // Napr. "Vanilka {5}" → {name: "Vanilka", price: 5}
+  const parseAttributeWithPrice = (value: string): { name: string; price: number } => {
+    const match = value.match(/^(.+?)\s*\{(\d+(?:\.\d+)?)\}/);
+    if (match) {
+      return {
+        name: match[1].trim(),
+        price: parseFloat(match[2])
+      };
+    }
+    return {
+      name: value.trim(),
+      price: 0
+    };
+  };
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [specialInstructions, setSpecialInstructions] = useState('');
   const { toast } = useToast();
@@ -110,7 +109,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     configurationOptions.forEach(option => {
       const selectedValue = selectedAttributes[option.id];
       if (selectedValue) {
-        const price = option.optionPrices.get(selectedValue) || 0;
+        const price = option.optionPrices[selectedValue] || 0;
         attributesPriceTotal += price;
       }
     });
@@ -119,12 +118,18 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     const computedPriceWithoutVat = basePriceWithoutVat + attributesPriceTotal;
     const computedPriceWithVat = roundCurrency(computedPriceWithoutVat * (1 + (vatRate || 20) / 100));
     const effectiveVatRate = vatRate || roundCurrency(((computedPriceWithVat / computedPriceWithoutVat) - 1) * 100);
+    
+    // Vypočítaj hodnoty pre zobrazenie
+    const basePriceWithVatDisplay = roundCurrency(basePriceWithoutVat * (1 + effectiveVatRate / 100));
+    const attributesPriceWithVatDisplay = roundCurrency(attributesPriceTotal * (1 + effectiveVatRate / 100));
 
     return {
       priceWithoutVat: computedPriceWithoutVat,
       priceWithVat: computedPriceWithVat,
       vatRate: effectiveVatRate,
-      attributesPriceTotal
+      attributesPriceTotal,
+      basePriceWithVatDisplay,
+      attributesPriceWithVatDisplay
     };
   }, [customCakeProduct, websiteItem, configurationOptions, selectedAttributes]);
 
@@ -201,14 +206,12 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
         .filter(value => value.length > 0);
       const uniqueValues = Array.from(new Set(rawValues));
       
-      // Vytvor mapu cien pre každú možnosť
-      const optionPrices = new Map<string, number>();
-      const displayOptions: string[] = [];
+      // Vytvor objekt cien pre každú možnosť
+      const optionPrices: Record<string, number> = {};
       
       uniqueValues.forEach(rawValue => {
         const parsed = parseAttributeWithPrice(rawValue);
-        optionPrices.set(rawValue, parsed.price); // Ulož pôvodnú hodnotu s cenou
-        displayOptions.push(parsed.name); // Zobraz iba názov
+        optionPrices[rawValue] = parsed.price; // Ulož pôvodnú hodnotu s cenou
       });
       
       return {
@@ -371,7 +374,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                           return null;
                         }
                         const parsed = parseAttributeWithPrice(chosen);
-                        const price = option.optionPrices.get(chosen) || 0;
+                        const price = option.optionPrices[chosen] || 0;
                         return (
                           <div key={option.id} className="flex justify-between gap-2">
                             <dt className="text-muted-foreground">{option.name}:</dt>
@@ -403,11 +406,11 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                     <div className="mb-2 space-y-1">
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Základná cena:</span>
-                        <span>{formatPrice(roundCurrency((priceData.priceWithoutVat - priceData.attributesPriceTotal) * (1 + priceData.vatRate / 100)))}</span>
+                        <span>{formatPrice(priceData.basePriceWithVatDisplay)}</span>
                       </div>
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Príplatky za atribúty:</span>
-                        <span>+{formatPrice(roundCurrency(priceData.attributesPriceTotal * (1 + priceData.vatRate / 100)))}</span>
+                        <span>+{formatPrice(priceData.attributesPriceWithVatDisplay)}</span>
                       </div>
                     </div>
                   )}

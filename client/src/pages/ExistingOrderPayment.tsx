@@ -499,6 +499,7 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                   currency="EUR"
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
+                  showSubmitButton={false}
                 />
               ) : (
                 <Card>

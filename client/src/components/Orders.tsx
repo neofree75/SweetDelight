@@ -447,50 +447,6 @@ export function Orders() {
             <CardContent className="pt-0">
               <Separator className="mb-4" />
               
-              <div className="space-y-3">
-                <h4 className="font-medium text-foreground mb-2">Položky objednávky:</h4>
-                
-                {order.items.map((item, index) => (
-                  <div 
-                    key={`${order.id}-${index}`} 
-                    className="flex items-center justify-between p-3 rounded-md bg-muted/30"
-                    data-testid={`order-item-${order.id}-${index}`}
-                  >
-                    <div className="flex-1">
-                      <h5 className="font-medium text-foreground">{item.itemName}</h5>
-
-                      <p className="text-sm text-muted-foreground">
-                        Kód: {item.itemCode}
-                      </p>
-                      {item.description && (
-                        <p className="text-sm text-muted-foreground italic">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="text-right space-y-1 text-sm">
-                      <div className="text-muted-foreground">
-                        {item.qty} × {formatCurrency(item.rate, order.currency)} bez DPH
-                      </div>
-                      <div className="text-muted-foreground">
-                        Bez DPH: {formatCurrency(item.amountWithoutVat ?? item.amount, order.currency)}
-                      </div>
-                      {typeof item.taxAmount === 'number' && (
-                        <div className="text-muted-foreground">
-                          DPH{typeof item.vatRate === 'number' ? ` (${item.vatRate}%)` : ''}: {formatCurrency(item.taxAmount, order.currency)}
-                        </div>
-                      )}
-                      <div className="font-semibold text-foreground">
-                        {formatCurrency(item.amountWithVat ?? item.amount, order.currency)} s DPH
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <Separator className="my-4" />
-              
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Cena bez DPH</span>

@@ -92,6 +92,34 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     }));
   };
 
+  const configurationOptions: SpecificationOption[] = useMemo(() => {
+    if (!websiteItem?.specifications) {
+      return [];
+    }
+    return websiteItem.specifications.map(spec => {
+      const rawValues = spec.value
+        .split(',')
+        .map(value => value.trim())
+        .filter(value => value.length > 0);
+      const uniqueValues = Array.from(new Set(rawValues));
+      
+      // Vytvor objekt cien pre každú možnosť
+      const optionPrices: Record<string, number> = {};
+      
+      uniqueValues.forEach(rawValue => {
+        const parsed = parseAttributeWithPrice(rawValue);
+        optionPrices[rawValue] = parsed.price; // Ulož pôvodnú hodnotu s cenou
+      });
+      
+      return {
+        id: spec.key,
+        name: spec.label,
+        options: uniqueValues, // Ponechaj pôvodné hodnoty pre výber (obsahujú cenu)
+        optionPrices
+      };
+    });
+  }, [websiteItem]);
+
   const priceData = useMemo(() => {
     const vatRate = customCakeProduct?.vatRate ?? 0;
     const priceWithoutVat = customCakeProduct?.price ??
@@ -198,34 +226,6 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     setSelectedAttributes({});
     setSpecialInstructions('');
   };
-
-  const configurationOptions: SpecificationOption[] = useMemo(() => {
-    if (!websiteItem?.specifications) {
-      return [];
-    }
-    return websiteItem.specifications.map(spec => {
-      const rawValues = spec.value
-        .split(',')
-        .map(value => value.trim())
-        .filter(value => value.length > 0);
-      const uniqueValues = Array.from(new Set(rawValues));
-      
-      // Vytvor objekt cien pre každú možnosť
-      const optionPrices: Record<string, number> = {};
-      
-      uniqueValues.forEach(rawValue => {
-        const parsed = parseAttributeWithPrice(rawValue);
-        optionPrices[rawValue] = parsed.price; // Ulož pôvodnú hodnotu s cenou
-      });
-      
-      return {
-        id: spec.key,
-        name: spec.label,
-        options: uniqueValues, // Ponechaj pôvodné hodnoty pre výber (obsahujú cenu)
-        optionPrices
-      };
-    });
-  }, [websiteItem]);
 
   const isFormValid = configurationOptions.length === 0 ||
     configurationOptions.every(option => Boolean(selectedAttributes[option.id]));

@@ -420,28 +420,7 @@ export function Orders() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3 bg-muted/30 rounded-md p-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Cena bez DPH</p>
-                  <p className="font-semibold text-foreground">
-                    {formatCurrency(orderTotals.withoutVat, order.currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">
-                    DPH{typeof vatLabel === 'number' ? ` (${vatLabel}%)` : ''}
-                  </p>
-                  <p className="font-semibold text-foreground">
-                    {formatCurrency(orderTotals.vat, order.currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Cena s DPH</p>
-                  <p className="font-semibold text-foreground">
-                    {formatCurrency(orderTotals.withVat, order.currency)}
-                  </p>
-                </div>
-              </div>
+              
             </CardHeader>
             
             <CardContent className="pt-0">

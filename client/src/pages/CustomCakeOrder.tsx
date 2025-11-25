@@ -413,7 +413,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                         <span>{formatPrice(priceData.basePriceWithVatDisplay)}</span>
                       </div>
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Príplatky za atribúty:</span>
+                        <span>Doplnky:</span>
                         <span>+{formatPrice(priceData.attributesPriceWithVatDisplay)}</span>
                       </div>
                     </div>

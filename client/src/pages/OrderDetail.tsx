@@ -21,6 +21,7 @@ import { formatPrice } from '@/lib/format-price';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { apiRequest } from '@/lib/queryClient';
+import QRPayment from '@/components/QRPayment';
 
 interface OrderDetailProps {
   user?: { email: string; name: string } | null;
@@ -29,6 +30,7 @@ interface OrderDetailProps {
 export default function OrderDetail({ user }: OrderDetailProps) {
   const [, setLocation] = useLocation();
   const [orderId, setOrderId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
 
   // Get order ID from URL params
   useEffect(() => {
@@ -296,9 +298,11 @@ export default function OrderDetail({ user }: OrderDetailProps) {
           
           <main className="flex-1 overflow-auto bg-background min-h-0">
             <div className="p-6">
-              <div className="max-w-4xl mx-auto space-y-6">
-                {/* Order Summary */}
-                <Card>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left side - Order summary (wider column) */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Order Summary */}
+                  <Card>
                   <CardHeader>
                     <CardTitle className="text-lg font-serif flex items-center gap-2">
                       <Package className="h-5 w-5" />
@@ -467,6 +471,22 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                     </div>
                   </CardContent>
                 </Card>
+                </div>
+
+                {/* Right side - Payment form */}
+                <div>
+                  {orderData.amounts && (
+                    <QRPayment
+                      salesOrderId={orderId}
+                      paymentMode={paymentAmount}
+                      amount={orderData.amounts.total}
+                      currency="EUR"
+                      onSuccess={() => {}}
+                      onError={() => {}}
+                      showSubmitButton={false}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </main>

@@ -39,7 +39,8 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
     queryKey: ['/api/profile'],
     queryFn: getQueryFn<{ success: boolean; data?: any }>({ on401: 'returnNull' }),
     staleTime: 300000,
-    retry: false
+    retry: false,
+    refetchOnWindowFocus: false
   });
 
   const subtotalWithoutVat = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -105,16 +106,115 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
         };
       });
 
-      let profileResponse = userProfile;
+      // Počkať ak sa ešte načítava profil
+      if (isProfileLoading) {
+        // Skús načítať profil priamo
+        try {
+          const directResponse = await fetch('/api/profile', {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (directResponse.ok) {
+            const directData = await directResponse.json();
+            if (directData.success && directData.data) {
+              // Použi načítané dáta
+              const profileData = directData.data || {};
+              const customerInfo = {
+                firstName: profileData.firstName || profileData.customerName || profileData.name || 'Guest',
+                lastName: profileData.lastName || 'Customer',
+                email: profileData.email || 'guest@marsela.sk',
+                phone: profileData.mobile || '+421000000000'
+              };
+              
+              const deliveryInfo = {
+                date: deliveryDate,
+                time: deliveryTime
+              };
 
-      if (profileResponse === undefined) {
-        profileResponse = await queryClient.fetchQuery({
-          queryKey: ['/api/profile'],
-          queryFn: getQueryFn<{ success: boolean; data?: any }>({ on401: 'returnNull' })
-        });
+              // Call checkout/start API to create Sales Order first
+              const res = await apiRequest('POST', '/api/checkout/start', {
+                cartItems: cartItemsWithNotes,
+                customerInfo,
+                deliveryInfo,
+                paymentMethod,
+                paymentAmount
+              });
+
+              const response = await res.json();
+
+              if (!response.success) {
+                throw new Error(response.error || 'Failed to start checkout process');
+              }
+
+              const { salesOrderId, amounts, paymentOptions } = response;
+
+              console.log('Sales Order created:', salesOrderId, 'amounts:', amounts);
+
+              // Clear cart after successful order creation
+              if (onClearCart) {
+                onClearCart();
+              }
+
+              // Store checkout data for payment page
+              const checkoutData = {
+                salesOrderId,
+                amounts,
+                paymentOptions,
+                deliveryDate,
+                deliveryTime,
+                paymentMethod,
+                paymentAmount
+              };
+
+              localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
+              localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
+
+              // Redirect based on payment method
+              if (paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') {
+                setLocation(`/platba?salesOrderId=${salesOrderId}`);
+              } else if (paymentMethod === 'cash') {
+                setLocation(`/pokladna?salesOrderId=${salesOrderId}`);
+              } else {
+                setLocation(`/platba?salesOrderId=${salesOrderId}`);
+              }
+              
+              setIsSubmitting(false);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching profile directly:', error);
+        }
       }
 
-      if (!profileResponse || profileResponse === null || !profileResponse.success || !profileResponse.data) {
+      let profileResponse = userProfile;
+
+      // Ak nie je userProfile, skús načítať priamo
+      if (profileResponse === undefined || profileResponse === null) {
+        try {
+          const directResponse = await fetch('/api/profile', {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (directResponse.ok) {
+            const directData = await directResponse.json();
+            if (directData.success && directData.data) {
+              profileResponse = directData;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching profile directly:', error);
+        }
+      }
+
+      // Kontrola, či máme platný profil
+      if (!profileResponse || !profileResponse.success || !profileResponse.data) {
         setShowAuthDialog(true);
         toast({
           title: "Prihláste sa",

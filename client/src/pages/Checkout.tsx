@@ -172,14 +172,8 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
               localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
               localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
 
-              // Redirect based on payment method
-              if (paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') {
-                setLocation(`/platba?salesOrderId=${salesOrderId}`);
-              } else if (paymentMethod === 'cash') {
-                setLocation(`/pokladna?salesOrderId=${salesOrderId}`);
-              } else {
-                setLocation(`/platba?salesOrderId=${salesOrderId}`);
-              }
+              // Redirect to payment success page
+              setLocation(`/payment-success?salesOrderId=${salesOrderId}`);
               
               setIsSubmitting(false);
               return;
@@ -277,16 +271,8 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
       localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
       localStorage.setItem('checkoutItemNotes', JSON.stringify(itemNotes));
 
-      // Redirect based on payment method
-      // QR/Bank Transfer payments go to /platba, Cash/COD goes to /pokladna
-      if (paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') {
-        setLocation(`/platba?salesOrderId=${salesOrderId}`);
-      } else if (paymentMethod === 'cash') {
-        setLocation(`/pokladna?salesOrderId=${salesOrderId}`);
-      } else {
-        // Fallback to payment page for any unknown methods
-        setLocation(`/platba?salesOrderId=${salesOrderId}`);
-      }
+      // Redirect to payment success page
+      setLocation(`/payment-success?salesOrderId=${salesOrderId}`);
 
     } catch (error: any) {
       console.error('Error starting checkout process:', error);

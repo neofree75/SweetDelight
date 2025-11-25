@@ -1021,6 +1021,71 @@ export class ERPNextService {
         }
       }
       
+      // Ak sa stále nenašli objednávky, skús načítať všetky objednávky a filtrovať manuálne
+      // (niekedy môže byť problém s ERPNext API filtrom)
+      if (!response.data.data || response.data.data.length === 0) {
+        console.log(`[getOrdersByCustomer] Still no orders found, trying to load all orders and filter manually...`);
+        try {
+          const allOrdersResponse = await this.client.get('/resource/Sales%20Order', {
+            params: {
+              fields: JSON.stringify([
+                'name', 'status', 'workflow_state', 'customer', 'customer_name', 
+                'transaction_date', 'delivery_date', 'total', 'grand_total', 
+                'currency', 'items', 'remarks'
+              ]),
+              order_by: 'creation desc',
+              limit_page_length: 200 // Načítaj viac objednávok
+            }
+          });
+          
+          console.log(`[getOrdersByCustomer] Loaded ${allOrdersResponse.data.data?.length || 0} total orders from ERPNext`);
+          
+          // Filtruj manuálne - skús rôzne varianty customer ID
+          const customerVariants = [
+            customerId,
+            customerId.trim(),
+            customerId.replace(/\s+/g, ' '), // Normalizuj medzery
+          ];
+          
+          // Získaj aj customer_name pre porovnanie
+          let customerName: string | null = null;
+          try {
+            const customerResponse = await this.client.get(`/resource/Customer/${customerId}`);
+            customerName = customerResponse.data.data?.customer_name;
+            if (customerName) {
+              customerVariants.push(customerName);
+              customerVariants.push(customerName.trim());
+            }
+          } catch (e) {
+            console.log(`[getOrdersByCustomer] Could not fetch customer name:`, e);
+          }
+          
+          const filteredOrders = (allOrdersResponse.data.data || []).filter((order: any) => {
+            const orderCustomer = (order.customer || '').trim();
+            const orderCustomerName = (order.customer_name || '').trim();
+            
+            return customerVariants.some(variant => {
+              const normalizedVariant = variant.trim();
+              return orderCustomer === normalizedVariant || 
+                     orderCustomerName === normalizedVariant ||
+                     orderCustomer.toLowerCase() === normalizedVariant.toLowerCase() ||
+                     orderCustomerName.toLowerCase() === normalizedVariant.toLowerCase();
+            });
+          });
+          
+          console.log(`[getOrdersByCustomer] Found ${filteredOrders.length} orders after manual filtering`);
+          if (filteredOrders.length > 0) {
+            console.log(`[getOrdersByCustomer] Sample filtered order - customer: "${filteredOrders[0].customer}", customer_name: "${filteredOrders[0].customer_name}"`);
+          }
+          
+          if (filteredOrders.length > 0) {
+            response.data.data = filteredOrders;
+          }
+        } catch (allOrdersError) {
+          console.error(`[getOrdersByCustomer] Error loading all orders:`, allOrdersError);
+        }
+      }
+      
       if (response.data.data && response.data.data.length > 0) {
         console.log(`[getOrdersByCustomer] Sample order - customer: "${response.data.data[0].customer}", customer_name: "${response.data.data[0].customer_name}"`);
       }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Clock, ArrowRight } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
+import SEO from '@/components/SEO';
 
 interface PaymentSuccessProps {
   onClearCart?: () => void;
@@ -54,9 +55,15 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+    <>
+      <SEO 
+        title={`Potvrdenie objednávky | Marsela Bakery`}
+        description="Vaša objednávka bola úspešne zaznamenaná. Ďakujeme za vašu objednávku."
+        canonical="/payment-success"
+      />
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
           {/* Success Header */}
           <div className="text-center mb-8">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
@@ -165,5 +172,6 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -349,10 +349,7 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                       {orderData.deliveryDate && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Dátum doručenia:</span>
-                          <span>
-                            {formatDateTime(orderData.deliveryDate)}
-                            {getDeliveryTime()}
-                          </span>
+                          <span>{formatDateTime(orderData.deliveryDate)}</span>
                         </div>
                       )}
                       

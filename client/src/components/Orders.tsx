@@ -412,12 +412,6 @@ export function Orders() {
                     <span>Doručenie: {formatDate(order.deliveryDate)}{order.deliveryTime ? ` ${order.deliveryTime}` : ''}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1">
-                  <CreditCard className="h-4 w-4" />
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(order.grandTotal, order.currency)}
-                  </span>
-                </div>
               </div>
 
               

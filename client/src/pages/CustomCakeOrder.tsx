@@ -52,22 +52,28 @@ interface CustomCakeOrderProps {
   onCartOpen: () => void;
 }
 
-export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeOrderProps) {
-  // Pomocná funkcia na parsovanie cien z atribútov
-  // Napr. "Vanilka {5}" → {name: "Vanilka", price: 5}
-  const parseAttributeWithPrice = (value: string): { name: string; price: number } => {
-    const match = value.match(/^(.+?)\s*\{(\d+(?:\.\d+)?)\}/);
-    if (match) {
-      return {
-        name: match[1].trim(),
-        price: parseFloat(match[2])
-      };
-    }
+// Pomocná funkcia na parsovanie cien z atribútov
+// Napr. "Vanilka {5}" → {name: "Vanilka", price: 5}
+function parseAttributeWithPrice(value: string): { name: string; price: number } {
+  const match = value.match(/^(.+?)\s*\{(\d+(?:\.\d+)?)\}/);
+  if (match) {
     return {
-      name: value.trim(),
-      price: 0
+      name: match[1].trim(),
+      price: parseFloat(match[2])
     };
+  }
+  return {
+    name: value.trim(),
+    price: 0
   };
+}
+
+// Pomocná funkcia na zaokrúhlenie cien
+function roundCurrency(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeOrderProps) {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [specialInstructions, setSpecialInstructions] = useState('');
   const { toast } = useToast();
@@ -85,8 +91,6 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
       [attributeId]: value
     }));
   };
-
-  const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
   const priceData = useMemo(() => {
     const vatRate = customCakeProduct?.vatRate ?? 0;

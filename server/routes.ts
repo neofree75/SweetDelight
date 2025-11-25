@@ -992,6 +992,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Mapuj ERPNext dáta na frontend formát
       const orders = erpNextOrders.map(order => {
+        // Parse delivery time from remarks if available
+        let deliveryTime: string | undefined;
+        if (order.remarks) {
+          const timeMatch = order.remarks.match(/Čas doručenia:\s*([^\s,]+)/);
+          if (timeMatch) {
+            deliveryTime = timeMatch[1];
+          }
+        }
+        
         return {
           id: order.name,
           status: order.workflow_state || order.status, // Použi workflow_state ak existuje, inak status
@@ -999,6 +1008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerName: order.customer_name,
           transactionDate: order.transaction_date,
           deliveryDate: order.delivery_date,
+          deliveryTime: deliveryTime, // Pridaj čas doručenia
           total: order.total || 0,
           grandTotal: order.grand_total || 0,
           currency: order.currency || 'EUR',
@@ -1177,11 +1187,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const customerId = existingCustomer.customerId;
           
           // Create Sales Order directly with authenticated user's customer
+          // Build description with delivery time if provided
+          const deliveryDescription = deliveryInfo.time 
+            ? `Dátum doručenia: ${deliveryInfo.date}, Čas doručenia: ${deliveryInfo.time}`
+            : `Dátum doručenia: ${deliveryInfo.date}`;
+          
           const salesOrderData = {
             customer: customerId,
             company: erpCompany,
             delivery_date: deliveryInfo.date,
             transaction_date: new Date().toISOString().split('T')[0],
+            remarks: deliveryDescription, // Ulož čas doručenia do remarks
             items: cartItems.map((item: any) => {
               const isCustomCakeItem = typeof item.id === 'string' && item.id.startsWith('custom-cake-');
               const itemCode = isCustomCakeItem ? 'TORTCUS001' : item.id;
@@ -1259,11 +1275,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Sales Order in ERPNext
+      // Build description with delivery time if provided
+      const deliveryDescription = deliveryInfo.time 
+        ? `Dátum doručenia: ${deliveryInfo.date}, Čas doručenia: ${deliveryInfo.time}`
+        : `Dátum doručenia: ${deliveryInfo.date}`;
+      
       const salesOrderData = {
         customer: customerId,
         company: erpCompany,
         delivery_date: deliveryInfo.date,
         transaction_date: new Date().toISOString().split('T')[0],
+        remarks: deliveryDescription, // Ulož čas doručenia do remarks
         items: cartItems.map((item: any) => {
           const isCustomCakeItem = typeof item.id === 'string' && item.id.startsWith('custom-cake-');
           const itemCode = isCustomCakeItem ? 'TORTCUS001' : item.id;

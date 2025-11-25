@@ -77,11 +77,15 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
         />
       </Route>
       <Route path="/checkout">
-        <Checkout cartItems={cartItems} />
+        <Checkout cartItems={cartItems} onClearCart={onClearCart} />
       </Route>
-      <Route path="/platba" component={Payment} />
+      <Route path="/platba">
+        <Payment onClearCart={onClearCart} />
+      </Route>
       <Route path="/payment-existing-order" component={ExistingOrderPayment} />
-      <Route path="/payment-success" component={PaymentSuccess} />
+      <Route path="/payment-success">
+        <PaymentSuccess onClearCart={onClearCart} />
+      </Route>
       <Route path="/pokladna">
         <Billing cartItems={cartItems} user={user} onClearCart={onClearCart} />
       </Route>

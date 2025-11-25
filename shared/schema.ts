@@ -278,6 +278,7 @@ export const userOrderSchema = z.object({
   customerName: z.string(), // Meno zákazníka
   transactionDate: z.string(), // Dátum objednávky
   deliveryDate: z.string().optional(), // Dátum doručenia
+  deliveryTime: z.string().optional(), // Čas doručenia
   total: z.number(), // Celková suma
   grandTotal: z.number(), // Konečná suma
   currency: z.string(), // Mena

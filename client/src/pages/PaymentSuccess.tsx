@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Clock, ArrowRight } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 
-export default function PaymentSuccess() {
+interface PaymentSuccessProps {
+  onClearCart?: () => void;
+}
+
+export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
   const [, setLocation] = useLocation();
   const [orderDetails, setOrderDetails] = useState<any>(null);
 
@@ -30,11 +34,16 @@ export default function PaymentSuccess() {
       });
     }
     
+    // Clear cart after successful order creation
+    if (onClearCart) {
+      onClearCart();
+    }
+    
     // Clear cart and checkout data after reading the details
     localStorage.removeItem('cartItems');
     localStorage.removeItem('checkoutData');
     localStorage.removeItem('checkoutItemNotes');
-  }, []);
+  }, [onClearCart]);
 
   const handleContinueShopping = () => {
     setLocation('/obchod');

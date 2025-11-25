@@ -981,7 +981,7 @@ export class ERPNextService {
           fields: JSON.stringify([
             'name', 'status', 'workflow_state', 'customer', 'customer_name', 
             'transaction_date', 'delivery_date', 'total', 'grand_total', 
-            'currency', 'items'
+            'currency', 'items', 'remarks'
           ]),
           order_by: 'creation desc',
           limit_page_length: 100

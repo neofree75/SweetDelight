@@ -17,7 +17,11 @@ interface CartItem {
   category?: string;
 }
 
-export default function Payment() {
+interface PaymentProps {
+  onClearCart?: () => void;
+}
+
+export default function Payment({ onClearCart }: PaymentProps) {
   const [, setLocation] = useLocation();
   const [salesOrderId, setSalesOrderId] = useState('');
   const [checkoutData, setCheckoutData] = useState<any>(null);
@@ -45,6 +49,11 @@ export default function Payment() {
 
   const handlePaymentSuccess = () => {
     console.log('Payment instructions acknowledged');
+    
+    // Clear cart after successful order creation
+    if (onClearCart) {
+      onClearCart();
+    }
     
     // Clear checkout data and redirect to success page with order context
     localStorage.removeItem('cartItems');

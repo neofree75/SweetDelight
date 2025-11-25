@@ -18,9 +18,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 interface CheckoutProps {
   cartItems: CartItem[];
+  onClearCart?: () => void;
 }
 
-export default function Checkout({ cartItems }: CheckoutProps) {
+export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [couponCode, setCouponCode] = useState('');
@@ -155,6 +156,11 @@ export default function Checkout({ cartItems }: CheckoutProps) {
       const { salesOrderId, amounts, paymentOptions } = response;
 
       console.log('Sales Order created:', salesOrderId, 'amounts:', amounts);
+
+      // Clear cart after successful order creation
+      if (onClearCart) {
+        onClearCart();
+      }
 
       // Store checkout data for payment page
       const checkoutData = {

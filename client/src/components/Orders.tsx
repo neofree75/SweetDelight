@@ -393,7 +393,7 @@ export function Orders() {
                 {order.deliveryDate && (
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
-                    <span>Doručenie: {formatDate(order.deliveryDate)}</span>
+                    <span>Doručenie: {formatDate(order.deliveryDate)}{order.deliveryTime ? ` ${order.deliveryTime}` : ''}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-1">

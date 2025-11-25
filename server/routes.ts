@@ -1143,7 +1143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start checkout process - create Sales Order first
   app.post("/api/checkout/start", async (req, res) => {
     try {
-      const { cartItems, customerInfo, deliveryInfo, paymentMethod } = req.body;
+      const { cartItems, customerInfo, deliveryInfo, paymentMethod, paymentAmount } = req.body;
       
       if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
         return res.status(400).json({ error: "Invalid cart items" });
@@ -1227,13 +1227,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log(`Sales Order ${salesOrderId} created for authenticated customer ${customerId}`);
 
-          // Determine payment amounts and options
+          // Determine payment amounts and options based on user selection
           let payNow = totalWithVat; // Default to full amount (with VAT)
           let paymentMode = 'full';
           
-          if ((paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') && requiresDeposit) {
-            // For online payments, offer both deposit and full options
-            payNow = depositAmountWithVat || payNow; // Default to deposit for required cases
+          // Use paymentAmount from request if provided, otherwise use default logic
+          if (paymentAmount === 'deposit' && requiresDeposit) {
+            payNow = depositAmountWithVat;
+            paymentMode = 'deposit';
+          } else if (paymentAmount === 'full') {
+            payNow = totalWithVat;
+            paymentMode = 'full';
+          } else if ((paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer') && requiresDeposit) {
+            // Fallback: For online payments without explicit selection, default to deposit
+            payNow = depositAmountWithVat || payNow;
             paymentMode = 'deposit';
           }
 
@@ -1315,13 +1322,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Sales Order ${salesOrderId} created for customer ${customerId}`);
 
-      // Determine payment amounts and options
+      // Determine payment amounts and options based on user selection
       let payNow = totalWithVat; // Default to full amount with VAT
       let paymentMode = 'full';
       
-      if (paymentMethod === 'card' && requiresDeposit) {
-        // For online payments, offer both deposit and full options
-        payNow = depositAmountWithVat || payNow; // Default to deposit for required cases
+      // Use paymentAmount from request if provided, otherwise use default logic
+      if (paymentAmount === 'deposit' && requiresDeposit) {
+        payNow = depositAmountWithVat;
+        paymentMode = 'deposit';
+      } else if (paymentAmount === 'full') {
+        payNow = totalWithVat;
+        paymentMode = 'full';
+      } else if (paymentMethod === 'card' && requiresDeposit) {
+        // Fallback: For online payments without explicit selection, default to deposit
+        payNow = depositAmountWithVat || payNow;
         paymentMode = 'deposit';
       }
 

@@ -144,7 +144,8 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
         cartItems: cartItemsWithNotes,
         customerInfo,
         deliveryInfo,
-        paymentMethod
+        paymentMethod,
+        paymentAmount // Posli vybranú sumu platby
       });
 
       const response = await res.json();

@@ -270,7 +270,7 @@ export default function QRPayment({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="text-lg font-serif flex items-center gap-2">
           <QrCode className="h-5 w-5" />
           Platba bankovým prevodom
         </CardTitle>

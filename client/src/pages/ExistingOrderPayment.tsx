@@ -334,7 +334,7 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl font-serif flex items-center gap-2">
+                  <CardTitle className="text-lg font-serif flex items-center gap-2">
                     <Package className="h-5 w-5" />
                     Objednávka #{orderId}
                   </CardTitle>
@@ -504,7 +504,7 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
               ) : (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="text-lg font-serif flex items-center gap-2">
                       <Banknote className="h-5 w-5" />
                       Hotovosť pri prevzatí
                     </CardTitle>

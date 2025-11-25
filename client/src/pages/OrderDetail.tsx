@@ -72,6 +72,36 @@ export default function OrderDetail({ user }: OrderDetailProps) {
     }
   };
 
+  const formatDateTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      // Check if dateString contains time (has space and time part)
+      if (dateString.includes(' ') && dateString.split(' ').length > 1) {
+        return format(date, 'dd.MM.yyyy HH:mm', { locale: sk });
+      }
+      return format(date, 'dd.MM.yyyy', { locale: sk });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Extract delivery time from delivery_date or orderData
+  const getDeliveryTime = () => {
+    if (!orderData?.deliveryDate) return null;
+    
+    // Try to parse time from delivery_date if it's a datetime string
+    if (orderData.deliveryDate.includes(' ')) {
+      try {
+        const dateObj = new Date(orderData.deliveryDate);
+        return format(dateObj, 'HH:mm', { locale: sk });
+      } catch (e) {
+        console.warn(`Could not parse time from delivery_date: ${orderData.deliveryDate}`, e);
+      }
+    }
+    
+    return null;
+  };
+
   const menuItems = [
     {
       id: 'profil',
@@ -319,7 +349,10 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                       {orderData.deliveryDate && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Dátum doručenia:</span>
-                          <span>{formatDate(orderData.deliveryDate)}</span>
+                          <span>
+                            {formatDateTime(orderData.deliveryDate)}
+                            {getDeliveryTime() && ` ${getDeliveryTime()}`}
+                          </span>
                         </div>
                       )}
                       

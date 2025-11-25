@@ -1037,6 +1037,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check why orders are not loading
+  app.get("/api/debug/user-orders", async (req, res) => {
+    try {
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const userEmail = session.user.email;
+      const isAdmin = session.user.userType === "System User";
+      
+      const debugInfo: any = {
+        userEmail,
+        userType: session.user.userType,
+        isAdmin,
+        customer: null,
+        ordersFound: 0,
+        filterAttempts: []
+      };
+
+      if (!isAdmin) {
+        const customer = await erpNextService.findCustomerByEmail(userEmail);
+        debugInfo.customer = customer;
+        
+        if (customer) {
+          // Try filter by customer
+          try {
+            erpNextService.refreshClient();
+            const response1 = await erpNextService.client.get('/resource/Sales%20Order', {
+              params: {
+                filters: JSON.stringify([['customer', '=', customer.customerId]]),
+                fields: JSON.stringify(['name', 'customer', 'customer_name']),
+                limit_page_length: 10
+              }
+            });
+            debugInfo.filterAttempts.push({
+              method: 'customer filter',
+              customerId: customer.customerId,
+              found: response1.data.data?.length || 0,
+              sampleOrders: response1.data.data?.slice(0, 3).map((o: any) => ({
+                name: o.name,
+                customer: o.customer,
+                customer_name: o.customer_name
+              })) || []
+            });
+          } catch (e: any) {
+            debugInfo.filterAttempts.push({
+              method: 'customer filter',
+              error: e.message
+            });
+          }
+
+          // Try filter by customer_name
+          try {
+            const customerResponse = await erpNextService.client.get(`/resource/Customer/${customer.customerId}`);
+            const customerName = customerResponse.data.data?.customer_name;
+            if (customerName) {
+              erpNextService.refreshClient();
+              const response2 = await erpNextService.client.get('/resource/Sales%20Order', {
+                params: {
+                  filters: JSON.stringify([['customer_name', '=', customerName]]),
+                  fields: JSON.stringify(['name', 'customer', 'customer_name']),
+                  limit_page_length: 10
+                }
+              });
+              debugInfo.filterAttempts.push({
+                method: 'customer_name filter',
+                customerName,
+                found: response2.data.data?.length || 0,
+                sampleOrders: response2.data.data?.slice(0, 3).map((o: any) => ({
+                  name: o.name,
+                  customer: o.customer,
+                  customer_name: o.customer_name
+                })) || []
+              });
+            }
+          } catch (e: any) {
+            debugInfo.filterAttempts.push({
+              method: 'customer_name filter',
+              error: e.message
+            });
+          }
+
+          // Try manual filtering
+          try {
+            erpNextService.refreshClient();
+            const allOrdersResponse = await erpNextService.client.get('/resource/Sales%20Order', {
+              params: {
+                fields: JSON.stringify(['name', 'customer', 'customer_name']),
+                limit_page_length: 50
+              }
+            });
+            
+            const allOrders = allOrdersResponse.data.data || [];
+            const matchingOrders = allOrders.filter((order: any) => {
+              const orderCustomer = (order.customer || '').trim();
+              const orderCustomerName = (order.customer_name || '').trim();
+              return orderCustomer === customer.customerId || 
+                     orderCustomerName === customer.customerId ||
+                     orderCustomer.toLowerCase() === customer.customerId.toLowerCase() ||
+                     orderCustomerName.toLowerCase() === customer.customerId.toLowerCase();
+            });
+            
+            debugInfo.filterAttempts.push({
+              method: 'manual filtering',
+              totalOrders: allOrders.length,
+              found: matchingOrders.length,
+              sampleOrders: matchingOrders.slice(0, 3).map((o: any) => ({
+                name: o.name,
+                customer: o.customer,
+                customer_name: o.customer_name
+              }))
+            });
+          } catch (e: any) {
+            debugInfo.filterAttempts.push({
+              method: 'manual filtering',
+              error: e.message
+            });
+          }
+        }
+      }
+
+      res.json(debugInfo);
+    } catch (error: any) {
+      console.error("Error in debug endpoint:", error);
+      res.status(500).json({ error: "Failed to fetch debug info", message: error.message });
+    }
+  });
+
   // Get user invoices
   app.get("/api/user-invoices", async (req, res) => {
     try {

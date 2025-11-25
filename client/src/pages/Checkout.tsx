@@ -514,9 +514,19 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
               className="w-full"
               size="lg"
               onClick={handleSubmitOrder}
+              disabled={isSubmitting}
               data-testid="button-submit-order"
             >
-              {paymentMethod === 'qr_transfer' || paymentMethod === 'bank_transfer' ? 'Pokračovať na platbu' : 'Skontrolovať a objednať'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Odosielanie objednávky...
+                </>
+              ) : (
+                paymentAmount === 'deposit' && depositCalculation.requiresDeposit
+                  ? `Objednávka s povinnosťou platby (záloha ${formatPrice(finalAmount)})`
+                  : `Objednávka s povinnosťou platby ${formatPrice(finalAmount)}`
+              )}
             </Button>
           </div>
         </div>

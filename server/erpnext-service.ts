@@ -978,13 +978,14 @@ export class ERPNextService {
       console.log(`[getOrdersByCustomer] Searching for orders with customer: "${customerId}"`);
       
       // Skús najprv filtrovanie podľa customer (name z Customer doctype)
+      // POZOR: remarks nie je povolené v list query, musí sa načítať individuálne
       let response = await this.client.get('/resource/Sales%20Order', {
         params: {
           filters: JSON.stringify([['customer', '=', customerId]]),
           fields: JSON.stringify([
             'name', 'status', 'workflow_state', 'customer', 'customer_name', 
             'transaction_date', 'delivery_date', 'total', 'grand_total', 
-            'currency', 'items', 'remarks'
+            'currency', 'items'
           ]),
           order_by: 'creation desc',
           limit_page_length: 100
@@ -1008,7 +1009,7 @@ export class ERPNextService {
                 fields: JSON.stringify([
                   'name', 'status', 'workflow_state', 'customer', 'customer_name', 
                   'transaction_date', 'delivery_date', 'total', 'grand_total', 
-                  'currency', 'items', 'remarks'
+                  'currency', 'items'
                 ]),
                 order_by: 'creation desc',
                 limit_page_length: 100
@@ -1031,7 +1032,7 @@ export class ERPNextService {
               fields: JSON.stringify([
                 'name', 'status', 'workflow_state', 'customer', 'customer_name', 
                 'transaction_date', 'delivery_date', 'total', 'grand_total', 
-                'currency', 'items', 'remarks'
+                'currency', 'items'
               ]),
               order_by: 'creation desc',
               limit_page_length: 200 // Načítaj viac objednávok

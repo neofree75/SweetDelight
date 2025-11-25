@@ -51,7 +51,7 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
   };
 
   const handleViewAccount = () => {
-    setLocation('/moj-ucet');
+    setLocation('/moj-ucet?section=objednavky');
   };
 
   return (
@@ -110,15 +110,6 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
                 </div>
               )}
               
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Čas objednávky:</span>
-                <span>
-                  {orderDetails?.timestamp 
-                    ? orderDetails.timestamp.toLocaleString('sk-SK')
-                    : new Date().toLocaleString('sk-SK')
-                  }
-                </span>
-              </div>
               
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                 <div className="flex items-center gap-2 text-green-800">

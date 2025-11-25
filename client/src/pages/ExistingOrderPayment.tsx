@@ -531,7 +531,8 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                   </CardContent>
                 </Card>
               )}
-              </div>
+            </div>
+          </div>
             </div>
           </main>
         </div>

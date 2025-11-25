@@ -985,9 +985,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Obyčajný užívateľ - zobraz len svoje objednávky
         customer = await erpNextService.findCustomerByEmail(userEmail);
         if (!customer) {
+          console.log(`[user-orders] No customer found for email: ${userEmail}`);
           return res.json({ orders: [], customer: null });
         }
+        console.log(`[user-orders] Found customer: ${customer.customerId} for email: ${userEmail}`);
         erpNextOrders = await erpNextService.getOrdersByCustomer(customer.customerId);
+        console.log(`[user-orders] Retrieved ${erpNextOrders.length} orders from ERPNext`);
       }
       
       // Mapuj ERPNext dáta na frontend formát

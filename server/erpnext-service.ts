@@ -975,7 +975,10 @@ export class ERPNextService {
   async getOrdersByCustomer(customerId: string): Promise<any[]> {
     this.refreshClient();
     try {
-      const response = await this.client.get('/resource/Sales%20Order', {
+      console.log(`[getOrdersByCustomer] Searching for orders with customer: "${customerId}"`);
+      
+      // Skús najprv filtrovanie podľa customer (name z Customer doctype)
+      let response = await this.client.get('/resource/Sales%20Order', {
         params: {
           filters: JSON.stringify([['customer', '=', customerId]]),
           fields: JSON.stringify([
@@ -987,6 +990,40 @@ export class ERPNextService {
           limit_page_length: 100
         }
       });
+
+      console.log(`[getOrdersByCustomer] Found ${response.data.data?.length || 0} orders for customer "${customerId}"`);
+      
+      // Ak sa nenašli objednávky, skús filtrovanie podľa customer_name (môže byť uložené inak)
+      if (!response.data.data || response.data.data.length === 0) {
+        console.log(`[getOrdersByCustomer] No orders found with customer="${customerId}", trying customer_name filter...`);
+        // Získaj customer_name z Customer doctype
+        try {
+          const customerResponse = await this.client.get(`/resource/Customer/${customerId}`);
+          const customerName = customerResponse.data.data?.customer_name;
+          if (customerName) {
+            console.log(`[getOrdersByCustomer] Trying to find orders with customer_name="${customerName}"`);
+            response = await this.client.get('/resource/Sales%20Order', {
+              params: {
+                filters: JSON.stringify([['customer_name', '=', customerName]]),
+                fields: JSON.stringify([
+                  'name', 'status', 'workflow_state', 'customer', 'customer_name', 
+                  'transaction_date', 'delivery_date', 'total', 'grand_total', 
+                  'currency', 'items', 'remarks'
+                ]),
+                order_by: 'creation desc',
+                limit_page_length: 100
+              }
+            });
+            console.log(`[getOrdersByCustomer] Found ${response.data.data?.length || 0} orders with customer_name="${customerName}"`);
+          }
+        } catch (customerError) {
+          console.error(`[getOrdersByCustomer] Error fetching customer details:`, customerError);
+        }
+      }
+      
+      if (response.data.data && response.data.data.length > 0) {
+        console.log(`[getOrdersByCustomer] Sample order - customer: "${response.data.data[0].customer}", customer_name: "${response.data.data[0].customer_name}"`);
+      }
 
       // Načítaj podrobnosti objednávok vrátane položiek
       const ordersWithItems = await Promise.all(

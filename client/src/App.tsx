@@ -82,7 +82,9 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       <Route path="/platba">
         <Payment onClearCart={onClearCart} />
       </Route>
-      <Route path="/payment-existing-order" component={ExistingOrderPayment} />
+      <Route path="/payment-existing-order">
+        <ExistingOrderPayment user={user} />
+      </Route>
       <Route path="/payment-success">
         <PaymentSuccess onClearCart={onClearCart} />
       </Route>

@@ -6,14 +6,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Banknote, ShoppingBag, Package, Calendar, FileText } from 'lucide-react';
+import { 
+  Sidebar,
+  SidebarContent,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent
+} from '@/components/ui/sidebar';
+import { ArrowLeft, Banknote, ShoppingBag, Package, Calendar, FileText, User, Receipt } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import QRPayment from '@/components/QRPayment';
 import { apiRequest } from '@/lib/queryClient';
 
-export default function ExistingOrderPayment() {
+interface ExistingOrderPaymentProps {
+  user?: { email: string; name: string } | null;
+}
+
+export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps) {
   const [, setLocation] = useLocation();
   const [orderId, setOrderId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('qr_transfer');
@@ -81,57 +97,183 @@ export default function ExistingOrderPayment() {
     }
   };
 
+  const menuItems = [
+    {
+      id: 'profil',
+      label: 'Môj profil',
+      icon: User,
+      path: '/moj-ucet?section=profil',
+    },
+    {
+      id: 'objednavky', 
+      label: 'Objednávky',
+      icon: FileText,
+      path: '/moj-ucet?section=objednavky',
+    },
+    {
+      id: 'faktury',
+      label: 'Faktúry', 
+      icon: Receipt,
+      path: '/moj-ucet?section=faktury',
+    },
+  ];
+
+  // Custom sidebar width for account page
+  const style = {
+    "--sidebar-width": "16rem",       // 256px for account navigation
+    "--sidebar-width-icon": "4rem",   // default icon width
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto text-center">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-pulse" />
-            <h1 className="text-2xl font-serif mb-4">Pripravujem platbu...</h1>
-            <p className="text-muted-foreground">
-              Načítavam údaje o objednávke a možnostiach platby.
-            </p>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-full w-full">
+          <Sidebar variant="inset" collapsible="icon">
+            <SidebarContent>
+              <SidebarGroup className="pt-4">
+                <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
+                <SidebarGroupContent className="mt-4">
+                  <SidebarMenu>
+                    {menuItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => setLocation(item.path)}
+                          data-testid={`button-account-${item.id}`}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
+          
+          <div className="flex flex-col flex-1 h-full min-h-0">
+            <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
+              <SidebarTrigger />
+              <h1 className="text-lg font-playfair">Detail objednávky</h1>
+              <div></div>
+            </header>
+            
+            <main className="flex-1 overflow-auto bg-background min-h-0 p-6">
+              <div className="text-center">
+                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-pulse" />
+                <h1 className="text-2xl font-serif mb-4">Pripravujem platbu...</h1>
+                <p className="text-muted-foreground">
+                  Načítavam údaje o objednávke a možnostiach platby.
+                </p>
+              </div>
+            </main>
           </div>
         </div>
-      </div>
+      </SidebarProvider>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto text-center">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h1 className="text-2xl font-serif mb-4">Chyba pri načítaní objednávky</h1>
-            <p className="text-muted-foreground mb-8">
-              {error instanceof Error ? error.message : 'Nastala chyba pri načítaní objednávky.'}
-            </p>
-            <Button onClick={handleBackToOrders}>
-              Späť na objednávky
-            </Button>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-full w-full">
+          <Sidebar variant="inset" collapsible="icon">
+            <SidebarContent>
+              <SidebarGroup className="pt-4">
+                <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
+                <SidebarGroupContent className="mt-4">
+                  <SidebarMenu>
+                    {menuItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => setLocation(item.path)}
+                          data-testid={`button-account-${item.id}`}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
+          
+          <div className="flex flex-col flex-1 h-full min-h-0">
+            <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
+              <SidebarTrigger />
+              <h1 className="text-lg font-playfair">Detail objednávky</h1>
+              <div></div>
+            </header>
+            
+            <main className="flex-1 overflow-auto bg-background min-h-0 p-6">
+              <div className="text-center">
+                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h1 className="text-2xl font-serif mb-4">Chyba pri načítaní objednávky</h1>
+                <p className="text-muted-foreground mb-8">
+                  {error instanceof Error ? error.message : 'Nastala chyba pri načítaní objednávky.'}
+                </p>
+                <Button onClick={handleBackToOrders}>
+                  Späť na objednávky
+                </Button>
+              </div>
+            </main>
           </div>
         </div>
-      </div>
+      </SidebarProvider>
     );
   }
 
   if (!paymentData || !orderId) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto text-center">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h1 className="text-2xl font-serif mb-4">Objednávka sa nenašla</h1>
-            <p className="text-muted-foreground mb-8">
-              Zdá sa, že sa stratili údaje o objednávke. Začnite prosím znovu.
-            </p>
-            <Button onClick={handleBackToOrders}>
-              Späť na objednávky
-            </Button>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-full w-full">
+          <Sidebar variant="inset" collapsible="icon">
+            <SidebarContent>
+              <SidebarGroup className="pt-4">
+                <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
+                <SidebarGroupContent className="mt-4">
+                  <SidebarMenu>
+                    {menuItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => setLocation(item.path)}
+                          data-testid={`button-account-${item.id}`}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
+          
+          <div className="flex flex-col flex-1 h-full min-h-0">
+            <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
+              <SidebarTrigger />
+              <h1 className="text-lg font-playfair">Detail objednávky</h1>
+              <div></div>
+            </header>
+            
+            <main className="flex-1 overflow-auto bg-background min-h-0 p-6">
+              <div className="text-center">
+                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h1 className="text-2xl font-serif mb-4">Objednávka sa nenašla</h1>
+                <p className="text-muted-foreground mb-8">
+                  Zdá sa, že sa stratili údaje o objednávke. Začnite prosím znovu.
+                </p>
+                <Button onClick={handleBackToOrders}>
+                  Späť na objednávky
+                </Button>
+              </div>
+            </main>
           </div>
         </div>
-      </div>
+      </SidebarProvider>
     );
   }
 
@@ -142,23 +284,52 @@ export default function ExistingOrderPayment() {
   const finalAmount = selectedPaymentOption?.amount || paymentData.amounts.total;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={handleBackToOrders}
-              data-testid="button-back-to-orders"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-3xl font-serif">Platba objednávky</h1>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-full w-full">
+        <Sidebar variant="inset" collapsible="icon">
+          <SidebarContent>
+            <SidebarGroup className="pt-4">
+              <SidebarGroupLabel>Môj účet</SidebarGroupLabel>
+              <SidebarGroupContent className="mt-4">
+                <SidebarMenu>
+                  {menuItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setLocation(item.path)}
+                        isActive={item.id === 'objednavky'}
+                        data-testid={`button-account-${item.id}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        
+        <div className="flex flex-col flex-1 h-full min-h-0">
+          <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleBackToOrders}
+                data-testid="button-back-to-orders"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </div>
+            <h1 className="text-lg font-playfair">Detail objednávky</h1>
+            <div></div>
+          </header>
+          
+          <main className="flex-1 overflow-auto bg-background min-h-0">
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left side - Order summary (wider column) */}
             <div className="lg:col-span-2 space-y-6">
               <Card>
@@ -360,10 +531,11 @@ export default function ExistingOrderPayment() {
                   </CardContent>
                 </Card>
               )}
+              </div>
             </div>
-          </div>
+          </main>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

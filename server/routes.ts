@@ -1022,9 +1022,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const grandTotal = roundCurrency(order.grand_total || totalWithoutVat);
         const totalVat = roundCurrency(grandTotal - totalWithoutVat);
 
-        // Parse delivery time from remarks if available
+        // Parse delivery time - first try from delivery_date (if it's datetime), then from remarks
         let deliveryTime: string | undefined;
-        if (order.remarks) {
+        let deliveryDate: string = order.delivery_date || '';
+        
+        // Check if delivery_date contains time (datetime format: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DD HH:MM")
+        if (order.delivery_date && order.delivery_date.includes(' ')) {
+          const dateTimeParts = order.delivery_date.split(' ');
+          if (dateTimeParts.length >= 2) {
+            deliveryDate = dateTimeParts[0]; // Extract just the date part
+            const timePart = dateTimeParts[1];
+            // Extract time in HH:MM format (remove seconds if present)
+            const timeMatch = timePart.match(/^(\d{2}:\d{2})/);
+            if (timeMatch) {
+              deliveryTime = timeMatch[1];
+            }
+          }
+        }
+        
+        // Fallback: Parse delivery time from remarks if not found in delivery_date
+        if (!deliveryTime && order.remarks) {
           const timeMatch = order.remarks.match(/Čas doručenia:\s*([^\s,]+)/);
           if (timeMatch) {
             deliveryTime = timeMatch[1];
@@ -1037,7 +1054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customer: order.customer,
           customerName: order.customer_name,
           transactionDate: order.transaction_date,
-          deliveryDate: order.delivery_date,
+          deliveryDate: deliveryDate, // Use extracted date (without time)
           deliveryTime: deliveryTime, // Pridaj čas doručenia
           total: totalWithoutVat,
           totalWithoutVat,
@@ -1363,7 +1380,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const customerId = existingCustomer.customerId;
           
           // Create Sales Order directly with authenticated user's customer
-          // Build description with delivery time if provided
+          // Combine date and time into delivery_date if time is provided
+          let deliveryDateValue = deliveryInfo.date;
+          if (deliveryInfo.time) {
+            // Combine date and time into datetime format
+            deliveryDateValue = `${deliveryInfo.date} ${deliveryInfo.time}:00`;
+          }
+          
+          // Build description with delivery time if provided (for remarks as backup)
           const deliveryDescription = deliveryInfo.time 
             ? `Dátum doručenia: ${deliveryInfo.date}, Čas doručenia: ${deliveryInfo.time}`
             : `Dátum doručenia: ${deliveryInfo.date}`;
@@ -1371,9 +1395,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const salesOrderData = {
             customer: customerId,
             company: erpCompany,
-            delivery_date: deliveryInfo.date,
+            delivery_date: deliveryDateValue, // Now includes time if provided
             transaction_date: new Date().toISOString().split('T')[0],
-            remarks: deliveryDescription, // Ulož čas doručenia do remarks
+            remarks: deliveryDescription, // Keep in remarks as backup
             items: cartItems.map((item: any) => {
               const isCustomCakeItem = typeof item.id === 'string' && item.id.startsWith('custom-cake-');
               const itemCode = isCustomCakeItem ? 'TORTCUS001' : item.id;
@@ -1458,7 +1482,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Sales Order in ERPNext
-      // Build description with delivery time if provided
+      // Combine date and time into delivery_date if time is provided
+      // ERPNext accepts datetime format: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DD"
+      let deliveryDateValue = deliveryInfo.date;
+      if (deliveryInfo.time) {
+        // Combine date and time into datetime format
+        deliveryDateValue = `${deliveryInfo.date} ${deliveryInfo.time}:00`;
+      }
+      
+      // Build description with delivery time if provided (for remarks as backup)
       const deliveryDescription = deliveryInfo.time 
         ? `Dátum doručenia: ${deliveryInfo.date}, Čas doručenia: ${deliveryInfo.time}`
         : `Dátum doručenia: ${deliveryInfo.date}`;
@@ -1466,9 +1498,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const salesOrderData = {
         customer: customerId,
         company: erpCompany,
-        delivery_date: deliveryInfo.date,
+        delivery_date: deliveryDateValue, // Now includes time if provided
         transaction_date: new Date().toISOString().split('T')[0],
-        remarks: deliveryDescription, // Ulož čas doručenia do remarks
+        remarks: deliveryDescription, // Keep in remarks as backup
         items: cartItems.map((item: any) => {
           const isCustomCakeItem = typeof item.id === 'string' && item.id.startsWith('custom-cake-');
           const itemCode = isCustomCakeItem ? 'TORTCUS001' : item.id;

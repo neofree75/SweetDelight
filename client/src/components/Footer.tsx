@@ -13,7 +13,7 @@ export default function Footer() {
           <div className="md:col-span-2">
             <h3 className="text-2xl font-serif font-bold mb-4">Marsela Bakery</h3>
             <p className="text-background/80 leading-relaxed mb-6 max-w-md">
-              Tradičná slovenská cukráreň s modernými technikani.
+              Čerstvé. Výborné. Sladké.
             </p>
             
             {/* Social Links */}

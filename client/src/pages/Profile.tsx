@@ -259,7 +259,7 @@ export default function Profile({ user }: ProfileProps) {
   return (
     <div className="space-y-6">
       {/* Header with Edit Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <User className="h-5 w-5" />
           Môj profil

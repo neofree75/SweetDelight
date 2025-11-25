@@ -81,13 +81,21 @@ export default function Account({ user }: AccountProps) {
   const renderContent = () => {
     switch (currentSection) {
       case 'profil':
-        return <Profile user={user} />;
+        return (
+          <div className="p-6">
+            <Profile user={user} />
+          </div>
+        );
       case 'objednavky':
         return <OrdersSection />;
       case 'faktury':
         return <InvoicesSection />;
       default:
-        return <Profile user={user} />;
+        return (
+          <div className="p-6">
+            <Profile user={user} />
+          </div>
+        );
     }
   };
 

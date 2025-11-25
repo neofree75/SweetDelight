@@ -47,7 +47,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
                   Marsela Bakery
                 </h1>
                 <span className="font-accent text-sm text-muted-foreground">
-                  artisan pastry
+                  Čerstvé. Výborné. Sladké.
                 </span>
               </div>
             </div>

@@ -257,372 +257,330 @@ export default function Profile({ user }: ProfileProps) {
   }
 
   return (
-    <div className="p-6">
-      <Card className="shadow-lg max-w-4xl mx-auto">
-            <CardHeader className="pb-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-primary/10 rounded-full">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl font-playfair text-foreground">
-                      Môj profil
-                    </CardTitle>
-                    <p className="text-muted-foreground mt-1">
-                      Spravujte svoje osobné údaje
-                    </p>
-                  </div>
-                </div>
-                
-                {!isEditing && (
-                  <Button
-                    variant="outline"
-                    onClick={handleStartEdit}
-                    className="flex items-center gap-2"
-                    data-testid="button-edit-profile"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Upraviť
-                  </Button>
+    <div className="space-y-6">
+      {/* Header with Edit Button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <User className="h-5 w-5" />
+          Môj profil
+        </h2>
+        {!isEditing && (
+          <Button
+            variant="outline"
+            onClick={handleStartEdit}
+            className="flex items-center gap-2"
+            data-testid="button-edit-profile"
+          >
+            <Edit className="h-4 w-4" />
+            Upraviť
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Základné informácie */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Základné informácie
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Oslovenie:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.salutation || ''}
+                    onChange={(e) => handleEditChange('salutation', e.target.value)}
+                    placeholder="Pán/Pani"
+                    className="w-48"
+                    data-testid="input-salutation"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.salutation || '-'}</span>
                 )}
               </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Meno:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.firstName}
+                    onChange={(e) => handleEditChange('firstName', e.target.value)}
+                    placeholder="Vaše meno"
+                    className="w-48"
+                    data-testid="input-firstName"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.firstName || '-'}</span>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Priezvisko:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.lastName}
+                    onChange={(e) => handleEditChange('lastName', e.target.value)}
+                    placeholder="Vaše priezvisko"
+                    className="w-48"
+                    data-testid="input-lastName"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.lastName || '-'}</span>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pohlavie:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.gender || ''}
+                    onChange={(e) => handleEditChange('gender', e.target.value)}
+                    placeholder="Muž/Žena"
+                    className="w-48"
+                    data-testid="input-gender"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.gender || '-'}</span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Kontaktné informácie */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Kontaktné informácie
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Email:</span>
+                {isEditing ? (
+                  <Input
+                    type="email"
+                    value={editData.email}
+                    onChange={(e) => handleEditChange('email', e.target.value)}
+                    placeholder="vas@email.com"
+                    className="w-64"
+                    data-testid="input-email"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.email || '-'}</span>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Mobilný telefón:</span>
+                {isEditing ? (
+                  <Input
+                    type="tel"
+                    value={editData.mobile || ''}
+                    onChange={(e) => handleEditChange('mobile', e.target.value)}
+                    placeholder="+421 123 456 789"
+                    className="w-48"
+                    data-testid="input-mobile"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.mobile || '-'}</span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Adresa */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg font-serif flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Adresa
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Adresa 1:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.addressLine1 || ''}
+                    onChange={(e) => handleEditChange('addressLine1', e.target.value)}
+                    placeholder="Ulica a číslo"
+                    className="w-96"
+                    data-testid="input-addressLine1"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.addressLine1 || '-'}</span>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Adresa 2:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.addressLine2 || ''}
+                    onChange={(e) => handleEditChange('addressLine2', e.target.value)}
+                    placeholder="Ďalšie informácie"
+                    className="w-96"
+                    data-testid="input-addressLine2"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.addressLine2 || '-'}</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Mesto:</span>
+                  {isEditing ? (
+                    <Input
+                      value={editData.city || ''}
+                      onChange={(e) => handleEditChange('city', e.target.value)}
+                      placeholder="Bratislava"
+                      className="w-40"
+                      data-testid="input-city"
+                    />
+                  ) : (
+                    <span className="font-medium">{profileData.city || '-'}</span>
+                  )}
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">PSČ:</span>
+                  {isEditing ? (
+                    <Input
+                      value={editData.pincode || ''}
+                      onChange={(e) => handleEditChange('pincode', e.target.value)}
+                      placeholder="12345"
+                      className="w-32"
+                      data-testid="input-pincode"
+                    />
+                  ) : (
+                    <span className="font-medium">{profileData.pincode || '-'}</span>
+                  )}
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Krajina:</span>
+                  {isEditing ? (
+                    <Input
+                      value={editData.country || ''}
+                      onChange={(e) => handleEditChange('country', e.target.value)}
+                      placeholder="Slovensko"
+                      className="w-40"
+                      data-testid="input-country"
+                    />
+                  ) : (
+                    <span className="font-medium">{profileData.country || '-'}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Biznis informácie */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif flex items-center gap-2">
+              <Building className="h-5 w-5" />
+              Biznis informácie
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">DIČ:</span>
+                {isEditing ? (
+                  <Input
+                    value={editData.taxId || ''}
+                    onChange={(e) => handleEditChange('taxId', e.target.value)}
+                    placeholder="SK1234567890"
+                    className="w-48"
+                    data-testid="input-taxId"
+                  />
+                ) : (
+                  <span className="font-medium">{profileData.taxId || '-'}</span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Systémové informácie */}
+        {(profileData.created || profileData.modified) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-serif flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Systémové informácie
+              </CardTitle>
             </CardHeader>
-            
-            <CardContent className="space-y-8">
-              {/* Základné informácie */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Základné informácie
-                </h3>
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="salutation" className="text-sm font-medium">
-                        Oslovenie
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="salutation"
-                          value={editData.salutation || ''}
-                          onChange={(e) => handleEditChange('salutation', e.target.value)}
-                          placeholder="Pán/Pani"
-                          data-testid="input-salutation"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-salutation">
-                          {profileData.salutation || '-'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName" className="text-sm font-medium">
-                        Meno *
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="firstName"
-                          value={editData.firstName}
-                          onChange={(e) => handleEditChange('firstName', e.target.value)}
-                          placeholder="Vaše meno"
-                          data-testid="input-firstName"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-firstName">
-                          {profileData.firstName || '-'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName" className="text-sm font-medium">
-                        Priezvisko *
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="lastName"
-                          value={editData.lastName}
-                          onChange={(e) => handleEditChange('lastName', e.target.value)}
-                          placeholder="Vaše priezvisko"
-                          data-testid="input-lastName"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-lastName">
-                          {profileData.lastName || '-'}
-                        </div>
-                      )}
-                    </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {profileData.created && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Vytvorené:</span>
+                    <span className="font-medium" data-testid="text-created">
+                      {new Date(profileData.created).toLocaleString('sk-SK')}
+                    </span>
                   </div>
+                )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="gender" className="text-sm font-medium">
-                      Pohlavie
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="gender"
-                        value={editData.gender || ''}
-                        onChange={(e) => handleEditChange('gender', e.target.value)}
-                        placeholder="Muž/Žena"
-                        data-testid="input-gender"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-gender">
-                        {profileData.gender || '-'}
-                      </div>
-                    )}
+                {profileData.modified && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Posledná úprava:</span>
+                    <span className="font-medium" data-testid="text-modified">
+                      {new Date(profileData.modified).toLocaleString('sk-SK')}
+                    </span>
                   </div>
-                </div>
-              </div>
-
-              {/* Kontaktné informácie */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Kontaktné informácie
-                </h3>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      Email *
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="email"
-                        type="email"
-                        value={editData.email}
-                        onChange={(e) => handleEditChange('email', e.target.value)}
-                        placeholder="vas@email.com"
-                        data-testid="input-email"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-email">
-                        {profileData.email || '-'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="mobile" className="text-sm font-medium flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      Mobilný telefón
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="mobile"
-                        type="tel"
-                        value={editData.mobile || ''}
-                        onChange={(e) => handleEditChange('mobile', e.target.value)}
-                        placeholder="+421 123 456 789"
-                        data-testid="input-mobile"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-mobile">
-                        {profileData.mobile || '-'}
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Adresa */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Adresa
-                </h3>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="addressLine1" className="text-sm font-medium">
-                      Adresa 1
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="addressLine1"
-                        value={editData.addressLine1 || ''}
-                        onChange={(e) => handleEditChange('addressLine1', e.target.value)}
-                        placeholder="Ulica a číslo"
-                        data-testid="input-addressLine1"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-addressLine1">
-                        {profileData.addressLine1 || '-'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="addressLine2" className="text-sm font-medium">
-                      Adresa 2
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="addressLine2"
-                        value={editData.addressLine2 || ''}
-                        onChange={(e) => handleEditChange('addressLine2', e.target.value)}
-                        placeholder="Ďalšie informácie"
-                        data-testid="input-addressLine2"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-addressLine2">
-                        {profileData.addressLine2 || '-'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="city" className="text-sm font-medium">
-                        Mesto
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="city"
-                          value={editData.city || ''}
-                          onChange={(e) => handleEditChange('city', e.target.value)}
-                          placeholder="Bratislava"
-                          data-testid="input-city"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-city">
-                          {profileData.city || '-'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="pincode" className="text-sm font-medium">
-                        PSČ
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="pincode"
-                          value={editData.pincode || ''}
-                          onChange={(e) => handleEditChange('pincode', e.target.value)}
-                          placeholder="12345"
-                          data-testid="input-pincode"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-pincode">
-                          {profileData.pincode || '-'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="country" className="text-sm font-medium">
-                        Krajina
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="country"
-                          value={editData.country || ''}
-                          onChange={(e) => handleEditChange('country', e.target.value)}
-                          placeholder="Slovensko"
-                          data-testid="input-country"
-                        />
-                      ) : (
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-country">
-                          {profileData.country || '-'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Biznis informácie */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Biznis informácie
-                </h3>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="taxId" className="text-sm font-medium flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      DIČ
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        id="taxId"
-                        value={editData.taxId || ''}
-                        onChange={(e) => handleEditChange('taxId', e.target.value)}
-                        placeholder="SK1234567890"
-                        data-testid="input-taxId"
-                      />
-                    ) : (
-                      <div className="p-3 bg-muted/50 rounded-md" data-testid="text-taxId">
-                        {profileData.taxId || '-'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Systémové informácie */}
-              {(profileData.created || profileData.modified) && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Systémové informácie</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {profileData.created && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Vytvorené</Label>
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-created">
-                          {new Date(profileData.created).toLocaleString('sk-SK')}
-                        </div>
-                      </div>
-                    )}
-
-                    {profileData.modified && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Posledná úprava</Label>
-                        <div className="p-3 bg-muted/50 rounded-md" data-testid="text-modified">
-                          {new Date(profileData.modified).toLocaleString('sk-SK')}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {isEditing && (
-                <div className="flex gap-3 pt-4 border-t border-border">
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="flex items-center gap-2"
-                    data-testid="button-save-profile"
-                  >
-                    <Save className="h-4 w-4" />
-                    {isSaving ? 'Ukladám...' : 'Uložiť'}
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelEdit}
-                    disabled={isSaving}
-                    className="flex items-center gap-2"
-                    data-testid="button-cancel-edit"
-                  >
-                    <X className="h-4 w-4" />
-                    Zrušiť
-                  </Button>
-                </div>
-              )}
-
-              <div className="text-sm text-muted-foreground pt-4 border-t border-border">
-                <p>* Povinné polia</p>
-                <p className="mt-1">
-                  Vaše údaje sú chránené a používané iba pre účely spracovania objednávok.
-                </p>
+                )}
               </div>
             </CardContent>
           </Card>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      {isEditing && (
+        <div className="flex gap-3 pt-4">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2"
+            data-testid="button-save-profile"
+          >
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Ukladám...' : 'Uložiť zmeny'}
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleCancelEdit}
+            disabled={isSaving}
+            className="flex items-center gap-2"
+            data-testid="button-cancel-edit"
+          >
+            <X className="h-4 w-4" />
+            Zrušiť
+          </Button>
+        </div>
+      )}
+
+      {/* Footer Note */}
+      <div className="text-sm text-muted-foreground pt-4 border-t">
+        <p>* Povinné polia</p>
+        <p className="mt-1">
+          Vaše údaje sú chránené a používané iba pre účely spracovania objednávok.
+        </p>
+      </div>
     </div>
   );
 }

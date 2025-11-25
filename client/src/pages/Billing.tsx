@@ -518,6 +518,16 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                         <div className="flex-1">
                           <span className="font-medium">{item.name}</span>
                           <span className="text-muted-foreground ml-2">× {item.quantity}</span>
+                          {/* Zobraz atribúty s cenami pre custom cake */}
+                          {(item as any).customAttributesWithPrices && Array.isArray((item as any).customAttributesWithPrices) && (item as any).customAttributesWithPrices.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {(item as any).customAttributesWithPrices.map((attr: { name: string; value: string; price: number }, idx: number) => (
+                                <p key={idx} className="text-xs text-muted-foreground" data-testid={`text-attribute-${item.id}-${idx}`}>
+                                  {attr.name}: {attr.value}{attr.price > 0 ? ` ${attr.price} €` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <span className="font-medium" data-testid={`text-order-item-total-${item.id}`}>
 {formatPrice(item.price * item.quantity)}

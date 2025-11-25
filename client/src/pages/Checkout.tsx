@@ -268,14 +268,26 @@ export default function Checkout({ cartItems }: CheckoutProps) {
                         <p className="text-sm text-muted-foreground">
                           {item.quantity} × €{item.price.toFixed(2)}
                         </p>
-                        {item.additional_notes && (
+                        {/* Zobraz atribúty s cenami pre custom cake */}
+                        {(item as any).customAttributesWithPrices && Array.isArray((item as any).customAttributesWithPrices) && (item as any).customAttributesWithPrices.length > 0 ? (
+                          <div className="mt-2 p-2 bg-muted rounded-md">
+                            <p className="text-xs text-muted-foreground mb-1">Konfigurácia produktu:</p>
+                            <div className="space-y-1">
+                              {(item as any).customAttributesWithPrices.map((attr: { name: string; value: string; price: number }, idx: number) => (
+                                <p key={idx} className="text-xs" data-testid={`text-attribute-${item.id}-${idx}`}>
+                                  {attr.name}: {attr.value}{attr.price > 0 ? ` ${attr.price} €` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ) : item.additional_notes ? (
                           <div className="mt-2 p-2 bg-muted rounded-md">
                             <p className="text-xs text-muted-foreground mb-1">Konfigurácia produktu:</p>
                             <p className="text-xs" data-testid={`text-existing-notes-${item.id}`}>
                               {item.additional_notes}
                             </p>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold" data-testid={`text-item-total-${item.id}`}>

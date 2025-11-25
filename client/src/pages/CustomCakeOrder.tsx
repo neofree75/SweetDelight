@@ -44,6 +44,23 @@ interface SpecificationOption {
   id: string;
   name: string;
   options: string[];
+  optionPrices: Map<string, number>; // Mapuje hodnotu na cenu
+}
+
+// Pomocná funkcia na parsovanie cien z atribútov
+// Napr. "Vanilka {5}" → {name: "Vanilka", price: 5}
+function parseAttributeWithPrice(value: string): { name: string; price: number } {
+  const match = value.match(/^(.+?)\s*\{(\d+(?:\.\d+)?)\}/);
+  if (match) {
+    return {
+      name: match[1].trim(),
+      price: parseFloat(match[2])
+    };
+  }
+  return {
+    name: value.trim(),
+    price: 0
+  };
 }
 
 interface CustomCakeOrderProps {
@@ -84,30 +101,56 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
         : undefined);
 
     const fallbackPriceWithVat = websiteItem?.priceWithVat ?? websiteItem?.price ?? 25;
-    const computedPriceWithVat = priceWithVat ?? roundCurrency(fallbackPriceWithVat);
-    const computedPriceWithoutVat = priceWithoutVat ??
-      roundCurrency(computedPriceWithVat / (1 + (vatRate || 20) / 100));
+    const basePriceWithVat = priceWithVat ?? roundCurrency(fallbackPriceWithVat);
+    const basePriceWithoutVat = priceWithoutVat ??
+      roundCurrency(basePriceWithVat / (1 + (vatRate || 20) / 100));
+    
+    // Pripočítaj ceny z vybraných atribútov
+    let attributesPriceTotal = 0;
+    configurationOptions.forEach(option => {
+      const selectedValue = selectedAttributes[option.id];
+      if (selectedValue) {
+        const price = option.optionPrices.get(selectedValue) || 0;
+        attributesPriceTotal += price;
+      }
+    });
+    
+    // Pripočítaj ceny atribútov k základnej cene
+    const computedPriceWithoutVat = basePriceWithoutVat + attributesPriceTotal;
+    const computedPriceWithVat = roundCurrency(computedPriceWithoutVat * (1 + (vatRate || 20) / 100));
     const effectiveVatRate = vatRate || roundCurrency(((computedPriceWithVat / computedPriceWithoutVat) - 1) * 100);
 
     return {
       priceWithoutVat: computedPriceWithoutVat,
       priceWithVat: computedPriceWithVat,
-      vatRate: effectiveVatRate
+      vatRate: effectiveVatRate,
+      attributesPriceTotal
     };
-  }, [customCakeProduct, websiteItem]);
+  }, [customCakeProduct, websiteItem, configurationOptions, selectedAttributes]);
 
   const handleAddToCart = () => {
     // Convert attribute IDs to names for proper display in cart
+    // Ulož informácie o atribútoch s cenami
     const customAttributesWithNames: Record<string, string> = {};
+    const customAttributesWithPrices: Array<{ name: string; value: string; price: number }> = [];
+    
     configurationOptions.forEach(option => {
       const selectedValue = selectedAttributes[option.id];
       if (selectedValue) {
-        customAttributesWithNames[option.name] = selectedValue;
+        const parsed = parseAttributeWithPrice(selectedValue);
+        customAttributesWithNames[option.name] = parsed.name; // Ulož iba názov bez ceny
+        customAttributesWithPrices.push({
+          name: option.name,
+          value: parsed.name,
+          price: parsed.price
+        });
       }
     });
 
-    const attributesText = Object.entries(customAttributesWithNames)
-      .map(([name, value]) => `${name}: ${value}`)
+    // Vytvor text pre atribúty s cenami (napr. "Vanilka 5 €")
+    const attributesText = customAttributesWithPrices
+      .map(attr => `${attr.value} ${attr.price > 0 ? `${attr.price} €` : ''}`)
+      .filter(attr => attr.trim())
       .join(', ');
 
     const baseDescription = websiteItem?.description?.trim();
@@ -130,6 +173,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
       inStock: true,
       minOrderQuantity: customCakeProduct?.minOrderQuantity || 1, // Použij minimálne množstvo z ERPNext
       customAttributes: customAttributesWithNames, // Use names instead of IDs
+      customAttributesWithPrices, // Ulož atribúty s cenami pre zobrazenie
       specialInstructions
     };
 
@@ -156,10 +200,22 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
         .map(value => value.trim())
         .filter(value => value.length > 0);
       const uniqueValues = Array.from(new Set(rawValues));
+      
+      // Vytvor mapu cien pre každú možnosť
+      const optionPrices = new Map<string, number>();
+      const displayOptions: string[] = [];
+      
+      uniqueValues.forEach(rawValue => {
+        const parsed = parseAttributeWithPrice(rawValue);
+        optionPrices.set(rawValue, parsed.price); // Ulož pôvodnú hodnotu s cenou
+        displayOptions.push(parsed.name); // Zobraz iba názov
+      });
+      
       return {
         id: spec.key,
         name: spec.label,
-        options: uniqueValues
+        options: uniqueValues, // Ponechaj pôvodné hodnoty pre výber (obsahujú cenu)
+        optionPrices
       };
     });
   }, [websiteItem]);
@@ -243,15 +299,18 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                         <SelectValue placeholder={`Vyberte ${option.name.toLowerCase()}`} />
                       </SelectTrigger>
                       <SelectContent>
-                        {option.options.map((value) => (
-                          <SelectItem 
-                            key={value} 
-                            value={value}
-                            data-testid={`option-${option.id}-${value}`}
-                          >
-                            {value}
-                          </SelectItem>
-                        ))}
+                        {option.options.map((value) => {
+                          const parsed = parseAttributeWithPrice(value);
+                          return (
+                            <SelectItem 
+                              key={value} 
+                              value={value}
+                              data-testid={`option-${option.id}-${value}`}
+                            >
+                              {parsed.name}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -306,15 +365,19 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                   <h4 className="font-medium text-sm mb-2">Vybraté možnosti:</h4>
                   {selectedOptionCount > 0 ? (
                     <dl className="space-y-2 text-sm">
-                      {websiteItem?.specifications?.map(spec => {
-                        const chosen = selectedAttributes[spec.key];
+                      {configurationOptions.map(option => {
+                        const chosen = selectedAttributes[option.id];
                         if (!chosen) {
                           return null;
                         }
+                        const parsed = parseAttributeWithPrice(chosen);
+                        const price = option.optionPrices.get(chosen) || 0;
                         return (
-                          <div key={spec.key} className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">{spec.label}:</dt>
-                            <dd className="font-medium text-right">{chosen}</dd>
+                          <div key={option.id} className="flex justify-between gap-2">
+                            <dt className="text-muted-foreground">{option.name}:</dt>
+                            <dd className="font-medium text-right">
+                              {parsed.name}{price > 0 ? ` ${price} €` : ''}
+                            </dd>
                           </div>
                         );
                       })}
@@ -336,6 +399,18 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                 )}
 
                 <div className="pt-4 border-t">
+                  {priceData.attributesPriceTotal > 0 && (
+                    <div className="mb-2 space-y-1">
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Základná cena:</span>
+                        <span>{formatPrice(roundCurrency((priceData.priceWithoutVat - priceData.attributesPriceTotal) * (1 + priceData.vatRate / 100)))}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Príplatky za atribúty:</span>
+                        <span>+{formatPrice(roundCurrency(priceData.attributesPriceTotal * (1 + priceData.vatRate / 100)))}</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium">Orientačná cena:</span>
                     <span className="text-2xl font-bold text-primary" data-testid="estimated-price">

@@ -241,7 +241,14 @@ function App() {
                   } else {
                     // Build additional_notes from custom attributes and special instructions
                     let additionalNotes = '';
-                    if (product.customAttributes && Object.keys(product.customAttributes).length > 0) {
+                    // Ak má produkt customAttributesWithPrices, použij ich pre zobrazenie s cenami
+                    if ((product as any).customAttributesWithPrices && Array.isArray((product as any).customAttributesWithPrices)) {
+                      const attributesWithPrices = (product as any).customAttributesWithPrices as Array<{ name: string; value: string; price: number }>;
+                      const attributeDescriptions = attributesWithPrices
+                        .map(attr => `${attr.value}${attr.price > 0 ? ` ${attr.price} €` : ''}`)
+                        .join(', ');
+                      additionalNotes = attributeDescriptions;
+                    } else if (product.customAttributes && Object.keys(product.customAttributes).length > 0) {
                       const attributeDescriptions = Object.entries(product.customAttributes)
                         .map(([key, value]) => `${key}: ${value}`)
                         .join(', ');
@@ -261,7 +268,9 @@ function App() {
                       minOrderQuantity: product.minOrderQuantity || 1,
                       // VAT information
                       vatRate: product.vatRate,
-                      priceWithVat: product.priceWithVat
+                      priceWithVat: product.priceWithVat,
+                      // Ulož customAttributesWithPrices pre zobrazenie v košíku a súhrne
+                      customAttributesWithPrices: (product as any).customAttributesWithPrices
                     }];
                   }
                 });

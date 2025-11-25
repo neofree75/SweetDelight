@@ -141,11 +141,20 @@ export default function Cart({
                       <p className="text-sm text-muted-foreground">
 {formatPrice(item.price)} každý
                       </p>
-                      {item.additional_notes && (
+                      {/* Zobraz atribúty s cenami pre custom cake */}
+                      {(item as any).customAttributesWithPrices && Array.isArray((item as any).customAttributesWithPrices) && (item as any).customAttributesWithPrices.length > 0 ? (
+                        <div className="mt-1 space-y-1">
+                          {(item as any).customAttributesWithPrices.map((attr: { name: string; value: string; price: number }, idx: number) => (
+                            <p key={idx} className="text-xs text-muted-foreground" data-testid={`text-attribute-${item.id}-${idx}`}>
+                              {attr.name}: {attr.value}{attr.price > 0 ? ` ${attr.price} €` : ''}
+                            </p>
+                          ))}
+                        </div>
+                      ) : item.additional_notes ? (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`text-notes-${item.id}`}>
                           {item.additional_notes}
                         </p>
-                      )}
+                      ) : null}
                       {(item.minOrderQuantity || 1) > 1 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Min. množstvo: {item.minOrderQuantity} ks

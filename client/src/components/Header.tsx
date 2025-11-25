@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, User, FileText } from 'lucide-react';
+import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, FileText } from 'lucide-react';
 import logo from '@assets/logo_1757937077215.png';
 
 interface User {
@@ -71,19 +71,8 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
             {/* Authentication Links - Desktop */}
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
-                // User is logged in - show profile and logout
+                // User is logged in - show logout and orders shortcut
                 <>
-                  <Link href="/moj-ucet">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex items-center gap-2"
-                      data-testid="button-profile"
-                    >
-                      <User className="h-4 w-4" />
-                      Môj účet
-                    </Button>
-                  </Link>
                   <Link href="/moj-ucet?section=objednavky">
                     <Button
                       variant="ghost"
@@ -184,20 +173,8 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
               {/* Mobile Auth Links */}
               <div className="border-t border-card-border pt-4">
                 {user ? (
-                  // User is logged in - show profile and logout
+                  // User is logged in - show orders shortcut and logout
                   <div className="space-y-2">
-                    <Link href="/moj-ucet">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-2 w-full justify-start"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        data-testid="mobile-button-profile"
-                      >
-                        <User className="h-4 w-4" />
-                        Môj účet
-                      </Button>
-                    </Link>
                     <Link href="/moj-ucet?section=objednavky">
                       <Button
                         variant="ghost"

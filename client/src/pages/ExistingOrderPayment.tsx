@@ -69,7 +69,7 @@ export default function ExistingOrderPayment() {
   };
 
   const handleBackToOrders = () => {
-    setLocation('/moj-ucet');
+    setLocation('/moj-ucet?section=objednavky');
   };
 
   const handleContinueWithCash = () => {

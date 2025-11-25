@@ -40,7 +40,7 @@ interface AccountProps {
 }
 
 export default function Account({ user }: AccountProps) {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   // Check URL parameter for initial section
   const urlParams = new URLSearchParams(window.location.search);
   const initialSection = urlParams.get('section') || 'profil';
@@ -52,6 +52,26 @@ export default function Account({ user }: AccountProps) {
       setLocation('/prihlasenie');
     }
   }, [user, setLocation]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sectionFromUrl = params.get('section') || 'profil';
+    if (sectionFromUrl !== currentSection) {
+      setCurrentSection(sectionFromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
+
+  const handleSectionChange = (sectionId: string) => {
+    setCurrentSection(sectionId);
+    setLocation(`/moj-ucet?section=${sectionId}`);
+    if (sectionId === 'objednavky') {
+      queryClient.invalidateQueries({ queryKey: ['/api/user-orders'] });
+    }
+    if (sectionId === 'faktury') {
+      queryClient.invalidateQueries({ queryKey: ['/api/user-invoices'] });
+    }
+  };
 
   // Ak nie je prihlásený, zobraz prázdny obsah počas presmerovania
   if (!user) {
@@ -108,15 +128,7 @@ export default function Account({ user }: AccountProps) {
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         onClick={() => {
-                          setCurrentSection(item.id);
-                          // Invaliduj cache pre objednávky aby sa vždy načítali nanovo
-                          if (item.id === 'objednavky') {
-                            queryClient.invalidateQueries({ queryKey: ['/api/user-orders'] });
-                          }
-                          // Invaliduj cache pre faktúry aby sa vždy načítali nanovo
-                          if (item.id === 'faktury') {
-                            queryClient.invalidateQueries({ queryKey: ['/api/user-invoices'] });
-                          }
+                          handleSectionChange(item.id);
                         }}
                         isActive={currentSection === item.id}
                         data-testid={`button-account-${item.id}`}

@@ -279,7 +279,9 @@ export const userOrderSchema = z.object({
   transactionDate: z.string(), // Dátum objednávky
   deliveryDate: z.string().optional(), // Dátum doručenia
   deliveryTime: z.string().optional(), // Čas doručenia
-  total: z.number(), // Celková suma
+  total: z.number(), // Celková suma bez DPH
+  totalWithoutVat: z.number().optional(), // Alias pre celkovú sumu bez DPH
+  totalVat: z.number().optional(), // Celková DPH
   grandTotal: z.number(), // Konečná suma
   currency: z.string(), // Mena
   items: z.array(z.object({
@@ -287,7 +289,12 @@ export const userOrderSchema = z.object({
     itemName: z.string(), // Názov položky
     qty: z.number(), // Množstvo
     rate: z.number(), // Cena za kus
-    amount: z.number(), // Celková suma za položku
+    amount: z.number(), // Celková suma za položku bez DPH
+    amountWithoutVat: z.number().optional(), // Alias pre sumu bez DPH
+    amountWithVat: z.number().optional(), // Celková suma s DPH
+    taxAmount: z.number().optional(), // Výška DPH
+    vatRate: z.number().optional(), // Sadzba DPH
+    priceWithVat: z.number().optional(), // Cena s DPH
     description: z.string().optional(), // Poznámky k položke
   })),
 });

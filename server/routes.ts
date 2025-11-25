@@ -994,7 +994,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Mapuj ERPNext dáta na frontend formát
+      const getItemVatRate = (item: any, order: any) => {
+        if (item?.item_tax_rate) {
+          try {
+            const parsed = JSON.parse(item.item_tax_rate);
+            const values = Object.values(parsed);
+            if (values.length > 0 && typeof values[0] === 'number') {
+              return values[0] as number;
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+
+        if (Array.isArray(order?.taxes) && order.taxes.length > 0) {
+          const taxWithRate = order.taxes.find((tax: any) => typeof tax.rate === 'number');
+          if (taxWithRate) {
+            return taxWithRate.rate;
+          }
+        }
+
+        return 0;
+      };
+
       const orders = erpNextOrders.map(order => {
+        const totalWithoutVat = roundCurrency(order.total || 0);
+        const grandTotal = roundCurrency(order.grand_total || totalWithoutVat);
+        const totalVat = roundCurrency(grandTotal - totalWithoutVat);
+
         // Parse delivery time from remarks if available
         let deliveryTime: string | undefined;
         if (order.remarks) {
@@ -1012,17 +1039,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           transactionDate: order.transaction_date,
           deliveryDate: order.delivery_date,
           deliveryTime: deliveryTime, // Pridaj čas doručenia
-          total: order.total || 0,
-          grandTotal: order.grand_total || 0,
+          total: totalWithoutVat,
+          totalWithoutVat,
+          totalVat,
+          grandTotal,
           currency: order.currency || 'EUR',
-          items: (order.items || []).map((item: any) => ({
-            itemCode: item.item_code,
-            itemName: item.item_name,
-            qty: item.qty || 0,
-            rate: item.rate || 0,
-            amount: item.amount || 0,
-            description: item.description
-          }))
+          items: (order.items || []).map((item: any) => {
+            const qty = item.qty || 0;
+            const rate = item.rate || 0;
+            const vatRate = getItemVatRate(item, order);
+            const amountWithoutVat = item.amount || roundCurrency(rate * qty);
+            const priceWithVat = roundCurrency(rate * (1 + vatRate / 100));
+            const amountWithVat = roundCurrency(amountWithoutVat * (1 + vatRate / 100));
+            const taxAmount = roundCurrency(amountWithVat - amountWithoutVat);
+
+            return {
+              itemCode: item.item_code,
+              itemName: item.item_name,
+              qty,
+              rate,
+              amount: amountWithoutVat,
+              description: item.description,
+              vatRate,
+              priceWithVat,
+              amountWithoutVat,
+              amountWithVat,
+              taxAmount
+            };
+          })
         };
       });
       

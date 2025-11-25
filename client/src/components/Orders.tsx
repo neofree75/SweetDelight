@@ -25,6 +25,18 @@ interface OrdersResponse {
 
 const ITEMS_PER_PAGE = 10;
 
+const calculateOrderTotals = (order: UserOrder) => {
+  const withoutVat = order.totalWithoutVat ?? order.total ?? 0;
+  const vat = order.totalVat ?? Math.max(order.grandTotal - withoutVat, 0);
+  const withVat = order.grandTotal ?? withoutVat + vat;
+  return { withoutVat, vat, withVat };
+};
+
+const getVatRateLabel = (order: UserOrder) => {
+  const itemWithVat = order.items.find(item => typeof item.vatRate === 'number' && item.vatRate > 0);
+  return itemWithVat?.vatRate;
+};
+
 export function Orders() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -297,7 +309,11 @@ export function Orders() {
       </div>
 
       <div className="space-y-4">
-        {paginatedOrders.map((order) => (
+        {paginatedOrders.map((order) => {
+          const orderTotals = calculateOrderTotals(order);
+          const vatLabel = getVatRateLabel(order);
+
+          return (
           <Card key={order.id} className="hover-elevate" data-testid={`order-${order.id}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -403,6 +419,29 @@ export function Orders() {
                   </span>
                 </div>
               </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3 bg-muted/30 rounded-md p-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Cena bez DPH</p>
+                  <p className="font-semibold text-foreground">
+                    {formatCurrency(orderTotals.withoutVat, order.currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">
+                    DPH{typeof vatLabel === 'number' ? ` (${vatLabel}%)` : ''}
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formatCurrency(orderTotals.vat, order.currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Cena s DPH</p>
+                  <p className="font-semibold text-foreground">
+                    {formatCurrency(orderTotals.withVat, order.currency)}
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             
             <CardContent className="pt-0">
@@ -430,12 +469,20 @@ export function Orders() {
                       )}
                     </div>
                     
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">
-                        {item.qty} × {formatCurrency(item.rate, order.currency)}
+                    <div className="text-right space-y-1 text-sm">
+                      <div className="text-muted-foreground">
+                        {item.qty} × {formatCurrency(item.rate, order.currency)} bez DPH
                       </div>
+                      <div className="text-muted-foreground">
+                        Bez DPH: {formatCurrency(item.amountWithoutVat ?? item.amount, order.currency)}
+                      </div>
+                      {typeof item.taxAmount === 'number' && (
+                        <div className="text-muted-foreground">
+                          DPH{typeof item.vatRate === 'number' ? ` (${item.vatRate}%)` : ''}: {formatCurrency(item.taxAmount, order.currency)}
+                        </div>
+                      )}
                       <div className="font-semibold text-foreground">
-                        {formatCurrency(item.amount, order.currency)}
+                        {formatCurrency(item.amountWithVat ?? item.amount, order.currency)} s DPH
                       </div>
                     </div>
                   </div>
@@ -444,11 +491,27 @@ export function Orders() {
               
               <Separator className="my-4" />
               
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Celková suma:</span>
-                <span className="text-lg font-bold text-foreground">
-                  {formatCurrency(order.grandTotal, order.currency)}
-                </span>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Cena bez DPH</span>
+                  <span className="font-medium text-foreground">
+                    {formatCurrency(orderTotals.withoutVat, order.currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">
+                    DPH{typeof vatLabel === 'number' ? ` (${vatLabel}%)` : ''}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {formatCurrency(orderTotals.vat, order.currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Cena s DPH</span>
+                  <span className="text-lg font-bold text-foreground">
+                    {formatCurrency(orderTotals.withVat, order.currency)}
+                  </span>
+                </div>
               </div>
 
               {/* Pay button for orders with "New" status */}
@@ -469,7 +532,8 @@ export function Orders() {
               )}
             </CardContent>
           </Card>
-        ))}
+        );
+        })}
       </div>
 
       {/* Pagination */}

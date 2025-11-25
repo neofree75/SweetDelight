@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Package, Calendar, CreditCard, FileText, ChevronLeft, ChevronRight, User, Search, X, Edit } from "lucide-react";
+import { Loader2, Package, Calendar, CreditCard, FileText, ChevronLeft, ChevronRight, User, Search, X, Edit, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { UserOrder } from "@shared/schema";
@@ -524,8 +524,8 @@ export function Orders() {
                       className="w-full sm:w-auto"
                       data-testid={`button-pay-order-${order.id}`}
                     >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Uhradiť objednávku
+                      <Eye className="mr-2 h-4 w-4" />
+                      Detail objednávky
                     </Button>
                   </div>
                 </>

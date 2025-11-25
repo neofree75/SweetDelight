@@ -158,9 +158,9 @@ export default function ExistingOrderPayment() {
             <h1 className="text-3xl font-serif">Platba objednávky</h1>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left side - Order summary */}
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left side - Order summary (wider column) */}
+            <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl font-serif flex items-center gap-2">

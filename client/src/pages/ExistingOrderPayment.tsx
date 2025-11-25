@@ -72,12 +72,6 @@ export default function ExistingOrderPayment() {
     setLocation('/moj-ucet?section=objednavky');
   };
 
-  const handleContinueWithCash = () => {
-    // For cash payments, we would need to update the order status
-    console.log('Processing cash payment order');
-    // TODO: Create endpoint to handle cash payment acceptance
-    setLocation('/order-success');
-  };
 
   const formatDate = (dateString: string) => {
     try {
@@ -344,6 +338,15 @@ export default function ExistingOrderPayment() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                      <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                        ✓ Objednávka je pripravená
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        Vaša objednávka #{orderId} bola úspešne vytvorená a je pripravená na vyzdvihnutie.
+                      </p>
+                    </div>
+                    
                     <div className="p-4 bg-muted rounded-lg">
                       <p className="text-sm text-muted-foreground mb-2">Suma k úhrade pri prevzatí:</p>
                       <p className="text-xl font-semibold">{formatPrice(finalAmount)}</p>
@@ -354,15 +357,6 @@ export default function ExistingOrderPayment() {
                       <p>• Platbu vykonáte pri prevzatí tovaru</p>
                       <p>• Akceptujeme hotovosť a platobné karty</p>
                     </div>
-                    
-                    <Button 
-                      className="w-full" 
-                      size="lg"
-                      onClick={handleContinueWithCash}
-                      data-testid="button-confirm-cash-order"
-                    >
-                      Potvrdiť objednávku
-                    </Button>
                   </CardContent>
                 </Card>
               )}

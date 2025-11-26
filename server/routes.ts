@@ -1629,16 +1629,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Sales Order not found" });
       }
 
-      // Verify that this Sales Order belongs to the authenticated user
+      // Verify that this Sales Order belongs to the authenticated user (or user is admin)
       // Find customer by email (same approach as in user-orders API)
       const userEmail = session.user.email;
-      const customer = await erpNextService.findCustomerByEmail(userEmail);
+      const isAdmin = session.user.userType === "System User" || session.user.isAdmin === true;
       
-      console.log(`[ORDER-AUTH] User: ${userEmail}, Found Customer: ${customer?.customerId}, Order: ${orderId}, Order Customer: ${salesOrder.customer}`);
+      console.log(`[ORDER-AUTH] User: ${userEmail}, isAdmin: ${isAdmin}, Order: ${orderId}, Order Customer: ${salesOrder.customer}`);
       
-      if (!customer || salesOrder.customer !== customer.customerId) {
-        console.log(`[ORDER-AUTH] Security check failed: User ${userEmail} (customer: ${customer?.customerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
-        return res.status(403).json({ error: "Access denied - order does not belong to authenticated user" });
+      // Admin users can access all orders
+      if (!isAdmin) {
+        const customer = await erpNextService.findCustomerByEmail(userEmail);
+        
+        console.log(`[ORDER-AUTH] Regular user - Found Customer: ${customer?.customerId}, Order Customer: ${salesOrder.customer}`);
+        
+        if (!customer || salesOrder.customer !== customer.customerId) {
+          console.log(`[ORDER-AUTH] Security check failed: User ${userEmail} (customer: ${customer?.customerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
+          return res.status(403).json({ error: "Access denied - order does not belong to authenticated user" });
+        }
+      } else {
+        console.log(`[ORDER-AUTH] Admin user - allowing access to order ${orderId}`);
       }
 
       // Check if order is in a state that allows payment

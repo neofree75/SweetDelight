@@ -424,7 +424,7 @@ export default function Profile({ user }: ProfileProps) {
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Adresa 1:</span>
+                <span className="text-muted-foreground">Ulica a číslo:</span>
                     {isEditing ? (
                       <Input
                         value={editData.addressLine1 || ''}

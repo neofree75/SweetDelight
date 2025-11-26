@@ -426,7 +426,7 @@ export function Orders() {
                   <span className="font-medium text-foreground">
                     {formatCurrency(orderTotals.withoutVat, order.currency)}
                   </span>
-                </div>
+                    </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">
                     DPH{typeof vatLabel === 'number' ? ` (${vatLabel}%)` : ''}
@@ -434,27 +434,27 @@ export function Orders() {
                   <span className="font-medium text-foreground">
                     {formatCurrency(orderTotals.vat, order.currency)}
                   </span>
-                </div>
+                      </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Cena s DPH</span>
                   <span className="text-lg font-bold text-foreground">
                     {formatCurrency(orderTotals.withVat, order.currency)}
                   </span>
-                </div>
+                  </div>
               </div>
-
+              
               {/* View Order Details button */}
-              <Separator className="my-4" />
-              <div className="flex justify-end">
-                <Button
+                  <Separator className="my-4" />
+                  <div className="flex justify-end">
+                    <Button
                   onClick={() => setLocation(`/order-detail?orderId=${order.id}`)}
-                  className="w-full sm:w-auto"
+                      className="w-full sm:w-auto"
                   data-testid={`button-view-order-detail-${order.id}`}
-                >
+                    >
                   <Eye className="mr-2 h-4 w-4" />
                   Detail objednávky
-                </Button>
-              </div>
+                    </Button>
+                  </div>
             </CardContent>
           </Card>
         );

@@ -432,31 +432,31 @@ export default function QRPayment({
         {/* Submit Button - Only show if showSubmitButton is true */}
         {showSubmitButton && (
           <>
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={handleSubmitPayment}
-              disabled={isButtonDisabled}
-              data-testid="button-submit-payment"
-            >
-              {isButtonDisabled ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {paymentSubmitted ? 'Objednávka odoslaná' : 'Spracúvam...'}
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Potvrdiť objednávku
-                </>
-              )}
-            </Button>
+        <Button 
+          className="w-full" 
+          size="lg"
+          onClick={handleSubmitPayment}
+          disabled={isButtonDisabled}
+          data-testid="button-submit-payment"
+        >
+          {isButtonDisabled ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {paymentSubmitted ? 'Objednávka odoslaná' : 'Spracúvam...'}
+            </>
+          ) : (
+            <>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Potvrdiť objednávku
+            </>
+          )}
+        </Button>
 
-            {paymentSubmitted && (
-              <div className="text-center text-sm text-muted-foreground">
-                <p>✅ Objednávka bola úspešne odoslaná</p>
-                <p>Vykonajte platbu podľa pokynov vyššie</p>
-              </div>
+        {paymentSubmitted && (
+          <div className="text-center text-sm text-muted-foreground">
+            <p>✅ Objednávka bola úspešne odoslaná</p>
+            <p>Vykonajte platbu podľa pokynov vyššie</p>
+          </div>
             )}
           </>
         )}

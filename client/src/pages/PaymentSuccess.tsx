@@ -61,9 +61,9 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
         description="Vaša objednávka bola úspešne zaznamenaná. Ďakujeme za vašu objednávku."
         canonical="/payment-success"
       />
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
           {/* Success Header */}
           <div className="text-center mb-8">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />

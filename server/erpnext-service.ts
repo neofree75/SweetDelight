@@ -2017,7 +2017,7 @@ export class ERPNextService {
       const customerFields = [
         "name", "customer_name", "email_id", 
         "customer_group", "territory", "creation", "modified", "customer_type",
-        "customer_primary_address"
+        "customer_primary_address", "tax_id", "ico", "ic_dph", "zapis_v_orsr"
       ];
       
       const customerResponse = await this.client.get(`/resource/Customer?filters=[["email_id","=","${email}"]]&fields=${JSON.stringify(customerFields)}`);
@@ -2122,6 +2122,10 @@ export class ERPNextService {
             customerGroup: customer.customer_group || '',
             territory: customer.territory || '',
             customerType: customer.customer_type || '',
+            taxId: customer.tax_id || '',
+            ico: customer.ico || '',
+            icDph: customer.ic_dph || '',
+            zapisVOrsr: customer.zapis_v_orsr || '',
             
             // Systémové údaje
             created: customer.creation || '',
@@ -2237,6 +2241,11 @@ export class ERPNextService {
     state?: string;
     pincode?: string;
     country?: string;
+    customerType?: string;
+    taxId?: string;
+    ico?: string;
+    icDph?: string;
+    zapisVOrsr?: string;
   }): Promise<{ success: boolean; message: string }> {
     this.refreshClient();
     try {
@@ -2254,11 +2263,31 @@ export class ERPNextService {
 
       const customerName = customerResponse.data.data[0].name;
       
-      // Update customer basic data (name)
-      const customerUpdateData = {
+      // Update customer basic data (name and customer_type)
+      const customerUpdateData: any = {
         customer_name: `${profileData.firstName} ${profileData.lastName}`,
         email_id: profileData.email
       };
+      
+      // Update customer_type if provided
+      if (profileData.customerType) {
+        customerUpdateData.customer_type = profileData.customerType;
+        console.log(`Updating customer_type to: ${profileData.customerType}`);
+      }
+      
+      // Update business fields if provided
+      if (profileData.taxId !== undefined) {
+        customerUpdateData.tax_id = profileData.taxId || null;
+      }
+      if (profileData.ico !== undefined) {
+        customerUpdateData.ico = profileData.ico || null;
+      }
+      if (profileData.icDph !== undefined) {
+        customerUpdateData.ic_dph = profileData.icDph || null;
+      }
+      if (profileData.zapisVOrsr !== undefined) {
+        customerUpdateData.zapis_v_orsr = profileData.zapisVOrsr || null;
+      }
 
       const customerUpdateResponse = await this.client.put(`/resource/Customer/${customerName}`, customerUpdateData);
       

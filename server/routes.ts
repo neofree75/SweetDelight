@@ -928,7 +928,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         country,
         salutation,
         gender,
-        taxId
+        taxId,
+        customerType,
+        ico,
+        icDph,
+        zapisVOrsr
       } = req.body;
 
       const userEmail = session.user.email;
@@ -945,7 +949,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: city,
         state: state,
         pincode: pincode,
-        country: country
+        country: country,
+        customerType: customerType,
+        taxId: taxId,
+        ico: ico,
+        icDph: icDph,
+        zapisVOrsr: zapisVOrsr
       });
 
       if (!updateResult.success) {
@@ -1071,8 +1080,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const taxAmount = roundCurrency(amountWithVat - amountWithoutVat);
 
             return {
-              itemCode: item.item_code,
-              itemName: item.item_name,
+            itemCode: item.item_code,
+            itemName: item.item_name,
               qty,
               rate,
               amount: amountWithoutVat,

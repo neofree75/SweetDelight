@@ -160,11 +160,11 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
             
             <main className="flex-1 overflow-auto bg-background min-h-0 p-6">
               <div className="text-center">
-                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-pulse" />
-                <h1 className="text-2xl font-serif mb-4">Pripravujem platbu...</h1>
-                <p className="text-muted-foreground">
-                  Načítavam údaje o objednávke a možnostiach platby.
-                </p>
+            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-pulse" />
+            <h1 className="text-2xl font-serif mb-4">Pripravujem platbu...</h1>
+            <p className="text-muted-foreground">
+              Načítavam údaje o objednávke a možnostiach platby.
+            </p>
               </div>
             </main>
           </div>
@@ -209,14 +209,14 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
             
             <main className="flex-1 overflow-auto bg-background min-h-0 p-6">
               <div className="text-center">
-                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h1 className="text-2xl font-serif mb-4">Chyba pri načítaní objednávky</h1>
-                <p className="text-muted-foreground mb-8">
-                  {error instanceof Error ? error.message : 'Nastala chyba pri načítaní objednávky.'}
-                </p>
-                <Button onClick={handleBackToOrders}>
-                  Späť na objednávky
-                </Button>
+            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h1 className="text-2xl font-serif mb-4">Chyba pri načítaní objednávky</h1>
+            <p className="text-muted-foreground mb-8">
+              {error instanceof Error ? error.message : 'Nastala chyba pri načítaní objednávky.'}
+            </p>
+            <Button onClick={handleBackToOrders}>
+              Späť na objednávky
+            </Button>
               </div>
             </main>
           </div>
@@ -261,14 +261,14 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
             
             <main className="flex-1 overflow-auto bg-background min-h-0 p-6">
               <div className="text-center">
-                <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h1 className="text-2xl font-serif mb-4">Objednávka sa nenašla</h1>
-                <p className="text-muted-foreground mb-8">
-                  Zdá sa, že sa stratili údaje o objednávke. Začnite prosím znovu.
-                </p>
-                <Button onClick={handleBackToOrders}>
-                  Späť na objednávky
-                </Button>
+            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h1 className="text-2xl font-serif mb-4">Objednávka sa nenašla</h1>
+            <p className="text-muted-foreground mb-8">
+              Zdá sa, že sa stratili údaje o objednávke. Začnite prosím znovu.
+            </p>
+            <Button onClick={handleBackToOrders}>
+              Späť na objednávky
+            </Button>
               </div>
             </main>
           </div>
@@ -314,15 +314,15 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
           <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={handleBackToOrders}
-                data-testid="button-back-to-orders"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={handleBackToOrders}
+              data-testid="button-back-to-orders"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </div>
             <h1 className="text-lg font-playfair">Detail objednávky</h1>
             <div></div>
           </header>
@@ -363,15 +363,15 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                           <span>{formatPrice(paymentData.amounts.totalWithoutVat)}</span>
                         </div>
                         {paymentData.amounts.totalVat !== undefined && (
-                          <div className="flex justify-between">
+                    <div className="flex justify-between">
                             <span className="text-muted-foreground">DPH:</span>
                             <span>{formatPrice(paymentData.amounts.totalVat)}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-semibold pt-1 border-t">
                           <span>Celková suma s DPH:</span>
-                          <span>{formatPrice(paymentData.amounts.total)}</span>
-                        </div>
+                      <span>{formatPrice(paymentData.amounts.total)}</span>
+                    </div>
                       </div>
                     )}
                     
@@ -410,18 +410,18 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                       return (
                         <div key={index} className="p-3 rounded-md bg-muted/30 space-y-2">
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h5 className="font-medium">{item.name}</h5>
-                              <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
+                      <div className="flex-1">
+                        <h5 className="font-medium">{item.name}</h5>
+                        <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
                               {item.description && (
                                 <p className="text-xs text-muted-foreground italic mt-1">{item.description}</p>
                               )}
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground">
                                 {item.quantity} × {formatPrice(priceWithVat)}
-                              </div>
-                              <div className="font-semibold">
+                        </div>
+                        <div className="font-semibold">
                                 {formatPrice(amountWithVat)}
                               </div>
                             </div>
@@ -494,7 +494,7 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                                   {item.description && (
                                     <div className="text-xs text-muted-foreground italic mt-1">{item.description}</div>
                                   )}
-                                </div>
+                      </div>
                               </td>
                               <td className="p-3 text-right">{item.quantity}</td>
                               <td className="p-3 text-right">{formatPrice(priceWithoutVat)}</td>
@@ -512,7 +512,7 @@ export default function ExistingOrderPayment({ user }: ExistingOrderPaymentProps
                         })}
                       </tbody>
                     </table>
-                  </div>
+                    </div>
                 </CardContent>
               </Card>
 

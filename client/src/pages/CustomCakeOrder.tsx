@@ -309,13 +309,13 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                         {option.options.map((value) => {
                           const parsed = parseAttributeWithPrice(value);
                           return (
-                            <SelectItem 
-                              key={value} 
-                              value={value}
-                              data-testid={`option-${option.id}-${value}`}
-                            >
+                          <SelectItem 
+                            key={value} 
+                            value={value}
+                            data-testid={`option-${option.id}-${value}`}
+                          >
                               {parsed.name}
-                            </SelectItem>
+                          </SelectItem>
                           );
                         })}
                       </SelectContent>

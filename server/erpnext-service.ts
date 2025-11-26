@@ -3253,45 +3253,80 @@ export class ERPNextService {
         return null;
       }
 
+      // Work Order in ERPNext typically doesn't need items array - it uses production_item
+      // But we'll include description/notes with all the details
+      const workOrderNotes = [
+        `Vytvorený z objednávky ${salesOrderId}`,
+        salesOrder.remarks ? `Poznámky: ${salesOrder.remarks}` : '',
+        '',
+        'Položky objednávky:',
+        ...items.map((item: any) => 
+          `- ${item.item_name} (${item.qty}x): ${item.description || 'bez popisu'}`
+        )
+      ].filter(Boolean).join('\n');
+
+      // Parse delivery date
+      const deliveryDate = salesOrder.delivery_date ? salesOrder.delivery_date.split(' ')[0] : new Date().toISOString().split('T')[0];
+      const startDate = new Date().toISOString().split('T')[0];
+      
+      // Create minimal Work Order - ERPNext will auto-populate from BOM if exists
       const workOrderData: any = {
         doctype: "Work Order",
         company: company,
         production_item: productionItem.item_code,
-        item_name: productionItem.item_name,
         qty: productionItem.qty,
         sales_order: salesOrderId,
-        customer: salesOrder.customer,
-        planned_start_date: new Date().toISOString().split('T')[0],
-        planned_end_date: salesOrder.delivery_date ? salesOrder.delivery_date.split(' ')[0] : new Date().toISOString().split('T')[0],
-        // Include all items with their descriptions (attributes for custom cakes)
-        items: items.map((item: any) => ({
-          item_code: item.item_code,
-          item_name: item.item_name,
-          qty: item.qty,
-          description: item.description,
-          source_warehouse: item.source_warehouse,
-          target_warehouse: item.target_warehouse,
-          parentfield: "items"
-        })),
-        // Add notes with order details
-        notes: `Vytvorený z objednávky ${salesOrderId}.${salesOrder.remarks ? ' ' + salesOrder.remarks : ''}`
+        planned_start_date: startDate,
+        planned_end_date: deliveryDate
       };
+      
+      // Add optional fields only if they exist
+      if (salesOrder.customer) {
+        workOrderData.customer = salesOrder.customer;
+      }
+      
+      if (workOrderNotes) {
+        workOrderData.notes = workOrderNotes;
+      }
 
       console.log(`[createWorkOrder] Work Order data:`, JSON.stringify(workOrderData, null, 2));
 
-      const response = await this.client.post('/resource/Work%20Order', workOrderData);
-      
-      if (response.data && response.data.data) {
-        const workOrderId = response.data.data.name || response.data.data;
-        console.log(`[createWorkOrder] Work Order created successfully: ${workOrderId}`);
-        return workOrderId;
-      }
+      try {
+        const response = await this.client.post('/resource/Work%20Order', workOrderData);
+        
+        if (response.data && response.data.data) {
+          const workOrderId = response.data.data.name || response.data.data;
+          console.log(`[createWorkOrder] Work Order created successfully: ${workOrderId}`);
+          return workOrderId;
+        }
 
-      console.error(`[createWorkOrder] Unexpected response format:`, response.data);
-      return null;
-    } catch (error) {
+        console.error(`[createWorkOrder] Unexpected response format:`, response.data);
+        return null;
+      } catch (apiError: any) {
+        // Log detailed error information
+        if (apiError.response) {
+          console.error(`[createWorkOrder] ERPNext API Error:`, {
+            status: apiError.response.status,
+            statusText: apiError.response.statusText,
+            data: apiError.response.data,
+            message: apiError.response.data?.message || apiError.response.data?.exc || apiError.message
+          });
+          
+          // Try to extract meaningful error message
+          const errorMessage = apiError.response.data?.message || 
+                              apiError.response.data?.exc || 
+                              JSON.stringify(apiError.response.data);
+          throw new Error(`ERPNext API Error: ${errorMessage}`);
+        }
+        throw apiError;
+      }
+    } catch (error: any) {
       this.logError('Error creating Work Order:', error);
-      return null;
+      // Re-throw with more context
+      if (error.message && error.message.includes('ERPNext API Error')) {
+        throw error;
+      }
+      throw new Error(`Failed to create Work Order: ${error.message || 'Unknown error'}`);
     }
   }
 

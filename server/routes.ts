@@ -1821,17 +1821,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Work Order in ERPNext
-      const workOrderId = await erpNextService.createWorkOrderFromSalesOrder(orderId, salesOrder);
-      
-      if (!workOrderId) {
-        return res.status(500).json({ error: "Failed to create Work Order in ERPNext" });
-      }
+      try {
+        const workOrderId = await erpNextService.createWorkOrderFromSalesOrder(orderId, salesOrder);
+        
+        if (!workOrderId) {
+          return res.status(500).json({ error: "Failed to create Work Order in ERPNext", details: "No work order ID returned" });
+        }
 
-      res.json({
-        success: true,
-        workOrderId,
-        message: `Work Order ${workOrderId} created successfully`
-      });
+        res.json({
+          success: true,
+          workOrderId,
+          message: `Work Order ${workOrderId} created successfully`
+        });
+      } catch (workOrderError: any) {
+        console.error("Error creating work order in ERPNext:", workOrderError);
+        return res.status(500).json({ 
+          error: "Failed to create Work Order in ERPNext", 
+          message: workOrderError.message || 'Unknown error',
+          details: workOrderError.response?.data || workOrderError.message
+        });
+      }
     } catch (error: any) {
       console.error("Error creating work order:", error);
       res.status(500).json({ error: "Failed to create work order", message: error.message });

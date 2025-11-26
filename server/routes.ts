@@ -274,14 +274,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/website-items/:websiteItemId", async (req, res) => {
     try {
-      const { websiteItemId } = req.params;
+      let { websiteItemId } = req.params;
       if (!websiteItemId) {
         return res.status(400).json({ error: "Website Item ID is required" });
       }
 
+      // Odstráň variant ID ak je prítomný (napr. "WEB-ITM-0004:1" -> "WEB-ITM-0004")
+      // ERPNext môže vracať varianty s dvojbodkou, ale pre Website Item potrebujeme základný názov
+      if (websiteItemId.includes(':')) {
+        websiteItemId = websiteItemId.split(':')[0];
+        console.log(`[website-items] Removed variant suffix, using: ${websiteItemId}`);
+      }
+
+      console.log(`[website-items] Fetching Website Item: ${websiteItemId}`);
       const websiteItem = await erpNextService.getWebsiteItemByName(websiteItemId);
       if (!websiteItem) {
-        return res.status(404).json({ error: "Website Item not found" });
+        console.log(`[website-items] Website Item ${websiteItemId} not found`);
+        return res.status(404).json({ error: "Website Item not found", itemId: websiteItemId });
       }
 
       res.json(websiteItem);

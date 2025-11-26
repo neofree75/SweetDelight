@@ -3130,6 +3130,11 @@ export class ERPNextService {
   } | null> {
     this.refreshClient();
     try {
+      // Odstráň variant ID ak je prítomný (napr. "WEB-ITM-0004:1" -> "WEB-ITM-0004")
+      const cleanName = websiteItemName.includes(':') ? websiteItemName.split(':')[0] : websiteItemName;
+      
+      console.log(`[getWebsiteItemByName] Fetching Website Item: ${cleanName} (original: ${websiteItemName})`);
+      
       const fields = [
         "name",
         "web_item_name",
@@ -3146,7 +3151,11 @@ export class ERPNextService {
         "route",
         "website_specifications"
       ];
-      const response = await this.client.get(`/resource/Website%20Item/${encodeURIComponent(websiteItemName)}`, {
+      
+      const encodedName = encodeURIComponent(cleanName);
+      console.log(`[getWebsiteItemByName] Encoded name: ${encodedName}`);
+      
+      const response = await this.client.get(`/resource/Website%20Item/${encodedName}`, {
         params: {
           fields: JSON.stringify(fields)
         }
@@ -3154,9 +3163,11 @@ export class ERPNextService {
 
       const websiteItem = response.data?.data;
       if (!websiteItem) {
-        console.log(`[getWebsiteItemByName] Website Item ${websiteItemName} not found`);
+        console.log(`[getWebsiteItemByName] Website Item ${cleanName} not found`);
         return null;
       }
+      
+      console.log(`[getWebsiteItemByName] Website Item ${cleanName} found:`, websiteItem.name);
 
       let imageUrl = '/placeholder-product.jpg';
       const candidateImage = websiteItem.website_image || websiteItem.image;

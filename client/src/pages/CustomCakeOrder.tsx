@@ -81,7 +81,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
   // Fetch custom cake product for min order quantity
   const { data: customCakeProduct, isLoading: productLoading } = useCustomCakeProduct();
 
-  const { data: websiteItem, isLoading: websiteItemLoading, error: websiteItemError } = useWebsiteItem('WEB-ITM-0004');
+  const { data: websiteItem, isLoading: websiteItemLoading, error: websiteItemError } = useWebsiteItem('WEB-ITM-0425');
   
   const isLoading = productLoading || websiteItemLoading;
 

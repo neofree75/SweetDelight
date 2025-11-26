@@ -9,6 +9,7 @@ import { CartItem } from "@shared/schema";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
+import CookieConsent from "@/components/CookieConsent";
 import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
 import ProductDetail from "@/pages/ProductDetail";
@@ -300,6 +301,8 @@ function App() {
             onRemoveItem={handleRemoveFromCart}
             onCheckout={handleCheckout}
           />
+          
+          <CookieConsent />
         </div>
         
         <Toaster />

@@ -3269,7 +3269,37 @@ export class ERPNextService {
       const deliveryDate = salesOrder.delivery_date ? salesOrder.delivery_date.split(' ')[0] : new Date().toISOString().split('T')[0];
       const startDate = new Date().toISOString().split('T')[0];
       
-      // Create minimal Work Order - ERPNext will auto-populate from BOM if exists
+      // Get BOM for production item
+      let bomNo: string | null = null;
+      try {
+        const bomResponse = await this.client.get('/resource/BOM', {
+          params: {
+            fields: JSON.stringify(['name', 'item', 'is_active', 'is_default']),
+            filters: JSON.stringify([
+              ['item', '=', productionItem.item_code],
+              ['is_active', '=', 1]
+            ]),
+            limit_page_length: 1
+          }
+        });
+        
+        const boms = bomResponse.data?.data || [];
+        if (boms.length > 0) {
+          // Prefer default BOM, otherwise use first active BOM
+          const defaultBom = boms.find((bom: any) => bom.is_default === 1);
+          bomNo = (defaultBom || boms[0]).name;
+          console.log(`[createWorkOrder] Found BOM ${bomNo} for item ${productionItem.item_code}`);
+        } else {
+          console.warn(`[createWorkOrder] No active BOM found for item ${productionItem.item_code}`);
+        }
+      } catch (bomError) {
+        console.warn(`[createWorkOrder] Error fetching BOM for ${productionItem.item_code}:`, bomError);
+      }
+      
+      // Get finished goods warehouse (use default warehouse)
+      const fgWarehouse = this.getDefaultWarehouse();
+      
+      // Create Work Order with required fields
       const workOrderData: any = {
         doctype: "Work Order",
         company: company,
@@ -3277,8 +3307,14 @@ export class ERPNextService {
         qty: productionItem.qty,
         sales_order: salesOrderId,
         planned_start_date: startDate,
-        planned_end_date: deliveryDate
+        planned_end_date: deliveryDate,
+        fg_warehouse: fgWarehouse
       };
+      
+      // Add BOM if found
+      if (bomNo) {
+        workOrderData.bom_no = bomNo;
+      }
       
       // Add optional fields only if they exist
       if (salesOrder.customer) {

@@ -3208,6 +3208,93 @@ export class ERPNextService {
     }
   }
 
+  // Create Work Order from Sales Order
+  async createWorkOrderFromSalesOrder(salesOrderId: string, salesOrder: any): Promise<string | null> {
+    this.refreshClient();
+    try {
+      console.log(`[createWorkOrder] Creating Work Order from Sales Order: ${salesOrderId}`);
+      
+      const company = this.getDefaultCompany();
+      const items = (salesOrder.items || []).map((item: any) => {
+        // For custom cakes, extract attributes from description
+        const isCustomCake = item.item_code === 'TORTCUS001' || 
+                            item.item_code.startsWith('custom-cake-') ||
+                            (item.item_name && item.item_name.toLowerCase().includes('torta na mieru'));
+        
+        let operation = item.item_code;
+        let description = item.description || item.item_name || '';
+        
+        // If it's a custom cake, include attributes in description
+        if (isCustomCake && item.description) {
+          // Description already contains attributes, use it as is
+          description = item.description;
+        }
+        
+        return {
+          item_code: item.item_code,
+          item_name: item.item_name,
+          qty: item.qty,
+          description: description,
+          operation: operation,
+          source_warehouse: item.warehouse || this.getDefaultWarehouse(),
+          target_warehouse: item.warehouse || this.getDefaultWarehouse(),
+          parentfield: "items"
+        };
+      });
+
+      // Get production item (first item or TORTCUS001 for custom cakes)
+      const productionItem = items.find((item: any) => 
+        item.item_code === 'TORTCUS001' || 
+        item.item_code.startsWith('custom-cake-')
+      ) || items[0];
+      
+      if (!productionItem) {
+        console.error(`[createWorkOrder] No items found in Sales Order ${salesOrderId}`);
+        return null;
+      }
+
+      const workOrderData: any = {
+        doctype: "Work Order",
+        company: company,
+        production_item: productionItem.item_code,
+        item_name: productionItem.item_name,
+        qty: productionItem.qty,
+        sales_order: salesOrderId,
+        customer: salesOrder.customer,
+        planned_start_date: new Date().toISOString().split('T')[0],
+        planned_end_date: salesOrder.delivery_date ? salesOrder.delivery_date.split(' ')[0] : new Date().toISOString().split('T')[0],
+        // Include all items with their descriptions (attributes for custom cakes)
+        items: items.map((item: any) => ({
+          item_code: item.item_code,
+          item_name: item.item_name,
+          qty: item.qty,
+          description: item.description,
+          source_warehouse: item.source_warehouse,
+          target_warehouse: item.target_warehouse,
+          parentfield: "items"
+        })),
+        // Add notes with order details
+        notes: `Vytvorený z objednávky ${salesOrderId}.${salesOrder.remarks ? ' ' + salesOrder.remarks : ''}`
+      };
+
+      console.log(`[createWorkOrder] Work Order data:`, JSON.stringify(workOrderData, null, 2));
+
+      const response = await this.client.post('/resource/Work%20Order', workOrderData);
+      
+      if (response.data && response.data.data) {
+        const workOrderId = response.data.data.name || response.data.data;
+        console.log(`[createWorkOrder] Work Order created successfully: ${workOrderId}`);
+        return workOrderId;
+      }
+
+      console.error(`[createWorkOrder] Unexpected response format:`, response.data);
+      return null;
+    } catch (error) {
+      this.logError('Error creating Work Order:', error);
+      return null;
+    }
+  }
+
   private async fetchAllRecords<T>(endpoint: string, params: Record<string, any>, maxRecords: number, logContext = endpoint, pageSize = this.ERP_PAGE_SIZE): Promise<T[]> {
     const results: T[] = [];
     let page = 0;

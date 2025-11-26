@@ -16,21 +16,24 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent
 } from '@/components/ui/sidebar';
-import { ArrowLeft, ShoppingBag, Package, Calendar, FileText, User, Receipt } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Package, Calendar, FileText, User, Receipt, Wrench, Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { apiRequest } from '@/lib/queryClient';
 import QRPayment from '@/components/QRPayment';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderDetailProps {
-  user?: { email: string; name: string } | null;
+  user?: { email: string; name: string; isAdmin?: boolean } | null;
 }
 
 export default function OrderDetail({ user }: OrderDetailProps) {
   const [, setLocation] = useLocation();
   const [orderId, setOrderId] = useState('');
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'deposit'>('full');
+  const [isCreatingWorkOrder, setIsCreatingWorkOrder] = useState(false);
+  const { toast } = useToast();
 
   // Get order ID from URL params
   useEffect(() => {
@@ -62,6 +65,34 @@ export default function OrderDetail({ user }: OrderDetailProps) {
 
   const handleBackToOrders = () => {
     setLocation('/moj-ucet?section=objednavky');
+  };
+
+  const handleCreateWorkOrder = async () => {
+    if (!orderId) return;
+    
+    setIsCreatingWorkOrder(true);
+    try {
+      const response = await apiRequest('POST', '/api/order/create-work-order', { orderId });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create work order');
+      }
+      
+      const result = await response.json();
+      toast({
+        title: "Pracovný príkaz vytvorený",
+        description: `Pracovný príkaz ${result.workOrderId} bol úspešne vytvorený v ERPNext.`,
+      });
+    } catch (error: any) {
+      console.error('Error creating work order:', error);
+      toast({
+        title: "Chyba pri vytváraní pracovného príkazu",
+        description: error.message || 'Nepodarilo sa vytvoriť pracovný príkaz.',
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreatingWorkOrder(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -345,6 +376,30 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                         <span className="text-muted-foreground">Status:</span>
                         <span className="font-medium">{orderData.orderStatus}</span>
                       </div>
+                      
+                      {/* Admin button to create Work Order */}
+                      {user?.isAdmin && orderData.orderStatus === 'To Deliver and Bill' && (
+                        <div className="pt-2">
+                          <Button
+                            onClick={handleCreateWorkOrder}
+                            disabled={isCreatingWorkOrder}
+                            className="w-full"
+                            variant="default"
+                          >
+                            {isCreatingWorkOrder ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Vytváram pracovný príkaz...
+                              </>
+                            ) : (
+                              <>
+                                <Wrench className="mr-2 h-4 w-4" />
+                                Vytvor pracovný príkaz
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                       
                       {orderData.deliveryDate && (
                         <div className="flex justify-between">

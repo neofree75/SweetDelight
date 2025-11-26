@@ -1740,6 +1740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         salesOrderId: orderId,
         customerId: salesOrder.customer,
         orderStatus: salesOrder.status,
+        workflowState: salesOrder.workflow_state,
         deliveryDate: salesOrder.delivery_date,
         amounts: {
           total: grandTotal,
@@ -1780,6 +1781,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to prepare order for payment",
         message: error.message
       });
+    }
+  });
+
+  // Create Work Order from Sales Order
+  app.post("/api/order/create-work-order", async (req, res) => {
+    try {
+      const { orderId } = req.body;
+      
+      // Check if user is authenticated
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const userEmail = session.user.email;
+      const isAdmin = session.user.userType === "System User" || session.user.isAdmin === true;
+      
+      if (!isAdmin) {
+        return res.status(403).json({ error: "Access denied - admin privileges required" });
+      }
+      
+      if (!orderId) {
+        return res.status(400).json({ error: "Order ID is required" });
+      }
+
+      // Get existing Sales Order from ERPNext
+      const salesOrder = await erpNextService.getSalesOrderById(orderId);
+      if (!salesOrder) {
+        return res.status(404).json({ error: "Sales Order not found" });
+      }
+
+      // Check if order is in correct status
+      if (salesOrder.status !== 'To Deliver and Bill') {
+        return res.status(400).json({ 
+          error: "Order must be in 'To Deliver and Bill' status to create Work Order",
+          currentStatus: salesOrder.status 
+        });
+      }
+
+      // Create Work Order in ERPNext
+      const workOrderId = await erpNextService.createWorkOrderFromSalesOrder(orderId, salesOrder);
+      
+      if (!workOrderId) {
+        return res.status(500).json({ error: "Failed to create Work Order in ERPNext" });
+      }
+
+      res.json({
+        success: true,
+        workOrderId,
+        message: `Work Order ${workOrderId} created successfully`
+      });
+    } catch (error: any) {
+      console.error("Error creating work order:", error);
+      res.status(500).json({ error: "Failed to create work order", message: error.message });
     }
   });
 

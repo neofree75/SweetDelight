@@ -88,12 +88,12 @@ export default function Cart({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div 
-        className="fixed right-0 top-0 h-full w-full max-w-md bg-card border-l border-card-border shadow-xl"
+        className="fixed right-0 top-0 h-full w-full max-w-md bg-card border-l border-card-border shadow-xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
         data-testid="cart-panel"
       >
-        <Card className="h-full rounded-none border-0 shadow-none">
-          <CardHeader className="border-b border-card-border">
+        <Card className="h-full rounded-none border-0 shadow-none flex flex-col">
+          <CardHeader className="border-b border-card-border flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-serif">
                 Košík ({totalItems})
@@ -109,7 +109,7 @@ export default function Cart({
             </div>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto p-0">
+          <CardContent className="flex-1 overflow-y-auto p-0 min-h-0">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center p-6">
                 <ShoppingBag className="h-16 w-16 text-muted-foreground mb-4" />
@@ -229,7 +229,7 @@ export default function Cart({
           </CardContent>
 
           {items.length > 0 && (
-            <div className="border-t border-card-border p-6 space-y-4">
+            <div className="border-t border-card-border p-6 space-y-4 flex-shrink-0 bg-card">
               {/* VAT breakdown */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">

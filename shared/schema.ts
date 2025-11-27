@@ -185,6 +185,8 @@ export const productSchema = z.object({
     label: z.string(),
     value: z.string(),
   })).optional(),
+  // Creation date from ERPNext (for sorting by newest)
+  creation: z.string().optional(), // ISO date string
 });
 
 // Frontend Customer schema (for checkout form)

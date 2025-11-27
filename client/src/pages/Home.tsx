@@ -37,8 +37,14 @@ function useFeaturedProducts() {
         throw new Error('Failed to fetch products');
       }
       const allProducts = await response.json();
-      // Zobraz iba prvé 4 produkty pre featured sekciu
-      return allProducts.slice(0, 4);
+      // Zoradiť produkty podľa dátumu vytvorenia (najnovšie prvé) a zobraziť posledné 4
+      const sortedProducts = [...allProducts].sort((a, b) => {
+        const dateA = a.creation ? new Date(a.creation).getTime() : 0;
+        const dateB = b.creation ? new Date(b.creation).getTime() : 0;
+        return dateB - dateA; // Zostupne (najnovšie prvé)
+      });
+      // Zobraz posledné 4 produkty (najnovšie)
+      return sortedProducts.slice(0, 4);
     },
     staleTime: 30 * 1000, // 30 sekúnd (reduced for testing)
   });

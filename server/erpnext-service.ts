@@ -361,7 +361,7 @@ export class ERPNextService {
           const allWebsiteItems = await this.fetchAllRecords<any>(
             '/resource/Website%20Item',
             {
-              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow"])
+              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow", "creation"])
             },
             this.WEBSITE_ITEMS_LIMIT,
             'Website Item (all)'
@@ -409,7 +409,7 @@ export class ERPNextService {
         const itemsFetchLimit = Math.max(itemCodes.length, this.ITEM_FETCH_LIMIT);
         const itemsResponse = await this.client.get('/resource/Item', {
           params: {
-            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","attributes"]',
+            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","attributes","creation"]',
             filters: JSON.stringify([["name", "in", itemCodes]]),
             limit_page_length: itemsFetchLimit
           }
@@ -509,6 +509,7 @@ export class ERPNextService {
             published: wi.published || 1,
             route: wi.route,
             website_specifications: Array.isArray(wi.website_specifications) ? wi.website_specifications : [],
+            creation: wi.creation || undefined, // Dátum vytvorenia z Website Item
           } as ERPNextItem;
           });
           
@@ -559,7 +560,9 @@ export class ERPNextService {
           custom_min_mnozstvo_obj_predaj: websiteItemMinQty ? Number(websiteItemMinQty) : item.custom_min_mnozstvo_obj_predaj,
           // Slideshow name z Website Item (použije sa neskôr na načítanie obrázkov)
           slideshow: websiteItem?.slideshow || null,
-          website_specifications: Array.isArray(websiteItem?.website_specifications) ? websiteItem.website_specifications : []
+          website_specifications: Array.isArray(websiteItem?.website_specifications) ? websiteItem.website_specifications : [],
+          // Creation date - prefer Website Item creation, fallback to Item creation
+          creation: websiteItem?.creation || item.creation || undefined
         };
       });
 
@@ -590,7 +593,7 @@ export class ERPNextService {
         const publishedItems = await this.fetchAllRecords<any>(
           '/resource/Item',
           {
-            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","published","show_in_website","attributes"]',
+            fields: '["name","item_name","description","item_group","stock_uom","is_stock_item","disabled","image","valuation_rate","has_variants","variant_of","published","show_in_website","attributes","creation"]',
             filters: JSON.stringify([
               ["disabled", "=", "0"],
               ["published", "=", "1"]
@@ -1458,6 +1461,7 @@ export class ERPNextService {
         priceWithVat: Math.round(priceWithVat * 100) / 100, // Cena s DPH (zaokrúhlená na 2 des. miesta)
         galleryImages: galleryImages.length > 0 ? galleryImages : undefined, // Galéria obrázkov zo slideshow
         specifications: normalizedSpecifications.length > 0 ? normalizedSpecifications : undefined,
+        creation: (item as any).creation || undefined, // Dátum vytvorenia z ERPNext
       };
     }));
 

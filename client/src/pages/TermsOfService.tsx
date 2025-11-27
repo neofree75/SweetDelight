@@ -27,7 +27,7 @@ export default function TermsOfService() {
                   Marsela Bakery<br />
                   Adresa: Dvorníky 364, Dvorníky, Slovakia<br />
                   Telefón: +421 917 795 731<br />
-                  Email: marcelabakery@gmail.com
+                  Email: marselabakery@gmail.com
                 </p>
               </div>
             </CardContent>

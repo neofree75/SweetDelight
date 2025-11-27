@@ -340,7 +340,7 @@ Tento dokument popisuje štandardný postup práce (SOP) pre zákazníkov pri po
 **Kontaktné údaje:**
 - **Adresa:** Dvorníky 364, Dvorníky, Slovakia
 - **Telefón:** +421 917 795 731
-- **Email:** marcelabakery@gmail.com
+- **Email:** marselabakery@gmail.com
 
 **Kontaktný formulár:**
 1. Vyplňte formulár s vašou správou
@@ -357,7 +357,7 @@ Tento dokument popisuje štandardný postup práce (SOP) pre zákazníkov pri po
 **Riešenie:**
 1. Skontrolujte, či máte správny email a heslo
 2. Skúste obnoviť heslo cez "Zabudli ste heslo?"
-3. Kontaktujte podporu na marcelabakery@gmail.com
+3. Kontaktujte podporu na marselabakery@gmail.com
 
 ### 11.2 Problémy s košíkom
 
@@ -456,7 +456,7 @@ Tento dokument popisuje štandardný postup práce (SOP) pre zákazníkov pri po
 
 ### 14.1 Kontaktné údaje
 
-**Email:** marcelabakery@gmail.com  
+**Email:** marselabakery@gmail.com  
 **Telefón:** +421 917 795 731  
 **Adresa:** Dvorníky 364, Dvorníky, Slovakia
 

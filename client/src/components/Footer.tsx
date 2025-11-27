@@ -96,11 +96,11 @@ export default function Footer() {
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 text-background/60" />
                 <a 
-                  href="mailto:marcelabakery@gmail.com" 
+                  href="mailto:marselabakery@gmail.com" 
                   className="text-background/80 hover:text-background text-sm transition-colors"
                   data-testid="footer-email"
                 >
-                  marcelabakery@gmail.com
+                  marselabakery@gmail.com
                 </a>
               </div>
             </div>

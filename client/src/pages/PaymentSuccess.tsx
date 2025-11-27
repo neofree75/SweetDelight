@@ -117,7 +117,7 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
                   <span className="font-medium">Čo bude ďalej?</span>
                 </div>
                 <p className="text-sm text-green-700 mt-2">
-                  Vaša objednávka bola odoslaná do našej pekárne. 
+                  Vaša objednávka bola odoslaná do našej cukrárňe. 
                   Pripravíme ju podľa zadaného dátumu a času doručenia.
                   O stave objednávky vás budeme informovať e-mailom.
                 </p>
@@ -151,8 +151,8 @@ export default function PaymentSuccess({ onClearCart }: PaymentSuccessProps) {
           <div className="mt-8 text-center text-sm text-muted-foreground">
             <p>
               Potrebujete pomoc? Kontaktujte nás na{' '}
-              <a href="mailto:marcelabakery@gmail.com" className="text-primary underline">
-                marcelabakery@gmail.com
+              <a href="mailto:marselabakery@gmail.com" className="text-primary underline">
+                marselabakery@gmail.com
               </a>{' '}
               alebo na telefóne{' '}
               <a href="tel:+421917795731" className="text-primary underline">

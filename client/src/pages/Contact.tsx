@@ -189,7 +189,7 @@ export default function Contact() {
                   <Mail className="h-5 w-5 text-primary" />
                   <div>
                     <h4 className="font-semibold text-foreground">Email</h4>
-                    <a href="mailto:marcelabakery@gmail.com" className="text-muted-foreground hover:text-primary transition-colors" data-testid="link-contact-email">marcelabakery@gmail.com</a>
+                    <a href="mailto:marselabakery@gmail.com" className="text-muted-foreground hover:text-primary transition-colors" data-testid="link-contact-email">marselabakery@gmail.com</a>
                   </div>
                 </div>
               </CardContent>

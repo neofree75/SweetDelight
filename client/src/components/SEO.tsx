@@ -68,7 +68,7 @@ export default function SEO({
             "addressCountry": "SK"
           },
           "telephone": "+421917795731",
-          "email": "marcelabakery@gmail.com",
+          "email": "marselabakery@gmail.com",
           "openingHours": [
             "Tu-Th 14:00-20:00",
             "Fr-Su 14:00-20:30"

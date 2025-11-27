@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
                 <p className="text-muted-foreground">
                   Marsela Bakery<br />
                   Dvorníky 364, Dvorníky, Slovakia<br />
-                  Email: marcelabakery@gmail.com<br />
+                  Email: marselabakery@gmail.com<br />
                   Telefón: +421 917 795 731
                 </p>
               </div>
@@ -181,7 +181,7 @@ export default function PrivacyPolicy() {
               </ul>
               
               <p className="text-muted-foreground mt-4">
-                Pre uplatnenie vašich práv nás kontaktujte na: <strong>marcelabakery@gmail.com</strong>
+                Pre uplatnenie vašich práv nás kontaktujte na: <strong>marselabakery@gmail.com</strong>
               </p>
             </CardContent>
           </Card>
@@ -246,7 +246,7 @@ export default function PrivacyPolicy() {
                   Ak máte otázky ohľadom ochrany osobných údajov, kontaktujte nás:
                 </p>
                 <ul className="text-muted-foreground space-y-1 list-disc ml-6 mt-2">
-                  <li>Email: marcelabakery@gmail.com</li>
+                  <li>Email: marselabakery@gmail.com</li>
                   <li>Telefón: +421 917 795 731</li>
                   <li>Adresa: Dvorníky 364, Dvorníky, Slovakia</li>
                 </ul>

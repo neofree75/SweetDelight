@@ -156,6 +156,8 @@ export const productSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
+  short_description: z.string().optional(), // Krátky popis pre zoznam produktov (z Website Item)
+  web_long_description: z.string().optional(), // Dlhý popis pre detail produktu (z Website Item)
   price: z.number(), // Cena bez DPH
   image: z.string(),
   category: z.string(),

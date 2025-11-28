@@ -135,7 +135,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
           className="text-muted-foreground text-sm mb-3 line-clamp-2"
           data-testid={`text-product-description-${product.id}`}
         >
-          {product.description}
+          {product.short_description || product.description}
         </p>
         
         <div className="space-y-1">

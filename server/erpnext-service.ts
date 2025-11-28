@@ -361,7 +361,7 @@ export class ERPNextService {
           const allWebsiteItems = await this.fetchAllRecords<any>(
             '/resource/Website%20Item',
             {
-              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "web_item_name", "slideshow", "creation"])
+              fields: JSON.stringify(["name", "item_code", "published", "route", "website_image", "description", "short_description", "web_long_description", "web_item_name", "slideshow", "creation"])
             },
             this.WEBSITE_ITEMS_LIMIT,
             'Website Item (all)'
@@ -550,6 +550,10 @@ export class ERPNextService {
           // Použi description z Website Item ak existuje, inak z Item
           // Poznámka: HTML tagy sa odstránia neskôr v getProductsForFrontend
           description: websiteItem?.description || item.description,
+          // Short description z Website Item (pre zoznam produktov)
+          short_description: websiteItem?.short_description || undefined,
+          // Long description z Website Item (pre detail produktu)
+          web_long_description: websiteItem?.web_long_description || undefined,
           // Použi website_image z Website Item ak existuje, inak image z Item
           image: websiteItem?.website_image || item.image,
           // Published status z Website Item
@@ -1280,24 +1284,13 @@ export class ERPNextService {
       let templateToUse = null;
 
       if (templatesResponse.data?.data && templatesResponse.data.data.length > 0) {
-        // Najprv skús nájsť šablónu, ktorá obsahuje "23" v názve alebo má 23% sadzbu
-        for (const template of templatesResponse.data.data) {
-          if (template.name.toLowerCase().includes('23') || template.name.toLowerCase().includes('0.23')) {
-            templateToUse = template;
-            console.log(`Found template with 23%: "${template.name}"`);
-            break;
-          }
+        // Najprv skús nájsť default šablónu (má správnu sadzbu DPH)
+        templateToUse = templatesResponse.data.data.find((t: any) => t.is_default === 1);
+        if (templateToUse) {
+          console.log(`Using default template: "${templateToUse.name}"`);
         }
 
-        // Ak nenašiel 23%, skús nájsť default šablónu
-        if (!templateToUse) {
-          templateToUse = templatesResponse.data.data.find((t: any) => t.is_default === 1);
-          if (templateToUse) {
-            console.log(`Using default template: "${templateToUse.name}"`);
-          }
-        }
-
-        // Ak stále nie je, použije prvú dostupnú
+        // Ak nie je default, použije prvú dostupnú
         if (!templateToUse) {
           templateToUse = templatesResponse.data.data[0];
           console.log(`Using first available template: "${templateToUse.name}"`);
@@ -1450,6 +1443,8 @@ export class ERPNextService {
         id: item.name,
         name: item.item_name,
         description: this.stripHtmlTags(item.description || ''),
+        short_description: (item as any).short_description ? this.stripHtmlTags((item as any).short_description) : undefined,
+        web_long_description: (item as any).web_long_description ? this.stripHtmlTags((item as any).web_long_description) : undefined,
         price: priceWithoutVat, // Cena bez DPH
         image: imageUrl,
         category: item.item_group,
@@ -3151,6 +3146,8 @@ export class ERPNextService {
         "website_image",
         "image",
         "description",
+        "short_description",
+        "web_long_description",
         "long_description",
         "route",
         "website_specifications"
@@ -3199,6 +3196,8 @@ export class ERPNextService {
         id: websiteItem.name,
         title: websiteItem.web_item_name || websiteItem.item_name || websiteItem.name,
         description: this.stripHtmlTags(websiteItem.long_description || websiteItem.description || ''),
+        short_description: websiteItem.short_description ? this.stripHtmlTags(websiteItem.short_description) : undefined,
+        web_long_description: websiteItem.web_long_description ? this.stripHtmlTags(websiteItem.web_long_description) : undefined,
         image: imageUrl,
         route: websiteItem.route || undefined,
         price,

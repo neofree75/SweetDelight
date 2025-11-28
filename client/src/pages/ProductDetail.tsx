@@ -375,7 +375,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                 className="text-muted-foreground text-lg leading-relaxed"
                 data-testid={`text-product-detail-description-${product.id}`}
               >
-                {product.description}
+                {product.web_long_description || product.description}
               </p>
               {specificationsForDisplay.length > 0 && (
                 <Card>

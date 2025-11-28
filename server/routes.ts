@@ -91,11 +91,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Debug endpoint - check VAT rate (safe for production)
   app.get("/api/debug/vat-rate", async (req, res) => {
     try {
+      // Force fresh data (ignore cache) by clearing cache first if requested
+      const forceRefresh = req.query.force === 'true';
+      if (forceRefresh) {
+        erpNextService.clearVATRateCache();
+      }
+      
       const vatRateInfo = await erpNextService.getVATRateInfo();
       res.json(vatRateInfo);
     } catch (error: any) {
       res.status(500).json({ 
         error: "VAT rate check failed",
+        message: error.message
+      });
+    }
+  });
+
+  // Debug endpoint - clear VAT rate cache
+  app.post("/api/debug/vat-rate/clear-cache", async (req, res) => {
+    try {
+      erpNextService.clearVATRateCache();
+      res.json({ 
+        success: true, 
+        message: 'VAT rate cache cleared. Next request will fetch fresh data from ERPNext.' 
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        error: "Failed to clear cache",
         message: error.message
       });
     }

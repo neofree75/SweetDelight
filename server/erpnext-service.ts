@@ -1262,7 +1262,14 @@ export class ERPNextService {
     console.log('Product cache cleared');
   }
 
+  // Clear VAT rate cache
+  clearVATRateCache(): void {
+    this.vatRateCache = null;
+    console.log('VAT rate cache cleared');
+  }
+
   // Get detailed VAT rate information for debugging
+  // This method always fetches fresh data (ignores cache) to show current ERPNext state
   async getVATRateInfo(): Promise<{
     currentRate: number;
     fromCache: boolean;
@@ -1274,20 +1281,13 @@ export class ERPNextService {
     error?: string;
   }> {
     try {
-      // Check cache first
+      // Check cache for reference, but always fetch fresh data for debugging
+      const cachedRate = this.vatRateCache?.rate;
       const fromCache = this.vatRateCache && Date.now() - this.vatRateCache.timestamp < this.VAT_CACHE_DURATION;
-      
-      if (fromCache && this.vatRateCache) {
-        return {
-          currentRate: this.vatRateCache.rate,
-          fromCache: true,
-          cacheTimestamp: this.vatRateCache.timestamp,
-          cacheAge: Date.now() - this.vatRateCache.timestamp,
-          templateName: 'Cached value - template info not available'
-        };
-      }
+      const cacheTimestamp = this.vatRateCache?.timestamp;
+      const cacheAge = cacheTimestamp ? Date.now() - cacheTimestamp : undefined;
 
-      // Fetch fresh data
+      // Always fetch fresh data from ERPNext (ignore cache for debugging)
       const templatesResponse = await this.client.get(`/resource/Sales Taxes and Charges Template`, {
         params: {
           fields: JSON.stringify(['name', 'is_default']),
@@ -1328,6 +1328,9 @@ export class ERPNextService {
           return {
             currentRate: vatRate,
             fromCache: false,
+            cacheTimestamp: cacheTimestamp,
+            cacheAge: cacheAge,
+            cachedRate: cachedRate, // Show what was in cache for comparison
             templateName: templateToUse.name,
             availableTemplates: availableTemplates.map((t: any) => ({
               name: t.name,
@@ -1341,6 +1344,9 @@ export class ERPNextService {
       return {
         currentRate: 19,
         fromCache: false,
+        cacheTimestamp: cacheTimestamp,
+        cacheAge: cacheAge,
+        cachedRate: cachedRate,
         error: 'No tax template found in ERPNext',
         availableTemplates: availableTemplates.map((t: any) => ({
           name: t.name,

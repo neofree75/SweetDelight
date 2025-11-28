@@ -34,13 +34,21 @@ export default function AboutSection() {
               <img
                 src={aboutImage1}
                 alt="Výstavná vitrína našej cukrárne"
-                className="w-full h-auto object-cover rounded-lg shadow-lg"
+                className="w-full h-auto object-cover rounded-lg shadow-lg max-w-full"
+                style={{ maxWidth: '800px' }}
+                loading="lazy"
+                decoding="async"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"
                 data-testid="img-about-1"
               />
               <img
                 src={aboutImage2}
                 alt="Príjemný interiér našej cukrárne"
-                className="w-full h-auto object-cover rounded-lg shadow-lg"
+                className="w-full h-auto object-cover rounded-lg shadow-lg max-w-full"
+                style={{ maxWidth: '800px' }}
+                loading="lazy"
+                decoding="async"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"
                 data-testid="img-about-2"
               />
             </div>
@@ -48,7 +56,11 @@ export default function AboutSection() {
             <img
               src={aboutImage}
               alt="Interiér našej cukrárne"
-              className="w-full rounded-lg shadow-lg"
+              className="w-full rounded-lg shadow-lg max-w-full"
+              style={{ maxWidth: '800px' }}
+              loading="lazy"
+              decoding="async"
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"
               data-testid="img-about"
             />
           </div>

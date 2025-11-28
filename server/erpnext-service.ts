@@ -3271,9 +3271,20 @@ export class ERPNextService {
         mobile_no: data.phone || '',
         source: 'Webový kontaktný formulár', // Lead Source created in ERPNext
         status: 'Open',
-        description: data.message, // Use description instead of notes (notes is a child table)
         company_name: '', // Optional, can be left empty
       };
+
+      // Add message to notes child table if message exists
+      // Notes child table structure in ERPNext Lead doctype
+      if (data.message && data.message.trim()) {
+        leadData.notes = [
+          {
+            note: data.message.trim(),
+            added_by: data.email, // Use email as added_by
+            added_on: new Date().toISOString().split('T')[0] // Today's date in YYYY-MM-DD format
+          }
+        ];
+      }
 
       console.log('[createLead] Creating Lead in ERPNext:', {
         lead_name: leadData.lead_name,

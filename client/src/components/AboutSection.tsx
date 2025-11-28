@@ -26,9 +26,9 @@ export default function AboutSection() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
+        <div className="grid lg:grid-cols-2 gap-12 items-stretch">
           {/* Images */}
-          <div className="order-2 lg:order-1 space-y-4">
+          <div className="order-2 lg:order-1 space-y-4 flex flex-col">
             {/* Two new images on top - side by side */}
             <div className="grid grid-cols-2 gap-4">
               <img
@@ -52,12 +52,11 @@ export default function AboutSection() {
                 data-testid="img-about-2"
               />
             </div>
-            {/* Existing image below - full width */}
+            {/* Existing image below - full width, stretches to match right column height */}
             <img
               src={aboutImage}
               alt="Interiér našej cukrárne"
-              className="w-full rounded-lg shadow-lg object-cover"
-              style={{ aspectRatio: '16/9' }}
+              className="w-full rounded-lg shadow-lg object-cover flex-1"
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"

@@ -1,14 +1,20 @@
 import { Link } from 'wouter';
-import { Facebook, Instagram, Phone, Mail, MapPin } from 'lucide-react';
+import { Facebook, Instagram, Phone, Mail, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  
+  const openingHours = [
+    { day: 'Pondelok', time: 'Zatvorené' },
+    { day: 'Utorok - Štvrtok', time: '14:00 - 20:00' },
+    { day: 'Piatok - Nedeľa', time: '14:00 - 20:30' }
+  ];
 
   return (
     <footer className="bg-foreground text-background">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-5 gap-8">
           {/* Logo & Description */}
           <div className="md:col-span-2">
             <h3 className="text-2xl font-serif font-bold mb-4">Marsela Bakery</h3>
@@ -103,6 +109,22 @@ export default function Footer() {
                   marselabakery@gmail.com
                 </a>
               </div>
+            </div>
+          </div>
+
+          {/* Opening Hours */}
+          <div>
+            <h4 className="font-semibold mb-4 flex items-center">
+              <Clock className="h-4 w-4 mr-2" />
+              Otváracie hodiny
+            </h4>
+            <div className="space-y-2">
+              {openingHours.map((schedule, index) => (
+                <div key={index} className="flex justify-between text-sm">
+                  <span className="text-background/80">{schedule.day}</span>
+                  <span className="text-background/80 font-medium">{schedule.time}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

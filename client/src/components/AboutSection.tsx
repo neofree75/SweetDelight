@@ -52,11 +52,12 @@ export default function AboutSection() {
                 data-testid="img-about-2"
               />
             </div>
-            {/* Existing image below - full width, stretches to match right column height */}
+            {/* Existing image below - full width */}
             <img
               src={aboutImage}
               alt="Interiér našej cukrárne"
-              className="w-full rounded-lg shadow-lg object-cover flex-1"
+              className="w-full rounded-lg shadow-lg object-cover"
+              style={{ aspectRatio: '21/9' }}
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"

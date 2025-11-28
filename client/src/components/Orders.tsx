@@ -114,7 +114,16 @@ export function Orders() {
   };
 
   // Update order status
-  const updateOrderStatus = async (orderId: string, status: string) => {
+  const updateOrderStatus = async (orderId: string, status: string, currentStatus: string) => {
+    // Validácia: ak je aktuálny stav "Dokončená" a nový stav je "Nová", zabráň zmene
+    const currentStatusLower = (currentStatus ?? "").toLowerCase();
+    const newStatusLower = (status ?? "").toLowerCase();
+    
+    if (currentStatusLower.includes('dokončen') && newStatusLower.includes('nov')) {
+      alert('Nie je možné zmeniť stav z "Dokončená" na "Nová".');
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch(`/api/orders/${orderId}/status`, {
@@ -369,12 +378,7 @@ export function Orders() {
                                 <SelectValue placeholder="Vyberte nový stav" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Nová">Nová</SelectItem>
-                                <SelectItem value="Potvrdená">Potvrdená</SelectItem>
-                                <SelectItem value="V príprave">V príprave</SelectItem>
                                 <SelectItem value="Dokončená">Dokončená</SelectItem>
-                                <SelectItem value="Zrušená">Zrušená</SelectItem>
-                                <SelectItem value="Dodaná">Dodaná</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -390,7 +394,7 @@ export function Orders() {
                             Zrušiť
                           </Button>
                           <Button
-                            onClick={() => updateOrderStatus(order.id, newStatus)}
+                            onClick={() => updateOrderStatus(order.id, newStatus, order.status)}
                             disabled={isUpdating || !newStatus || newStatus === order.status}
                           >
                             {isUpdating ? "Ukladám..." : "Uložiť zmenu"}

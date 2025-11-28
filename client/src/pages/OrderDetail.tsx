@@ -102,6 +102,23 @@ export default function OrderDetail({ user }: OrderDetailProps) {
     return null;
   };
 
+  // Format order status for display
+  const formatOrderStatus = (status: string | undefined) => {
+    if (!status) return '';
+    // Map "To Deliver and Bill" to "Dokončená"
+    if (status.toLowerCase().includes('to deliver and bill')) {
+      return 'Dokončená';
+    }
+    return status;
+  };
+
+  // Check if payment section should be visible (after 31.12.2025)
+  const shouldShowPaymentSection = () => {
+    const today = new Date();
+    const cutoffDate = new Date('2026-01-01'); // 1.1.2026
+    return today >= cutoffDate;
+  };
+
   const menuItems = [
     {
       id: 'profil',
@@ -343,7 +360,7 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Status:</span>
-                        <span className="font-medium">{orderData.orderStatus}</span>
+                        <span className="font-medium">{formatOrderStatus(orderData.orderStatus)}</span>
                       </div>
                       
                       {orderData.deliveryDate && (
@@ -504,19 +521,21 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                 </div>
 
                 {/* Right side - Payment form */}
-                <div>
-                  {orderData.amounts && (
-                    <QRPayment
-                      salesOrderId={orderId}
-                      paymentMode={paymentAmount}
-                      amount={orderData.amounts.total}
-                      currency="EUR"
-                      onSuccess={() => {}}
-                      onError={() => {}}
-                      showSubmitButton={false}
-                    />
-                  )}
-                </div>
+                {shouldShowPaymentSection() && (
+                  <div>
+                    {orderData.amounts && (
+                      <QRPayment
+                        salesOrderId={orderId}
+                        paymentMode={paymentAmount}
+                        amount={orderData.amounts.total}
+                        currency="EUR"
+                        onSuccess={() => {}}
+                        onError={() => {}}
+                        showSubmitButton={false}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </main>

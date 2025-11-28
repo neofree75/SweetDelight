@@ -1262,6 +1262,100 @@ export class ERPNextService {
     console.log('Product cache cleared');
   }
 
+  // Get detailed VAT rate information for debugging
+  async getVATRateInfo(): Promise<{
+    currentRate: number;
+    fromCache: boolean;
+    cacheTimestamp?: number;
+    cacheAge?: number;
+    templateName?: string;
+    availableTemplates?: Array<{ name: string; is_default: boolean }>;
+    taxesInTemplate?: Array<{ account_head: string; rate: number }>;
+    error?: string;
+  }> {
+    try {
+      // Check cache first
+      const fromCache = this.vatRateCache && Date.now() - this.vatRateCache.timestamp < this.VAT_CACHE_DURATION;
+      
+      if (fromCache && this.vatRateCache) {
+        return {
+          currentRate: this.vatRateCache.rate,
+          fromCache: true,
+          cacheTimestamp: this.vatRateCache.timestamp,
+          cacheAge: Date.now() - this.vatRateCache.timestamp,
+          templateName: 'Cached value - template info not available'
+        };
+      }
+
+      // Fetch fresh data
+      const templatesResponse = await this.client.get(`/resource/Sales Taxes and Charges Template`, {
+        params: {
+          fields: JSON.stringify(['name', 'is_default']),
+          limit_page_length: 100
+        }
+      });
+
+      const availableTemplates = templatesResponse.data?.data || [];
+      let templateToUse = null;
+
+      if (availableTemplates.length > 0) {
+        templateToUse = availableTemplates.find((t: any) => t.is_default === 1);
+        if (!templateToUse) {
+          templateToUse = availableTemplates[0];
+        }
+      }
+
+      if (templateToUse) {
+        const encodedTemplateName = encodeURIComponent(templateToUse.name);
+        const detailResponse = await this.client.get(`/resource/Sales Taxes and Charges Template/${encodedTemplateName}`);
+        
+        if (detailResponse.data?.data && detailResponse.data.data.taxes && detailResponse.data.data.taxes.length > 0) {
+          let maxRate = 0;
+          let vatRate = 19;
+          
+          const taxesInTemplate = detailResponse.data.data.taxes.map((tax: any) => {
+            const rate = parseFloat(tax.rate) || 0;
+            if (rate > maxRate && rate > 0 && rate <= 100) {
+              maxRate = rate;
+              vatRate = rate;
+            }
+            return {
+              account_head: tax.account_head || 'N/A',
+              rate: rate
+            };
+          });
+
+          return {
+            currentRate: vatRate,
+            fromCache: false,
+            templateName: templateToUse.name,
+            availableTemplates: availableTemplates.map((t: any) => ({
+              name: t.name,
+              is_default: t.is_default === 1
+            })),
+            taxesInTemplate: taxesInTemplate
+          };
+        }
+      }
+
+      return {
+        currentRate: 19,
+        fromCache: false,
+        error: 'No tax template found in ERPNext',
+        availableTemplates: availableTemplates.map((t: any) => ({
+          name: t.name,
+          is_default: t.is_default === 1
+        }))
+      };
+    } catch (error: any) {
+      return {
+        currentRate: 19,
+        fromCache: false,
+        error: error.message || 'Unknown error'
+      };
+    }
+  }
+
   // Načítanie predvolenej sadzby DPH z ERPNext Sales Taxes and Charges Template
   async getDefaultVATRate(): Promise<number> {
     try {

@@ -88,6 +88,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint - check VAT rate (safe for production)
+  app.get("/api/debug/vat-rate", async (req, res) => {
+    try {
+      const vatRateInfo = await erpNextService.getVATRateInfo();
+      res.json(vatRateInfo);
+    } catch (error: any) {
+      res.status(500).json({ 
+        error: "VAT rate check failed",
+        message: error.message
+      });
+    }
+  });
+
   // Get products from ERPNext
   app.get("/api/products", async (req, res) => {
     try {

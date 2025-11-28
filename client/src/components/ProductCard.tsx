@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Minus } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
+import logo from '@assets/logo_1757937077215.png';
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +22,14 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
   const [quantity, setQuantity] = useState(getMinQuantity());
   const [inputValue, setInputValue] = useState(getMinQuantity().toString());
   const [quantityError, setQuantityError] = useState('');
+
+  // Get product image or fallback to logo
+  const getProductImage = () => {
+    if (!product.image || product.image === '' || product.image === '/placeholder-product.jpg' || product.image.includes('placeholder')) {
+      return logo;
+    }
+    return product.image;
+  };
 
 
   const handleViewDetails = (e: React.MouseEvent) => {
@@ -95,10 +104,17 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
     <Card className="group hover-elevate cursor-pointer overflow-hidden" onClick={handleCardClick}>
       <div className="aspect-square overflow-hidden">
         <img
-          src={product.image}
+          src={getProductImage()}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           data-testid={`img-product-${product.id}`}
+          onError={(e) => {
+            // Fallback to logo if image fails to load
+            const target = e.target as HTMLImageElement;
+            if (target.src !== logo) {
+              target.src = logo;
+            }
+          }}
         />
       </div>
       

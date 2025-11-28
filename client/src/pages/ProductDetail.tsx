@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
+import logo from '@assets/logo_1757937077215.png';
 
 interface ProductDetailProps {
   onAddToCart?: (product: Product, quantity: number) => void;
@@ -28,6 +29,15 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   const stripDiacritics = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const prioritizedSpecificationKeys = ['hmotnost', 'hmotnosť', 'hmotnost-balenia', 'hmotnosť-balenia', 'alergeny', 'alergény'];
   const normalizedPrioritizedSpecKeys = prioritizedSpecificationKeys.map(key => stripDiacritics(key.toLowerCase()));
+
+  // Get product image or fallback to logo
+  const getProductImage = (imageUrl?: string) => {
+    const img = imageUrl || product?.image;
+    if (!img || img === '' || img === '/placeholder-product.jpg' || img.includes('placeholder')) {
+      return logo;
+    }
+    return img;
+  };
 
   // Fetch product detail from API
   const { data: product, isLoading, error } = useQuery({
@@ -55,7 +65,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
   useEffect(() => {
     if (selectedImageIndex === null) return;
     
-    const allImages = product ? [product.image, ...(product.galleryImages || [])] : [];
+    const allImages = product ? [getProductImage(product.image), ...(product.galleryImages || []).map(img => getProductImage(img))] : [];
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if (selectedImageIndex === null) return;
@@ -275,10 +285,17 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                   onClick={() => setSelectedImageIndex(0)}
                 >
                   <img
-                    src={product.image}
+                    src={getProductImage(product.image)}
                     alt={product.name}
                     className="w-full h-full object-cover"
                     data-testid={`img-product-detail-${product.id}`}
+                    onError={(e) => {
+                      // Fallback to logo if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== logo) {
+                        target.src = logo;
+                      }
+                    }}
                   />
                 </div>
               </CardContent>
@@ -294,9 +311,16 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                     onClick={() => setSelectedImageIndex(index + 1)}
                   >
                     <img
-                      src={imageUrl}
+                      src={getProductImage(imageUrl)}
                       alt={`${product.name} - obrázok ${index + 1}`}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to logo if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== logo) {
+                          target.src = logo;
+                        }
+                      }}
                     />
                   </div>
                 ))}
@@ -578,7 +602,7 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
         
         {/* Image Gallery Lightbox */}
         {product && (() => {
-          const allImages = [product.image, ...(product.galleryImages || [])];
+          const allImages = [getProductImage(product.image), ...(product.galleryImages || []).map(img => getProductImage(img))];
           const currentImageIndex = selectedImageIndex !== null ? selectedImageIndex : 0;
           const currentImage = allImages[currentImageIndex];
           
@@ -631,9 +655,16 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
                   {/* Image container */}
                   <div className="flex justify-center">
                     <img
-                      src={currentImage}
+                      src={getProductImage(currentImage)}
                       alt={`${product.name} - obrázok ${currentImageIndex + 1}`}
                       className="max-w-full max-h-[60vh] object-contain rounded-lg"
+                      onError={(e) => {
+                        // Fallback to logo if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== logo) {
+                          target.src = logo;
+                        }
+                      }}
                     />
                   </div>
 

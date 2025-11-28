@@ -455,49 +455,49 @@ export default function Profile({ user }: ProfileProps) {
 
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Mesto:</span>
-                    {isEditing ? (
-                      <Input
-                        value={editData.city || ''}
-                        onChange={(e) => handleEditChange('city', e.target.value)}
-                        placeholder="Bratislava"
+                      {isEditing ? (
+                        <Input
+                          value={editData.city || ''}
+                          onChange={(e) => handleEditChange('city', e.target.value)}
+                          placeholder="Bratislava"
                     className="w-48"
-                        data-testid="input-city"
-                      />
-                    ) : (
+                          data-testid="input-city"
+                        />
+                      ) : (
                   <span className="font-medium">{profileData.city || '-'}</span>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
               <div className="flex justify-between">
                 <span className="text-muted-foreground">PSČ:</span>
-                    {isEditing ? (
-                      <Input
-                        value={editData.pincode || ''}
-                        onChange={(e) => handleEditChange('pincode', e.target.value)}
-                        placeholder="12345"
+                      {isEditing ? (
+                        <Input
+                          value={editData.pincode || ''}
+                          onChange={(e) => handleEditChange('pincode', e.target.value)}
+                          placeholder="12345"
                     className="w-48"
-                        data-testid="input-pincode"
-                      />
-                    ) : (
+                          data-testid="input-pincode"
+                        />
+                      ) : (
                   <span className="font-medium">{profileData.pincode || '-'}</span>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Krajina:</span>
-                    {isEditing ? (
-                      <Input
-                        value={editData.country || ''}
-                        onChange={(e) => handleEditChange('country', e.target.value)}
-                        placeholder="Slovensko"
+                      {isEditing ? (
+                        <Input
+                          value={editData.country || ''}
+                          onChange={(e) => handleEditChange('country', e.target.value)}
+                          placeholder="Slovensko"
                     className="w-48"
-                        data-testid="input-country"
-                      />
-                    ) : (
+                          data-testid="input-country"
+                        />
+                      ) : (
                   <span className="font-medium">{profileData.country || '-'}</span>
-                    )}
+                      )}
                   </div>
-            </div>
+                </div>
           </CardContent>
         </Card>
 
@@ -569,7 +569,7 @@ export default function Profile({ user }: ProfileProps) {
                     ) : (
                   <span className="font-medium">{profileData.zapisVOrsr || '-'}</span>
                     )}
-                  </div>
+                      </div>
 
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Typ zákazníka:</span>

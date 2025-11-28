@@ -1638,13 +1638,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Admin users can access all orders
       if (!isAdmin) {
-        const customer = await erpNextService.findCustomerByEmail(userEmail);
-        
+      const customer = await erpNextService.findCustomerByEmail(userEmail);
+      
         console.log(`[ORDER-AUTH] Regular user - Found Customer: ${customer?.customerId}, Order Customer: ${salesOrder.customer}`);
-        
-        if (!customer || salesOrder.customer !== customer.customerId) {
-          console.log(`[ORDER-AUTH] Security check failed: User ${userEmail} (customer: ${customer?.customerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
-          return res.status(403).json({ error: "Access denied - order does not belong to authenticated user" });
+      
+      if (!customer || salesOrder.customer !== customer.customerId) {
+        console.log(`[ORDER-AUTH] Security check failed: User ${userEmail} (customer: ${customer?.customerId}) tried to access order ${orderId} belonging to ${salesOrder.customer}`);
+        return res.status(403).json({ error: "Access denied - order does not belong to authenticated user" });
         }
       } else {
         console.log(`[ORDER-AUTH] Admin user - allowing access to order ${orderId}`);

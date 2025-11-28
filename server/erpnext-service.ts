@@ -3271,7 +3271,7 @@ export class ERPNextService {
         mobile_no: data.phone || '',
         source: 'Website Contact Form',
         status: 'Open',
-        notes: data.message,
+        description: data.message, // Use description instead of notes (notes is a child table)
         company_name: '', // Optional, can be left empty
       };
 

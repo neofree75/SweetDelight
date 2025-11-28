@@ -547,6 +547,25 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
               </CardHeader>
               <CardContent>
                 {(() => {
+                  // Check if current date is before 2026-01-01
+                  const currentDate = new Date();
+                  const cutoffDate = new Date('2026-01-01');
+                  const showStorePayment = currentDate < cutoffDate;
+
+                  if (showStorePayment) {
+                    // Show store payment text until 31.12.2025
+                    return (
+                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                        <Banknote className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-medium">Platba na prevádzke hotovosť alebo karta</p>
+                          <p className="text-sm text-muted-foreground">Platba sa uskutoční pri prevzatí objednávky</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Show normal payment methods from 2026-01-01 onwards
                   const methods = getPaymentMethods();
                   // Ak je len jedna možnosť, zobraz ju ako informačný text
                   if (methods.length === 1) {

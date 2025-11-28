@@ -1,6 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, MapPin, Phone, Mail, Users } from 'lucide-react';
 import aboutImage from '@assets/generated_images/Elegant_pastry_shop_interior_new.png';
+import aboutImage1 from '@assets/generated_images/Bakery_display_case_hero_a86779fc.png';
+import aboutImage2 from '@assets/generated_images/Cozy_bakery_interior_c998804b.png';
 
 export default function AboutSection() {
   const openingHours = [
@@ -24,9 +26,25 @@ export default function AboutSection() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Image */}
-          <div className="order-2 lg:order-1">
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          {/* Images */}
+          <div className="order-2 lg:order-1 space-y-4">
+            {/* Two new images on top - vertical layout */}
+            <div className="space-y-4">
+              <img
+                src={aboutImage1}
+                alt="Výstavná vitrína našej cukrárne"
+                className="w-full h-auto object-cover rounded-lg shadow-lg"
+                data-testid="img-about-1"
+              />
+              <img
+                src={aboutImage2}
+                alt="Príjemný interiér našej cukrárne"
+                className="w-full h-auto object-cover rounded-lg shadow-lg"
+                data-testid="img-about-2"
+              />
+            </div>
+            {/* Existing image below */}
             <img
               src={aboutImage}
               alt="Interiér našej cukrárne"

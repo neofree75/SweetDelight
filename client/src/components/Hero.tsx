@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
-import heroImage from '@assets/generated_images/Bakery_display_case_hero_a86779fc.png';
+import heroImage from '@assets/generated_images/_DSC6502.jpg';
 
 export default function Hero() {
   return (

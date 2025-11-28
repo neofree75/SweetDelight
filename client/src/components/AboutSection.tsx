@@ -57,10 +57,10 @@ export default function AboutSection() {
               src={aboutImage}
               alt="Interiér našej cukrárne"
               className="w-full rounded-lg shadow-lg object-cover"
-              style={{ aspectRatio: '21/9' }}
+              style={{ aspectRatio: '21/13.4' }}
               loading="lazy"
               decoding="async"
-              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 800px"
               data-testid="img-about"
             />
           </div>

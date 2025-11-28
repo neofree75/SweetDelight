@@ -34,7 +34,7 @@ export default function AboutSection() {
               <img
                 src={aboutImage1}
                 alt="Výstavná vitrína našej cukrárne"
-                className="w-full h-auto object-cover rounded-lg shadow-lg"
+                className="w-full h-full object-cover rounded-lg shadow-lg aspect-square"
                 loading="lazy"
                 decoding="async"
                 sizes="(max-width: 768px) 50vw, 400px"
@@ -43,7 +43,7 @@ export default function AboutSection() {
               <img
                 src={aboutImage2}
                 alt="Príjemný interiér našej cukrárne"
-                className="w-full h-auto object-cover rounded-lg shadow-lg"
+                className="w-full h-full object-cover rounded-lg shadow-lg aspect-square"
                 loading="lazy"
                 decoding="async"
                 sizes="(max-width: 768px) 50vw, 400px"

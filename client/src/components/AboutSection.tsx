@@ -29,35 +29,32 @@ export default function AboutSection() {
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           {/* Images */}
           <div className="order-2 lg:order-1 space-y-4">
-            {/* Two new images on top - vertical layout */}
-            <div className="space-y-4">
+            {/* Two new images on top - side by side */}
+            <div className="grid grid-cols-2 gap-4">
               <img
                 src={aboutImage1}
                 alt="Výstavná vitrína našej cukrárne"
-                className="w-full h-auto object-cover rounded-lg shadow-lg max-w-full"
-                style={{ maxWidth: '800px' }}
+                className="w-full h-auto object-cover rounded-lg shadow-lg"
                 loading="lazy"
                 decoding="async"
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"
+                sizes="(max-width: 768px) 50vw, 400px"
                 data-testid="img-about-1"
               />
               <img
                 src={aboutImage2}
                 alt="Príjemný interiér našej cukrárne"
-                className="w-full h-auto object-cover rounded-lg shadow-lg max-w-full"
-                style={{ maxWidth: '800px' }}
+                className="w-full h-auto object-cover rounded-lg shadow-lg"
                 loading="lazy"
                 decoding="async"
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"
+                sizes="(max-width: 768px) 50vw, 400px"
                 data-testid="img-about-2"
               />
             </div>
-            {/* Existing image below */}
+            {/* Existing image below - full width */}
             <img
               src={aboutImage}
               alt="Interiér našej cukrárne"
-              className="w-full rounded-lg shadow-lg max-w-full"
-              style={{ maxWidth: '800px' }}
+              className="w-full rounded-lg shadow-lg"
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"

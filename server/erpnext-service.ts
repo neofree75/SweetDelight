@@ -3269,17 +3269,11 @@ export class ERPNextService {
         last_name: lastName,
         email_id: data.email,
         mobile_no: data.phone || '',
+        source: 'Webový kontaktný formulár', // Lead Source created in ERPNext
         status: 'Open',
         description: data.message, // Use description instead of notes (notes is a child table)
         company_name: '', // Optional, can be left empty
       };
-      
-      // Note: source field is a Link field in ERPNext, so we can't set it to arbitrary text
-      // If you want to track the source, you need to create a Lead Source record first
-      // or add it to the description
-      if (data.message) {
-        leadData.description = `Zdroj: Webový kontaktný formulár\n\n${data.message}`;
-      }
 
       console.log('[createLead] Creating Lead in ERPNext:', {
         lead_name: leadData.lead_name,

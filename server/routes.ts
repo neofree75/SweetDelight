@@ -2068,6 +2068,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
+  // Contact form submission - create Lead in ERPNext
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, phone, message } = req.body;
+
+      // Validate required fields
+      if (!name || !email || !message) {
+        return res.status(400).json({ 
+          error: "Meno, email a správa sú povinné polia" 
+        });
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ 
+          error: "Neplatný email formát" 
+        });
+      }
+
+      console.log('[contact] Submitting contact form:', { name, email, phone: phone || 'not provided' });
+
+      const result = await erpNextService.createLead({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone?.trim() || '',
+        message: message.trim()
+      });
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+          leadId: result.leadId
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error processing contact form:", error);
+      res.status(500).json({ 
+        error: "Chyba pri odosielaní správy. Skúste to prosím znova." 
+      });
+    }
+  });
+
   // Log registered routes for debugging
   const routes: string[] = [];
   app._router?.stack?.forEach((middleware: any) => {

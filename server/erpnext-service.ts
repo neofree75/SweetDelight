@@ -3246,6 +3246,81 @@ export class ERPNextService {
 
     return results;
   }
+
+  // Create a Lead from contact form submission
+  async createLead(data: {
+    name: string;
+    email: string;
+    phone?: string;
+    message: string;
+  }): Promise<{ success: boolean; message: string; leadId?: string }> {
+    this.refreshClient();
+
+    try {
+      // Parse name into first_name and last_name
+      const nameParts = data.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const leadData = {
+        doctype: 'Lead',
+        lead_name: data.name,
+        first_name: firstName,
+        last_name: lastName,
+        email_id: data.email,
+        mobile_no: data.phone || '',
+        source: 'Website Contact Form',
+        status: 'Open',
+        notes: data.message,
+        company_name: '', // Optional, can be left empty
+      };
+
+      console.log('[createLead] Creating Lead in ERPNext:', {
+        lead_name: leadData.lead_name,
+        email_id: leadData.email_id,
+        source: leadData.source
+      });
+
+      const response = await this.client.post('/resource/Lead', leadData);
+
+      if (response.status === 200 && response.data?.data?.name) {
+        const leadId = response.data.data.name;
+        console.log('[createLead] Lead created successfully:', leadId);
+        return {
+          success: true,
+          message: 'Vaša správa bola úspešne odoslaná. Ďakujeme!',
+          leadId: leadId
+        };
+      } else {
+        console.error('[createLead] Unexpected response:', response.data);
+        return {
+          success: false,
+          message: 'Chyba pri odosielaní správy. Skúste to prosím znova.'
+        };
+      }
+    } catch (error: any) {
+      console.error('[createLead] Error creating Lead:', error);
+      
+      if (error.response?.data) {
+        console.error('[createLead] ERPNext error response:', JSON.stringify(error.response.data, null, 2));
+        
+        // Try to extract meaningful error message
+        const errorMessage = error.response.data.message || 
+                            error.response.data.exc || 
+                            'Chyba pri odosielaní správy';
+        
+        return {
+          success: false,
+          message: errorMessage
+        };
+      }
+
+      return {
+        success: false,
+        message: 'Chyba pri odosielaní správy. Skúste to prosím znova.'
+      };
+    }
+  }
 }
 
 export const erpNextService = new ERPNextService();

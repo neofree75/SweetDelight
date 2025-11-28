@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Clock, MapPin, Phone, Mail, Send, MessageCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import SEO from '@/components/SEO';
 
 export default function Contact() {
@@ -16,20 +17,46 @@ export default function Contact() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // TODO: Integrate with ERPNext - create customer inquiry/lead
-    console.log('Submitting contact form:', formData);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    alert('Ďakujeme za vašu správu! Odpovieme vám čo najskôr.');
-    setFormData({ name: '', email: '', phone: '', message: '' });
-    setIsSubmitting(false);
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({
+          title: 'Správa odoslaná',
+          description: data.message || 'Ďakujeme za vašu správu! Odpovieme vám čo najskôr.',
+        });
+        setFormData({ name: '', email: '', phone: '', message: '' });
+      } else {
+        toast({
+          title: 'Chyba',
+          description: data.error || 'Nepodarilo sa odoslať správu. Skúste to prosím znova.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa odoslať správu. Skúste to prosím znova.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

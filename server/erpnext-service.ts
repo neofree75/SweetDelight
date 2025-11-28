@@ -1267,13 +1267,12 @@ export class ERPNextService {
     try {
       // Skontrolovať cache
       if (this.vatRateCache && Date.now() - this.vatRateCache.timestamp < this.VAT_CACHE_DURATION) {
+        console.log(`[getDefaultVATRate] Using cached VAT rate: ${this.vatRateCache.rate}%`);
         return this.vatRateCache.rate;
       }
 
-      console.log('Fetching default VAT rate from ERPNext...');
+      console.log('[getDefaultVATRate] Fetching default VAT rate from ERPNext...');
       
-      // Najprv skús nájsť šablónu s 23% DPH (aktuálna slovenská sadzba)
-      // Ak nie je, použije default šablónu
       const templatesResponse = await this.client.get(`/resource/Sales Taxes and Charges Template`, {
         params: {
           fields: JSON.stringify(['name', 'is_default']),
@@ -1287,13 +1286,13 @@ export class ERPNextService {
         // Najprv skús nájsť default šablónu (má správnu sadzbu DPH)
         templateToUse = templatesResponse.data.data.find((t: any) => t.is_default === 1);
         if (templateToUse) {
-          console.log(`Using default template: "${templateToUse.name}"`);
+          console.log(`[getDefaultVATRate] Using default template: "${templateToUse.name}"`);
         }
 
         // Ak nie je default, použije prvú dostupnú
         if (!templateToUse) {
           templateToUse = templatesResponse.data.data[0];
-          console.log(`Using first available template: "${templateToUse.name}"`);
+          console.log(`[getDefaultVATRate] Using first available template: "${templateToUse.name}"`);
         }
       }
 
@@ -1305,7 +1304,12 @@ export class ERPNextService {
         if (detailResponse.data?.data && detailResponse.data.data.taxes && detailResponse.data.data.taxes.length > 0) {
           // Hľadať daň s najvyššou sadzbou (obvykle je to DPH)
           let maxRate = 0;
-          let vatRate = 20; // fallback
+          let vatRate = 19; // fallback - používame 19% ako v objednávkach
+          
+          console.log(`[getDefaultVATRate] Available taxes in template:`, detailResponse.data.data.taxes.map((t: any) => ({ 
+            account_head: t.account_head, 
+            rate: t.rate 
+          })));
           
           for (const tax of detailResponse.data.data.taxes) {
             const rate = parseFloat(tax.rate) || 0;
@@ -1315,7 +1319,7 @@ export class ERPNextService {
             }
           }
           
-          console.log(`Loaded VAT rate from ERPNext template "${templateToUse.name}": ${vatRate}%`);
+          console.log(`[getDefaultVATRate] Loaded VAT rate from ERPNext template "${templateToUse.name}": ${vatRate}%`);
           
           // Uložiť do cache
           this.vatRateCache = {
@@ -1327,12 +1331,12 @@ export class ERPNextService {
         }
       }
       
-      console.warn('No tax template found in ERPNext, using 20% VAT rate as fallback');
-      return 20;
+      console.warn('[getDefaultVATRate] No tax template found in ERPNext, using 19% VAT rate as fallback');
+      return 19;
     } catch (error) {
-      console.error('Error fetching VAT rate from ERPNext:', error);
-      // Fallback na slovenskú štandardnú sadzbu DPH
-      return 20;
+      console.error('[getDefaultVATRate] Error fetching VAT rate from ERPNext:', error);
+      // Fallback na 19% (rovnako ako v objednávkach)
+      return 19;
     }
   }
 

@@ -35,7 +35,7 @@ export default function AboutSection() {
                 src={aboutImage1}
                 alt="Výstavná vitrína našej cukrárne"
                 className="w-full h-full object-cover rounded-lg shadow-lg"
-                style={{ aspectRatio: '3/4' }}
+                style={{ aspectRatio: '9/16' }}
                 loading="lazy"
                 decoding="async"
                 sizes="(max-width: 768px) 50vw, 400px"
@@ -45,7 +45,7 @@ export default function AboutSection() {
                 src={aboutImage2}
                 alt="Príjemný interiér našej cukrárne"
                 className="w-full h-full object-cover rounded-lg shadow-lg"
-                style={{ aspectRatio: '3/4' }}
+                style={{ aspectRatio: '9/16' }}
                 loading="lazy"
                 decoding="async"
                 sizes="(max-width: 768px) 50vw, 400px"
@@ -56,7 +56,8 @@ export default function AboutSection() {
             <img
               src={aboutImage}
               alt="Interiér našej cukrárne"
-              className="w-full rounded-lg shadow-lg"
+              className="w-full rounded-lg shadow-lg object-cover"
+              style={{ aspectRatio: '16/9' }}
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 800px"

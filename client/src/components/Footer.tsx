@@ -131,9 +131,22 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="border-t border-background/20 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-background/60 text-sm">
-            © {currentYear} Marsela Bakery. Všetky práva vyhradené.
-          </p>
+          <div className="flex flex-col">
+            <p className="text-background/60 text-sm">
+              © {currentYear} Marsela Bakery. Všetky práva vyhradené.
+            </p>
+            <p className="text-background/50 text-xs mt-1">
+              Web vytvorila firma{' '}
+              <a 
+                href="https://codeway.sk" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-background/80 transition-colors"
+              >
+                codeway.sk
+              </a>
+            </p>
+          </div>
           
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link href="/ochrana-osobnych-udajov" data-testid="footer-link-privacy">

@@ -337,13 +337,23 @@ export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 
+// Gallery Category schema
+export const galleryCategorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  label: z.string(), // Display label (can be different from name)
+  createdAt: z.string(),
+  createdBy: z.string(),
+  isDefault: z.boolean().default(false) // Default categories cannot be deleted
+});
+
 // Gallery Image schema
 export const galleryImageSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().optional(),
   imageUrl: z.string(),
-  category: z.enum(['prevadzka', 'produkty', 'udalosti', 'timy']),
+  category: z.string(), // Category ID or name
   uploadedAt: z.string(),
   uploadedBy: z.string(),
   isPublic: z.boolean().default(true)
@@ -352,7 +362,7 @@ export const galleryImageSchema = z.object({
 export const insertGalleryImageSchema = z.object({
   title: z.string().min(1, "Názov je povinný"),
   description: z.string().optional(),
-  category: z.enum(['prevadzka', 'produkty', 'udalosti', 'timy']).default('prevadzka'),
+  category: z.string().default('prevadzka'), // Category ID or name
   uploadedBy: z.string(),
   isPublic: z.boolean().default(true)
 });
@@ -360,9 +370,24 @@ export const insertGalleryImageSchema = z.object({
 export const updateGalleryImageSchema = z.object({
   title: z.string().min(1, "Názov je povinný").optional(),
   description: z.string().optional(),
-  category: z.enum(['prevadzka', 'produkty', 'udalosti', 'timy']).optional()
+  category: z.string().optional() // Category ID or name
+});
+
+export const insertGalleryCategorySchema = z.object({
+  name: z.string().min(1, "Názov kategórie je povinný"),
+  label: z.string().min(1, "Zobrazovaný názov je povinný"),
+  createdBy: z.string(),
+  isDefault: z.boolean().default(false)
+});
+
+export const updateGalleryCategorySchema = z.object({
+  name: z.string().min(1, "Názov kategórie je povinný").optional(),
+  label: z.string().min(1, "Zobrazovaný názov je povinný").optional()
 });
 
 export type GalleryImage = z.infer<typeof galleryImageSchema>;
 export type InsertGalleryImage = z.infer<typeof insertGalleryImageSchema>;
 export type UpdateGalleryImage = z.infer<typeof updateGalleryImageSchema>;
+export type GalleryCategory = z.infer<typeof galleryCategorySchema>;
+export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
+export type UpdateGalleryCategory = z.infer<typeof updateGalleryCategorySchema>;

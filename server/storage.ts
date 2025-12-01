@@ -1,4 +1,4 @@
-import { type Product, type Order, type CartItem, type GalleryImage, type InsertGalleryImage, type UpdateGalleryImage } from "@shared/schema";
+import { type Product, type Order, type CartItem, type GalleryImage, type InsertGalleryImage, type UpdateGalleryImage, type GalleryCategory, type InsertGalleryCategory, type UpdateGalleryCategory } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // Since we're using ERPNext as the primary data store,
@@ -22,19 +22,52 @@ export interface IStorage {
   createGalleryImage(imageData: InsertGalleryImage, imageUrl: string): Promise<GalleryImage>;
   updateGalleryImage(id: string, updates: UpdateGalleryImage): Promise<GalleryImage | undefined>;
   deleteGalleryImage(id: string): Promise<boolean>;
+  
+  // Gallery categories management
+  getGalleryCategories(): Promise<GalleryCategory[]>;
+  getGalleryCategory(id: string): Promise<GalleryCategory | undefined>;
+  getGalleryCategoryByName(name: string): Promise<GalleryCategory | undefined>;
+  createGalleryCategory(categoryData: InsertGalleryCategory): Promise<GalleryCategory>;
+  updateGalleryCategory(id: string, updates: UpdateGalleryCategory): Promise<GalleryCategory | undefined>;
+  deleteGalleryCategory(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private carts: Map<string, CartItem[]>;
   private orders: Map<string, Order>;
   private galleryImages: Map<string, GalleryImage>;
+  private galleryCategories: Map<string, GalleryCategory>;
 
   constructor() {
     this.carts = new Map();
     this.orders = new Map();
     this.galleryImages = new Map();
+    this.galleryCategories = new Map();
     
-    // Gallery starts empty - no demo images
+    // Initialize default categories
+    this.initializeDefaultCategories();
+  }
+
+  private initializeDefaultCategories() {
+    const defaultCategories = [
+      { name: 'prevadzka', label: 'Prevádzka', isDefault: true },
+      { name: 'produkty', label: 'Produkty', isDefault: true },
+      { name: 'udalosti', label: 'Udalosti', isDefault: true },
+      { name: 'timy', label: 'Tím', isDefault: true }
+    ];
+
+    defaultCategories.forEach(cat => {
+      const id = cat.name; // Use name as ID for default categories
+      const category: GalleryCategory = {
+        id,
+        name: cat.name,
+        label: cat.label,
+        createdAt: new Date().toISOString(),
+        createdBy: 'system',
+        isDefault: cat.isDefault
+      };
+      this.galleryCategories.set(id, category);
+    });
   }
 
 
@@ -117,6 +150,81 @@ export class MemStorage implements IStorage {
 
   async deleteGalleryImage(id: string): Promise<boolean> {
     return this.galleryImages.delete(id);
+  }
+
+  // Gallery categories management methods
+  async getGalleryCategories(): Promise<GalleryCategory[]> {
+    return Array.from(this.galleryCategories.values()).sort((a, b) => {
+      // Default categories first, then by name
+      if (a.isDefault !== b.isDefault) {
+        return a.isDefault ? -1 : 1;
+      }
+      return a.label.localeCompare(b.label);
+    });
+  }
+
+  async getGalleryCategory(id: string): Promise<GalleryCategory | undefined> {
+    return this.galleryCategories.get(id);
+  }
+
+  async getGalleryCategoryByName(name: string): Promise<GalleryCategory | undefined> {
+    return Array.from(this.galleryCategories.values()).find(cat => cat.name === name);
+  }
+
+  async createGalleryCategory(categoryData: InsertGalleryCategory): Promise<GalleryCategory> {
+    const id = randomUUID();
+    const category: GalleryCategory = {
+      id,
+      name: categoryData.name,
+      label: categoryData.label,
+      createdAt: new Date().toISOString(),
+      createdBy: categoryData.createdBy,
+      isDefault: categoryData.isDefault || false
+    };
+    this.galleryCategories.set(id, category);
+    return category;
+  }
+
+  async updateGalleryCategory(id: string, updates: UpdateGalleryCategory): Promise<GalleryCategory | undefined> {
+    const existingCategory = this.galleryCategories.get(id);
+    if (!existingCategory) {
+      return undefined;
+    }
+
+    // Prevent deletion of default categories
+    if (existingCategory.isDefault && updates.name && updates.name !== existingCategory.name) {
+      throw new Error('Cannot modify default category name');
+    }
+
+    const updatedCategory: GalleryCategory = {
+      ...existingCategory,
+      ...updates
+    };
+    this.galleryCategories.set(id, updatedCategory);
+    return updatedCategory;
+  }
+
+  async deleteGalleryCategory(id: string): Promise<boolean> {
+    const category = this.galleryCategories.get(id);
+    if (!category) {
+      return false;
+    }
+
+    // Prevent deletion of default categories
+    if (category.isDefault) {
+      throw new Error('Cannot delete default category');
+    }
+
+    // Check if any images use this category
+    const imagesUsingCategory = Array.from(this.galleryImages.values()).some(
+      img => img.category === id || img.category === category.name
+    );
+
+    if (imagesUsingCategory) {
+      throw new Error('Cannot delete category that is used by images');
+    }
+
+    return this.galleryCategories.delete(id);
   }
 }
 

@@ -11,6 +11,8 @@ import {
   invoiceSchema,
   insertGalleryImageSchema,
   updateGalleryImageSchema,
+  insertGalleryCategorySchema,
+  updateGalleryCategorySchema,
   type CartItem,
   type Product,
   type ERPNextCustomer,
@@ -20,7 +22,9 @@ import {
   type InsertOrder,
   type GalleryImage,
   type InsertGalleryImage,
-  type UpdateGalleryImage
+  type UpdateGalleryImage,
+  type InsertGalleryCategory,
+  type UpdateGalleryCategory
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -2098,6 +2102,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting gallery image:", error);
       res.status(500).json({ error: "Failed to delete gallery image" });
+    }
+  });
+
+  // Gallery Categories API endpoints
+
+  // Get all gallery categories
+  app.get("/api/gallery/categories", async (req, res) => {
+    try {
+      const categories = await storage.getGalleryCategories();
+      res.json({ categories });
+    } catch (error) {
+      console.error("Error fetching gallery categories:", error);
+      res.status(500).json({ error: "Failed to fetch gallery categories" });
+    }
+  });
+
+  // Create new gallery category (Admin only)
+  app.post("/api/gallery/categories", async (req, res) => {
+    try {
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can create gallery categories"
+        });
+      }
+
+      const categoryData = insertGalleryCategorySchema.parse({
+        ...req.body,
+        createdBy: userEmail
+      });
+
+      // Check if category with same name already exists
+      const existingCategory = await storage.getGalleryCategoryByName(categoryData.name);
+      if (existingCategory) {
+        return res.status(400).json({ error: "Category with this name already exists" });
+      }
+
+      const category = await storage.createGalleryCategory(categoryData);
+      res.status(201).json({ category });
+    } catch (error) {
+      console.error("Error creating gallery category:", error);
+      res.status(500).json({ error: "Failed to create gallery category" });
+    }
+  });
+
+  // Update gallery category (Admin only)
+  app.put("/api/gallery/categories/:id", async (req, res) => {
+    try {
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can update gallery categories"
+        });
+      }
+
+      const { id } = req.params;
+      const updates = updateGalleryCategorySchema.parse(req.body);
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No updates provided" });
+      }
+
+      // Normalize name if provided
+      if (updates.name) {
+        updates.name = updates.name.trim().toLowerCase();
+        // Check if new name conflicts with existing category
+        const existingCategory = await storage.getGalleryCategoryByName(updates.name);
+        if (existingCategory && existingCategory.id !== id) {
+          return res.status(400).json({ error: "Category with this name already exists" });
+        }
+      }
+
+      // Normalize label if provided
+      if (updates.label) {
+        updates.label = updates.label.trim();
+      }
+
+      const updatedCategory = await storage.updateGalleryCategory(id, updates);
+      
+      if (!updatedCategory) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      
+      res.json({ category: updatedCategory });
+    } catch (error: any) {
+      console.error("Error updating gallery category:", error);
+      if (error.message) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to update gallery category" });
+    }
+  });
+
+  // Delete gallery category (Admin only)
+  app.delete("/api/gallery/categories/:id", async (req, res) => {
+    try {
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can delete gallery categories"
+        });
+      }
+
+      const { id } = req.params;
+      const deleted = await storage.deleteGalleryCategory(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting gallery category:", error);
+      if (error.message) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to delete gallery category" });
     }
   });
 

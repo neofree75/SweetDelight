@@ -35,6 +35,15 @@ interface GalleryImage {
   isPublic: boolean;
 }
 
+interface GalleryCategory {
+  id: string;
+  name: string;
+  label: string;
+  createdAt: string;
+  createdBy: string;
+  isDefault: boolean;
+}
+
 interface User {
   email: string;
   name: string;
@@ -47,13 +56,16 @@ interface GalleryProps {
 
 export default function Gallery({ user }: GalleryProps) {
   const [images, setImages] = useState<GalleryImage[]>([]);
+  const [categories, setCategories] = useState<GalleryCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const [editingCategory, setEditingCategory] = useState<GalleryCategory | null>(null);
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
@@ -66,20 +78,34 @@ export default function Gallery({ user }: GalleryProps) {
     category: 'prevadzka',
     image: null as File | null
   });
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    label: ''
+  });
   const { toast } = useToast();
 
-  const categories = [
-    { value: 'all', label: 'Všetky' },
-    { value: 'prevadzka', label: 'Prevádzka' },
-    { value: 'produkty', label: 'Produkty' },
-    { value: 'udalosti', label: 'Udalosti' },
-    { value: 'timy', label: 'Tím' }
-  ];
-
-  // Načítanie obrázkov
+  // Načítanie obrázkov a kategórií
   useEffect(() => {
     loadImages();
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/gallery/categories');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+        // Set default category if available
+        if (data.categories && data.categories.length > 0 && !uploadForm.category) {
+          const defaultCat = data.categories.find((cat: GalleryCategory) => cat.name === 'prevadzka') || data.categories[0];
+          setUploadForm(prev => ({ ...prev, category: defaultCat.name }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
 
   const loadImages = async () => {
     try {
@@ -126,9 +152,17 @@ export default function Gallery({ user }: GalleryProps) {
   const filteredImages = images.filter(image => {
     const matchesSearch = image.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (image.description && image.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || image.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || 
+                           image.category === selectedCategory || 
+                           image.category === categories.find(c => c.id === selectedCategory)?.name;
     return matchesSearch && matchesCategory;
   });
+
+  // Get category label by ID or name
+  const getCategoryLabel = (categoryIdOrName: string): string => {
+    const category = categories.find(c => c.id === categoryIdOrName || c.name === categoryIdOrName);
+    return category?.label || categoryIdOrName;
+  };
 
   // Upload obrázka
   const handleUpload = async () => {
@@ -170,7 +204,8 @@ export default function Gallery({ user }: GalleryProps) {
           description: "Obrázok bol úspešne pridaný do galérie"
         });
         setIsUploadDialogOpen(false);
-        setUploadForm({ title: '', description: '', category: 'prevadzka', image: null });
+        const defaultCat = categories.find(cat => cat.name === 'prevadzka') || categories[0];
+        setUploadForm({ title: '', description: '', category: defaultCat?.name || 'prevadzka', image: null });
         loadImages();
       } else {
         const error = await response.json();
@@ -327,6 +362,142 @@ export default function Gallery({ user }: GalleryProps) {
     });
   };
 
+  // Category management functions
+  const handleCreateCategory = async () => {
+    if (!categoryForm.name || !categoryForm.label) {
+      toast({
+        title: "Chyba",
+        description: "Vyplňte názov a zobrazovaný názov kategórie",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/gallery/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(categoryForm),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Úspech",
+          description: "Kategória bola úspešne pridaná"
+        });
+        setIsCategoryDialogOpen(false);
+        setCategoryForm({ name: '', label: '' });
+        loadCategories();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Chyba",
+          description: error.error || "Nepodarilo sa pridať kategóriu",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa pridať kategóriu",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory || !categoryForm.name || !categoryForm.label) {
+      toast({
+        title: "Chyba",
+        description: "Vyplňte názov a zobrazovaný názov kategórie",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/gallery/categories/${editingCategory.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(categoryForm),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Úspech",
+          description: "Kategória bola úspešne upravená"
+        });
+        setIsCategoryDialogOpen(false);
+        setEditingCategory(null);
+        setCategoryForm({ name: '', label: '' });
+        loadCategories();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Chyba",
+          description: error.error || "Nepodarilo sa upraviť kategóriu",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa upraviť kategóriu",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      const response = await fetch(`/api/gallery/categories/${categoryId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Úspech",
+          description: "Kategória bola úspešne vymazaná"
+        });
+        loadCategories();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Chyba",
+          description: error.error || "Nepodarilo sa vymazať kategóriu",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodarilo sa vymazať kategóriu",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const openCategoryDialog = (category?: GalleryCategory) => {
+    if (category) {
+      setEditingCategory(category);
+      setCategoryForm({ name: category.name, label: category.label });
+    } else {
+      setEditingCategory(null);
+      setCategoryForm({ name: '', label: '' });
+    }
+    setIsCategoryDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background py-12">
@@ -403,14 +574,28 @@ export default function Gallery({ user }: GalleryProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Kategória</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium">Kategória</label>
+                      {user?.isAdmin && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openCategoryDialog()}
+                          className="text-xs"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Pridať kategóriu
+                        </Button>
+                      )}
+                    </div>
                     <select
                       value={uploadForm.category}
                       onChange={(e) => setUploadForm({ ...uploadForm, category: e.target.value })}
                       className="w-full px-3 py-2 border border-input rounded-md bg-background"
                     >
-                      {categories.slice(1).map(category => (
-                        <option key={category.value} value={category.value}>
+                      {categories.map(category => (
+                        <option key={category.id} value={category.name}>
                           {category.label}
                         </option>
                       ))}
@@ -457,15 +642,71 @@ export default function Gallery({ user }: GalleryProps) {
           
           {/* Category Filters */}
           <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              variant={selectedCategory === 'all' ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory('all')}
+            >
+              Všetky
+            </Button>
             {categories.map(category => (
-              <Button
-                key={category.value}
-                variant={selectedCategory === category.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category.value)}
-              >
-                {category.label}
-              </Button>
+              <div key={category.id} className="relative group">
+                <Button
+                  variant={selectedCategory === category.id || selectedCategory === category.name ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedCategory(category.id)}
+                >
+                  {category.label}
+                </Button>
+                {user?.isAdmin && (
+                  <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 -mt-1 -mr-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-5 w-5 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCategoryDialog(category);
+                      }}
+                      title="Upraviť kategóriu"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    {!category.isDefault && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-5 w-5 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Vymazať kategóriu"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Vymazať kategóriu</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Naozaj chcete vymazať kategóriu "{category.label}"? Táto akcia sa nedá vrátiť späť.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteCategory(category.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Vymazať
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -554,7 +795,7 @@ export default function Gallery({ user }: GalleryProps) {
                         {formatDate(image.uploadedAt)}
                       </div>
                       <Badge variant="secondary">
-                        {categories.find(c => c.value === image.category)?.label || image.category}
+                        {getCategoryLabel(image.category)}
                       </Badge>
                     </div>
                   </div>
@@ -663,14 +904,28 @@ export default function Gallery({ user }: GalleryProps) {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Kategória</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Kategória</label>
+                  {user?.isAdmin && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openCategoryDialog()}
+                      className="text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Pridať kategóriu
+                    </Button>
+                  )}
+                </div>
                 <select
                   value={editForm.category}
                   onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background"
                 >
-                  {categories.slice(1).map(category => (
-                    <option key={category.value} value={category.value}>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.name}>
                       {category.label}
                     </option>
                   ))}
@@ -706,6 +961,72 @@ export default function Gallery({ user }: GalleryProps) {
               <Button onClick={handleEdit} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                 Uložiť zmeny
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Category Management Dialog */}
+        <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingCategory ? 'Upraviť kategóriu' : 'Pridať novú kategóriu'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingCategory 
+                  ? 'Upravte informácie o kategórii.'
+                  : 'Pridajte novú kategóriu do fotogalérie.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Názov kategórie *</label>
+                <Input
+                  value={categoryForm.name}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                  placeholder="prevadzka"
+                  disabled={editingCategory?.isDefault}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Používa sa ako identifikátor (malé písmená, pomlčky)
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Zobrazovaný názov *</label>
+                <Input
+                  value={categoryForm.label}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
+                  placeholder="Prevádzka"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Názov, ktorý sa zobrazí používateľom
+                </p>
+              </div>
+              {editingCategory?.isDefault && (
+                <div className="p-2 bg-muted rounded-md">
+                  <p className="text-xs text-muted-foreground">
+                    Toto je predvolená kategória a nemôže byť vymazaná alebo zmenený jej názov.
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button 
+                  onClick={editingCategory ? handleUpdateCategory : handleCreateCategory} 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {editingCategory ? 'Uložiť zmeny' : 'Pridať kategóriu'}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setIsCategoryDialogOpen(false);
+                    setEditingCategory(null);
+                    setCategoryForm({ name: '', label: '' });
+                  }}
+                >
+                  Zrušiť
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

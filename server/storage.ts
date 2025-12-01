@@ -1,5 +1,7 @@
 import { type Product, type Order, type CartItem, type GalleryImage, type InsertGalleryImage, type UpdateGalleryImage, type GalleryCategory, type InsertGalleryCategory, type UpdateGalleryCategory } from "@shared/schema";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 
 // Since we're using ERPNext as the primary data store,
 // this storage interface is mainly for session/cart management
@@ -37,6 +39,7 @@ export class MemStorage implements IStorage {
   private orders: Map<string, Order>;
   private galleryImages: Map<string, GalleryImage>;
   private galleryCategories: Map<string, GalleryCategory>;
+  private categoriesFilePath: string;
 
   constructor() {
     this.carts = new Map();
@@ -44,8 +47,51 @@ export class MemStorage implements IStorage {
     this.galleryImages = new Map();
     this.galleryCategories = new Map();
     
-    // Initialize default categories
-    this.initializeDefaultCategories();
+    // Set path for categories JSON file
+    const dataDir = path.resolve(process.cwd(), 'data');
+    this.categoriesFilePath = path.join(dataDir, 'gallery-categories.json');
+    
+    // Ensure data directory exists
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+      console.log(`[Storage] Created data directory: ${dataDir}`);
+    }
+    
+    // Load categories from file or initialize defaults
+    this.loadCategoriesFromFile();
+  }
+
+  private loadCategoriesFromFile() {
+    try {
+      if (fs.existsSync(this.categoriesFilePath)) {
+        const fileContent = fs.readFileSync(this.categoriesFilePath, 'utf-8');
+        const categories: GalleryCategory[] = JSON.parse(fileContent);
+        console.log(`[Storage] Loaded ${categories.length} categories from file`);
+        
+        categories.forEach(category => {
+          this.galleryCategories.set(category.id, category);
+        });
+      } else {
+        console.log('[Storage] Categories file not found, initializing default categories');
+        this.initializeDefaultCategories();
+        this.saveCategoriesToFile();
+      }
+    } catch (error) {
+      console.error('[Storage] Error loading categories from file:', error);
+      // If file is corrupted, initialize defaults
+      this.initializeDefaultCategories();
+      this.saveCategoriesToFile();
+    }
+  }
+
+  private saveCategoriesToFile() {
+    try {
+      const categories = Array.from(this.galleryCategories.values());
+      fs.writeFileSync(this.categoriesFilePath, JSON.stringify(categories, null, 2), 'utf-8');
+      console.log(`[Storage] Saved ${categories.length} categories to file`);
+    } catch (error) {
+      console.error('[Storage] Error saving categories to file:', error);
+    }
   }
 
   private initializeDefaultCategories() {
@@ -182,6 +228,7 @@ export class MemStorage implements IStorage {
       isDefault: categoryData.isDefault || false
     };
     this.galleryCategories.set(id, category);
+    this.saveCategoriesToFile(); // Save to file after creation
     return category;
   }
 
@@ -201,6 +248,7 @@ export class MemStorage implements IStorage {
       ...updates
     };
     this.galleryCategories.set(id, updatedCategory);
+    this.saveCategoriesToFile(); // Save to file after update
     return updatedCategory;
   }
 
@@ -224,7 +272,11 @@ export class MemStorage implements IStorage {
       throw new Error('Cannot delete category that is used by images');
     }
 
-    return this.galleryCategories.delete(id);
+    const deleted = this.galleryCategories.delete(id);
+    if (deleted) {
+      this.saveCategoriesToFile(); // Save to file after deletion
+    }
+    return deleted;
   }
 }
 

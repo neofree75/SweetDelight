@@ -430,20 +430,37 @@ export default function Gallery({ user }: GalleryProps) {
         setIsCategoryDialogOpen(false);
         setCategoryForm({ name: '', label: '' });
         
+        // Wait a bit before reloading to ensure server has saved the category
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Reload categories and wait for them to be loaded
+        console.log('[Gallery] Reloading categories after creation...');
         await loadCategories();
         
         // Wait a bit more to ensure state is updated
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Set the newly created category as selected in upload form
-        if (result.category) {
-          console.log('[Gallery] Setting new category as selected:', result.category.name);
-          setUploadForm(prev => {
-            console.log('[Gallery] Current uploadForm.category:', prev.category);
-            console.log('[Gallery] Setting to:', result.category.name);
-            return { ...prev, category: result.category.name };
-          });
+        // Fetch categories again to verify they were loaded
+        const verifyResponse = await fetch('/api/gallery/categories');
+        if (verifyResponse.ok) {
+          const verifyData = await verifyResponse.json();
+          const verifyCategories = verifyData.categories || [];
+          console.log('[Gallery] Verification - Categories from server:', verifyCategories.length);
+          console.log('[Gallery] Verification - Category names:', verifyCategories.map((c: GalleryCategory) => c.name));
+          
+          // Update categories state with verified data
+          setCategories(verifyCategories);
+          setCategoriesKey(prev => prev + 1);
+          
+          // Set the newly created category as selected in upload form
+          if (result.category) {
+            console.log('[Gallery] Setting new category as selected:', result.category.name);
+            setUploadForm(prev => {
+              console.log('[Gallery] Current uploadForm.category:', prev.category);
+              console.log('[Gallery] Setting to:', result.category.name);
+              return { ...prev, category: result.category.name };
+            });
+          }
         }
         
         toast({

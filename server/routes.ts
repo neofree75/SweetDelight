@@ -2110,7 +2110,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all gallery categories
   app.get("/api/gallery/categories", async (req, res) => {
     try {
+      console.log('[API] GET /api/gallery/categories - Fetching categories...');
       const categories = await storage.getGalleryCategories();
+      console.log('[API] GET /api/gallery/categories - Found categories:', categories.length);
+      console.log('[API] GET /api/gallery/categories - Categories:', JSON.stringify(categories, null, 2));
       res.json({ categories });
     } catch (error) {
       console.error("Error fetching gallery categories:", error);
@@ -2147,7 +2150,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Category with this name already exists" });
       }
 
+      console.log('[API] POST /api/gallery/categories - Creating category:', categoryData);
       const category = await storage.createGalleryCategory(categoryData);
+      console.log('[API] POST /api/gallery/categories - Category created:', category);
+      
+      // Verify category was saved by fetching all categories
+      const allCategories = await storage.getGalleryCategories();
+      console.log('[API] POST /api/gallery/categories - All categories after creation:', allCategories.length);
+      
       res.status(201).json({ category });
     } catch (error) {
       console.error("Error creating gallery category:", error);

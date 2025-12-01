@@ -51,10 +51,16 @@ export class MemStorage implements IStorage {
     const dataDir = path.resolve(process.cwd(), 'data');
     this.categoriesFilePath = path.join(dataDir, 'gallery-categories.json');
     
+    console.log(`[Storage] Constructor - process.cwd(): ${process.cwd()}`);
+    console.log(`[Storage] Constructor - dataDir: ${dataDir}`);
+    console.log(`[Storage] Constructor - categoriesFilePath: ${this.categoriesFilePath}`);
+    
     // Ensure data directory exists
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
       console.log(`[Storage] Created data directory: ${dataDir}`);
+    } else {
+      console.log(`[Storage] Data directory already exists: ${dataDir}`);
     }
     
     // Load categories from file or initialize defaults
@@ -63,14 +69,20 @@ export class MemStorage implements IStorage {
 
   private loadCategoriesFromFile() {
     try {
+      console.log(`[Storage] Loading categories from file: ${this.categoriesFilePath}`);
       if (fs.existsSync(this.categoriesFilePath)) {
         const fileContent = fs.readFileSync(this.categoriesFilePath, 'utf-8');
+        console.log(`[Storage] File content length: ${fileContent.length} bytes`);
         const categories: GalleryCategory[] = JSON.parse(fileContent);
         console.log(`[Storage] Loaded ${categories.length} categories from file`);
+        console.log(`[Storage] Categories from file:`, categories.map(c => ({ id: c.id, name: c.name, label: c.label })));
         
+        // Clear existing categories and reload from file
+        this.galleryCategories.clear();
         categories.forEach(category => {
           this.galleryCategories.set(category.id, category);
         });
+        console.log(`[Storage] Categories loaded into memory: ${this.galleryCategories.size}`);
       } else {
         console.log('[Storage] Categories file not found, initializing default categories');
         this.initializeDefaultCategories();
@@ -87,10 +99,20 @@ export class MemStorage implements IStorage {
   private saveCategoriesToFile() {
     try {
       const categories = Array.from(this.galleryCategories.values());
-      fs.writeFileSync(this.categoriesFilePath, JSON.stringify(categories, null, 2), 'utf-8');
-      console.log(`[Storage] Saved ${categories.length} categories to file`);
+      const fileContent = JSON.stringify(categories, null, 2);
+      fs.writeFileSync(this.categoriesFilePath, fileContent, 'utf-8');
+      console.log(`[Storage] Saved ${categories.length} categories to file: ${this.categoriesFilePath}`);
+      console.log(`[Storage] File content preview:`, fileContent.substring(0, 200));
+      
+      // Verify file was written correctly
+      if (fs.existsSync(this.categoriesFilePath)) {
+        const verifyContent = fs.readFileSync(this.categoriesFilePath, 'utf-8');
+        const verifyCategories = JSON.parse(verifyContent);
+        console.log(`[Storage] Verification: File contains ${verifyCategories.length} categories`);
+      }
     } catch (error) {
       console.error('[Storage] Error saving categories to file:', error);
+      throw error; // Re-throw to see the error
     }
   }
 
@@ -200,13 +222,18 @@ export class MemStorage implements IStorage {
 
   // Gallery categories management methods
   async getGalleryCategories(): Promise<GalleryCategory[]> {
-    return Array.from(this.galleryCategories.values()).sort((a, b) => {
+    const categories = Array.from(this.galleryCategories.values());
+    console.log('[Storage] getGalleryCategories - Total in memory:', categories.length);
+    console.log('[Storage] getGalleryCategories - Categories:', categories.map(c => ({ id: c.id, name: c.name, label: c.label })));
+    const sorted = categories.sort((a, b) => {
       // Default categories first, then by name
       if (a.isDefault !== b.isDefault) {
         return a.isDefault ? -1 : 1;
       }
       return a.label.localeCompare(b.label);
     });
+    console.log('[Storage] getGalleryCategories - Returning sorted categories:', sorted.length);
+    return sorted;
   }
 
   async getGalleryCategory(id: string): Promise<GalleryCategory | undefined> {
@@ -227,8 +254,13 @@ export class MemStorage implements IStorage {
       createdBy: categoryData.createdBy,
       isDefault: categoryData.isDefault || false
     };
+    console.log('[Storage] Creating category:', JSON.stringify(category, null, 2));
     this.galleryCategories.set(id, category);
+    console.log('[Storage] Category added to map. Total categories in memory:', this.galleryCategories.size);
     this.saveCategoriesToFile(); // Save to file after creation
+    console.log('[Storage] Category saved to file. Verifying...');
+    const allCategories = Array.from(this.galleryCategories.values());
+    console.log('[Storage] All categories after save:', allCategories.map(c => ({ id: c.id, name: c.name, label: c.label })));
     return category;
   }
 

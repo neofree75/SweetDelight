@@ -773,6 +773,134 @@ export class ERPNextService {
     }
   }
 
+  // Get VAT rate for a specific item from Item Tax Template
+  async getItemVATRate(itemCode: string): Promise<number> {
+    this.refreshClient();
+    try {
+      // First, get the Item to find its item_tax_template
+      const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
+        params: {
+          fields: '["item_tax_template"]'
+        }
+      });
+
+      const item = itemResponse.data?.data;
+      if (!item || !item.item_tax_template) {
+        // If no Item Tax Template, use default VAT rate
+        console.log(`[getItemVATRate] No Item Tax Template for ${itemCode}, using default VAT rate`);
+        return await this.getDefaultVATRate();
+      }
+
+      // Get the Item Tax Template
+      const templateName = item.item_tax_template;
+      const encodedTemplateName = encodeURIComponent(templateName);
+      const templateResponse = await this.client.get(`/resource/Item Tax Template/${encodedTemplateName}`);
+
+      const template = templateResponse.data?.data;
+      if (!template || !template.taxes || template.taxes.length === 0) {
+        console.log(`[getItemVATRate] No taxes in Item Tax Template "${templateName}" for ${itemCode}, using default VAT rate`);
+        return await this.getDefaultVATRate();
+      }
+
+      // Find the highest tax rate (usually VAT)
+      let maxRate = 0;
+      let vatRate = 0;
+      
+      for (const tax of template.taxes) {
+        const rate = parseFloat(tax.tax_rate) || 0;
+        if (rate > maxRate && rate > 0 && rate <= 100) {
+          maxRate = rate;
+          vatRate = rate;
+        }
+      }
+
+      if (vatRate > 0) {
+        console.log(`[getItemVATRate] Found VAT rate ${vatRate}% for ${itemCode} from Item Tax Template "${templateName}"`);
+        return vatRate;
+      }
+
+      // Fallback to default VAT rate
+      console.log(`[getItemVATRate] No valid VAT rate found in Item Tax Template "${templateName}" for ${itemCode}, using default VAT rate`);
+      return await this.getDefaultVATRate();
+    } catch (error) {
+      console.log(`[getItemVATRate] Error fetching VAT rate for ${itemCode}: ${error instanceof Error ? error.message : 'Unknown error'}, using default VAT rate`);
+      return await this.getDefaultVATRate();
+    }
+  }
+
+  // Get price without VAT and VAT amount for an item
+  // Returns: { priceWithoutVat: number, vatRate: number, vatAmount: number, priceWithVat: number }
+  async getItemPriceWithVAT(itemCode: string, priceList?: string): Promise<{
+    priceWithoutVat: number;
+    vatRate: number;
+    vatAmount: number;
+    priceWithVat: number;
+  }> {
+    this.refreshClient();
+    try {
+      // Get price without VAT from Item Price (or valuation_rate)
+      let priceWithoutVat = await this.getItemPrice(itemCode, priceList);
+      
+      // If no Item Price found, try to get valuation_rate from Item
+      if (priceWithoutVat === 0) {
+        try {
+          const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
+            params: {
+              fields: '["valuation_rate"]'
+            }
+          });
+          const item = itemResponse.data?.data;
+          if (item && item.valuation_rate) {
+            priceWithoutVat = Number(item.valuation_rate) || 0;
+            console.log(`[getItemPriceWithVAT] Using valuation_rate for ${itemCode}: ${priceWithoutVat}`);
+          }
+        } catch (error) {
+          console.log(`[getItemPriceWithVAT] Error fetching valuation_rate for ${itemCode}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      if (priceWithoutVat === 0) {
+        console.warn(`[getItemPriceWithVAT] No price found for ${itemCode}`);
+        return {
+          priceWithoutVat: 0,
+          vatRate: 0,
+          vatAmount: 0,
+          priceWithVat: 0
+        };
+      }
+
+      // Get VAT rate for this specific item
+      const vatRate = await this.getItemVATRate(itemCode);
+
+      // Calculate VAT amount and price with VAT
+      const vatAmount = Math.round((priceWithoutVat * (vatRate / 100)) * 100) / 100;
+      const priceWithVat = Math.round((priceWithoutVat + vatAmount) * 100) / 100;
+
+      console.log(`[getItemPriceWithVAT] For ${itemCode}: priceWithoutVat=${priceWithoutVat}, vatRate=${vatRate}%, vatAmount=${vatAmount}, priceWithVat=${priceWithVat}`);
+
+      return {
+        priceWithoutVat,
+        vatRate,
+        vatAmount,
+        priceWithVat
+      };
+    } catch (error) {
+      console.error(`[getItemPriceWithVAT] Error getting price with VAT for ${itemCode}:`, error);
+      // Fallback to default VAT rate
+      const defaultVatRate = await this.getDefaultVATRate();
+      const priceWithoutVat = await this.getItemPrice(itemCode, priceList);
+      const vatAmount = Math.round((priceWithoutVat * (defaultVatRate / 100)) * 100) / 100;
+      const priceWithVat = Math.round((priceWithoutVat + vatAmount) * 100) / 100;
+      
+      return {
+        priceWithoutVat,
+        vatRate: defaultVatRate,
+        vatAmount,
+        priceWithVat
+      };
+    }
+  }
+
   // Get Website Slideshow images for a slideshow name
   async getSlideshowImages(slideshowName: string): Promise<string[]> {
     this.refreshClient();
@@ -1467,8 +1595,7 @@ export class ERPNextService {
       valuation_rate: i.valuation_rate
     })));
 
-    // Načítať sadzbu DPH raz pre všetky produkty
-    const vatRate = await this.getDefaultVATRate();
+    // Note: VAT rate is now fetched per item in getItemPriceWithVAT
 
     // Transform items to products
     const products = await Promise.all(items.map(async item => {
@@ -1480,26 +1607,11 @@ export class ERPNextService {
         imageUrl = item.image;
       }
 
-      // Calculate VAT information using rate from ERPNext tax template
-      // Try to get price from Item Price first, fallback to valuation_rate
-      let priceWithoutVat = 0;
-      
-      // Try to get price from Item Price doctype (preferred method)
-      const itemPrice = await this.getItemPrice(item.name);
-      if (itemPrice > 0) {
-        priceWithoutVat = itemPrice;
-        console.log(`[getProductsForFrontend] Using Item Price for ${item.name}: ${itemPrice}`);
-      } else {
-        // Fallback to valuation_rate if Item Price not found
-        priceWithoutVat = item.valuation_rate || 0;
-        if (priceWithoutVat > 0) {
-          console.log(`[getProductsForFrontend] Using valuation_rate for ${item.name}: ${priceWithoutVat}`);
-        } else {
-          console.warn(`[getProductsForFrontend] No price found for ${item.name} (item_code: ${item.name})`);
-        }
-      }
-      
-      const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
+      // Get price without VAT and VAT information from ERPNext
+      const priceInfo = await this.getItemPriceWithVAT(item.name);
+      const priceWithoutVat = priceInfo.priceWithoutVat;
+      const vatRate = priceInfo.vatRate;
+      const priceWithVat = priceInfo.priceWithVat;
 
       // Načítať slideshow obrázky ak existuje slideshow
       let galleryImages: string[] = [];
@@ -1518,12 +1630,8 @@ export class ERPNextService {
         console.log(`Debug: Product ${item.name} has variants, loading them...`);
         const itemVariants = await this.getItemVariants(item.name);
         variants = await Promise.all(itemVariants.map(async variant => {
-          // Try to get price from Item Price first, fallback to valuation_rate
-          let variantPriceWithoutVat = await this.getItemPrice(variant.name);
-          if (variantPriceWithoutVat === 0) {
-            variantPriceWithoutVat = variant.valuation_rate || 0;
-          }
-          const variantPriceWithVat = variantPriceWithoutVat * (1 + vatRate / 100);
+          // Get price without VAT and VAT information from ERPNext
+          const variantPriceInfo = await this.getItemPriceWithVAT(variant.name);
           return {
             id: variant.name,
             name: variant.item_name,
@@ -1532,9 +1640,9 @@ export class ERPNextService {
               attribute: attr.attribute,
               value: attr.attribute_value || ''
             })),
-            price: variantPriceWithoutVat, // Cena bez DPH
-            vatRate: vatRate, // Sadzba DPH v percentách
-            priceWithVat: Math.round(variantPriceWithVat * 100) / 100, // Cena s DPH
+            price: variantPriceInfo.priceWithoutVat, // Cena bez DPH
+            vatRate: variantPriceInfo.vatRate, // Sadzba DPH v percentách
+            priceWithVat: variantPriceInfo.priceWithVat, // Cena s DPH
           };
         }));
         console.log(`Debug: Mapped ${variants.length} variants for ${item.name}`);
@@ -1620,18 +1728,11 @@ export class ERPNextService {
         imageUrl = item.image;
       }
 
-      // Calculate VAT information using rate from ERPNext tax template
-      const vatRate = await this.getDefaultVATRate();
-      // Try to get price from Item Price first, fallback to valuation_rate
-      let priceWithoutVat = 0;
-      const itemPrice = await this.getItemPrice(item.name);
-      if (itemPrice > 0) {
-        priceWithoutVat = itemPrice;
-      } else {
-        priceWithoutVat = item.valuation_rate || 0;
-      }
-      
-      const priceWithVat = priceWithoutVat * (1 + vatRate / 100);
+      // Get price without VAT and VAT information from ERPNext
+      const priceInfo = await this.getItemPriceWithVAT(item.name);
+      const priceWithoutVat = priceInfo.priceWithoutVat;
+      const vatRate = priceInfo.vatRate;
+      const priceWithVat = priceInfo.priceWithVat;
 
       // Načítať slideshow obrázky z Website Item
       let galleryImages: string[] = [];
@@ -1661,12 +1762,8 @@ export class ERPNextService {
       if (Boolean(item.has_variants)) {
         const itemVariants = await this.getItemVariants(item.name);
         variants = await Promise.all(itemVariants.map(async variant => {
-          // Try to get price from Item Price first, fallback to valuation_rate
-          let variantPriceWithoutVat = await this.getItemPrice(variant.name);
-          if (variantPriceWithoutVat === 0) {
-            variantPriceWithoutVat = variant.valuation_rate || 0;
-          }
-          const variantPriceWithVat = variantPriceWithoutVat * (1 + vatRate / 100);
+          // Get price without VAT and VAT information from ERPNext
+          const variantPriceInfo = await this.getItemPriceWithVAT(variant.name);
           return {
             id: variant.name,
             name: variant.item_name,
@@ -1675,9 +1772,9 @@ export class ERPNextService {
               attribute: attr.attribute,
               value: attr.attribute_value || ''
             })),
-            price: variantPriceWithoutVat, // Cena bez DPH
-            vatRate: vatRate, // Sadzba DPH v percentách
-            priceWithVat: Math.round(variantPriceWithVat * 100) / 100, // Cena s DPH
+            price: variantPriceInfo.priceWithoutVat, // Cena bez DPH
+            vatRate: variantPriceInfo.vatRate, // Sadzba DPH v percentách
+            priceWithVat: variantPriceInfo.priceWithVat, // Cena s DPH
           };
         }));
       }

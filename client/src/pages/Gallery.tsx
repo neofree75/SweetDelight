@@ -92,11 +92,13 @@ export default function Gallery({ user }: GalleryProps) {
 
   const loadCategories = async () => {
     try {
+      console.log('[Gallery] Loading categories...');
       const response = await fetch('/api/gallery/categories');
       if (response.ok) {
         const data = await response.json();
         const loadedCategories = data.categories || [];
         console.log('[Gallery] Loaded categories:', loadedCategories);
+        console.log('[Gallery] Categories count:', loadedCategories.length);
         setCategories(loadedCategories);
         // Set default category if available and uploadForm doesn't have a valid category
         if (loadedCategories.length > 0) {
@@ -111,7 +113,8 @@ export default function Gallery({ user }: GalleryProps) {
           }
         }
       } else {
-        console.error('[Gallery] Failed to load categories:', response.status);
+        const errorText = await response.text();
+        console.error('[Gallery] Failed to load categories:', response.status, errorText);
       }
     } catch (error) {
       console.error('[Gallery] Error loading categories:', error);
@@ -396,18 +399,19 @@ export default function Gallery({ user }: GalleryProps) {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('[Gallery] Category created:', result);
+        console.log('[Gallery] Category created successfully:', result);
+        console.log('[Gallery] Created category:', result.category);
         toast({
           title: "Úspech",
           description: "Kategória bola úspešne pridaná"
         });
         setIsCategoryDialogOpen(false);
         setCategoryForm({ name: '', label: '' });
-        // Wait a bit for the server to process, then reload categories
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Reload categories immediately
         await loadCategories();
         // Set the newly created category as selected in upload form
         if (result.category) {
+          console.log('[Gallery] Setting new category as selected:', result.category.name);
           setUploadForm(prev => ({ ...prev, category: result.category.name }));
         }
       } else {
@@ -609,21 +613,35 @@ export default function Gallery({ user }: GalleryProps) {
                       )}
                     </div>
                     <select
-                      key={`upload-category-${categories.length}`}
+                      key={`upload-category-${categories.length}-${categories.map(c => c.id).join('-')}`}
                       value={uploadForm.category}
-                      onChange={(e) => setUploadForm({ ...uploadForm, category: e.target.value })}
+                      onChange={(e) => {
+                        console.log('[Gallery] Category changed to:', e.target.value);
+                        setUploadForm({ ...uploadForm, category: e.target.value });
+                      }}
                       className="w-full px-3 py-2 border border-input rounded-md bg-background"
                     >
                       {categories.length === 0 ? (
                         <option value="">Načítavam kategórie...</option>
                       ) : (
-                        categories.map(category => (
-                          <option key={category.id} value={category.name}>
-                            {category.label}
-                          </option>
-                        ))
+                        categories.map(category => {
+                          const isSelected = uploadForm.category === category.name || uploadForm.category === category.id;
+                          if (isSelected) {
+                            console.log('[Gallery] Selected category:', category.name, category.label);
+                          }
+                          return (
+                            <option key={category.id} value={category.name}>
+                              {category.label}
+                            </option>
+                          );
+                        })
                       )}
                     </select>
+                    {categories.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Dostupné kategórie: {categories.length} ({categories.map(c => c.label).join(', ')})
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium">Obrázok *</label>

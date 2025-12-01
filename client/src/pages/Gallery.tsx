@@ -567,7 +567,32 @@ export default function Gallery({ user }: GalleryProps) {
           title: "Úspech",
           description: "Kategória bola úspešne vymazaná"
         });
-        loadCategories();
+        
+        // Wait a bit before reloading to ensure server has processed the deletion
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Reload categories
+        await loadCategories();
+        
+        // If deleted category was selected, reset to 'all'
+        const deletedCategory = categories.find(c => c.id === categoryId);
+        if (deletedCategory && (selectedCategory === deletedCategory.id || selectedCategory === deletedCategory.name)) {
+          setSelectedCategory('all');
+        }
+        
+        // If deleted category was in upload/edit form, reset to first available category
+        if (deletedCategory && (uploadForm.category === deletedCategory.name || uploadForm.category === deletedCategory.id)) {
+          const remainingCategories = categories.filter(c => c.id !== categoryId);
+          if (remainingCategories.length > 0) {
+            setUploadForm(prev => ({ ...prev, category: remainingCategories[0].name }));
+          }
+        }
+        if (deletedCategory && (editForm.category === deletedCategory.name || editForm.category === deletedCategory.id)) {
+          const remainingCategories = categories.filter(c => c.id !== categoryId);
+          if (remainingCategories.length > 0) {
+            setEditForm(prev => ({ ...prev, category: remainingCategories[0].name }));
+          }
+        }
       } else {
         const error = await response.json();
         toast({
@@ -756,6 +781,95 @@ export default function Gallery({ user }: GalleryProps) {
               </DialogContent>
             </Dialog>
           </div>
+        )}
+
+        {/* Category Management Section (Admin only) */}
+        {user?.isAdmin && (
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Správa kategórií</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openCategoryDialog()}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Pridať kategóriu
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Žiadne kategórie. Pridajte prvú kategóriu.
+                  </p>
+                ) : (
+                  categories.map(category => (
+                    <div
+                      key={category.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={category.isDefault ? "default" : "secondary"}>
+                          {category.isDefault ? "Predvolená" : "Vlastná"}
+                        </Badge>
+                        <div>
+                          <p className="font-medium">{category.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {category.name}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openCategoryDialog(category)}
+                          title="Upraviť kategóriu"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Upraviť
+                        </Button>
+                        {!category.isDefault && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                title="Vymazať kategóriu"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Vymazať
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Vymazať kategóriu</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Naozaj chcete vymazať kategóriu "{category.label}"? 
+                                  Táto akcia sa nedá vrátiť späť. Ak má táto kategória priradené obrázky, 
+                                  nebudú sa môcť vymazať.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteCategory(category.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Vymazať
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Filters */}

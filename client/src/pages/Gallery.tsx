@@ -57,6 +57,7 @@ interface GalleryProps {
 export default function Gallery({ user }: GalleryProps) {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<GalleryCategory[]>([]);
+  const [categoriesKey, setCategoriesKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -90,6 +91,20 @@ export default function Gallery({ user }: GalleryProps) {
     loadCategories();
   }, []);
 
+  // Update upload form category when categories change
+  useEffect(() => {
+    if (categories.length > 0 && uploadForm.category) {
+      const categoryExists = categories.some(
+        cat => cat.name === uploadForm.category || cat.id === uploadForm.category
+      );
+      if (!categoryExists) {
+        // If current category doesn't exist, set to first available
+        const firstCategory = categories[0];
+        setUploadForm(prev => ({ ...prev, category: firstCategory.name }));
+      }
+    }
+  }, [categories]);
+
   const loadCategories = async () => {
     try {
       console.log('[Gallery] Loading categories...');
@@ -99,15 +114,24 @@ export default function Gallery({ user }: GalleryProps) {
         const loadedCategories = data.categories || [];
         console.log('[Gallery] Loaded categories:', loadedCategories);
         console.log('[Gallery] Categories count:', loadedCategories.length);
+        console.log('[Gallery] Category names:', loadedCategories.map((c: GalleryCategory) => c.name));
+        console.log('[Gallery] Category labels:', loadedCategories.map((c: GalleryCategory) => c.label));
+        
+        // Update categories state and force re-render of select
         setCategories(loadedCategories);
+        setCategoriesKey(prev => prev + 1);
+        
         // Set default category if available and uploadForm doesn't have a valid category
         if (loadedCategories.length > 0) {
           const currentCategoryExists = loadedCategories.some(
             (cat: GalleryCategory) => cat.name === uploadForm.category || cat.id === uploadForm.category
           );
+          console.log('[Gallery] Current category exists:', currentCategoryExists, 'Current category:', uploadForm.category);
+          
           if (!currentCategoryExists || !uploadForm.category) {
             const defaultCat = loadedCategories.find((cat: GalleryCategory) => cat.name === 'prevadzka') || loadedCategories[0];
             if (defaultCat) {
+              console.log('[Gallery] Setting default category:', defaultCat.name);
               setUploadForm(prev => ({ ...prev, category: defaultCat.name }));
             }
           }
@@ -401,19 +425,31 @@ export default function Gallery({ user }: GalleryProps) {
         const result = await response.json();
         console.log('[Gallery] Category created successfully:', result);
         console.log('[Gallery] Created category:', result.category);
+        
+        // Close dialog first
+        setIsCategoryDialogOpen(false);
+        setCategoryForm({ name: '', label: '' });
+        
+        // Reload categories and wait for them to be loaded
+        await loadCategories();
+        
+        // Wait a bit more to ensure state is updated
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Set the newly created category as selected in upload form
+        if (result.category) {
+          console.log('[Gallery] Setting new category as selected:', result.category.name);
+          setUploadForm(prev => {
+            console.log('[Gallery] Current uploadForm.category:', prev.category);
+            console.log('[Gallery] Setting to:', result.category.name);
+            return { ...prev, category: result.category.name };
+          });
+        }
+        
         toast({
           title: "Úspech",
           description: "Kategória bola úspešne pridaná"
         });
-        setIsCategoryDialogOpen(false);
-        setCategoryForm({ name: '', label: '' });
-        // Reload categories immediately
-        await loadCategories();
-        // Set the newly created category as selected in upload form
-        if (result.category) {
-          console.log('[Gallery] Setting new category as selected:', result.category.name);
-          setUploadForm(prev => ({ ...prev, category: result.category.name }));
-        }
       } else {
         const error = await response.json();
         toast({
@@ -613,8 +649,8 @@ export default function Gallery({ user }: GalleryProps) {
                       )}
                     </div>
                     <select
-                      key={`upload-category-${categories.length}-${categories.map(c => c.id).join('-')}`}
-                      value={uploadForm.category}
+                      key={`upload-category-select-${categoriesKey}-${categories.length}`}
+                      value={uploadForm.category || ''}
                       onChange={(e) => {
                         console.log('[Gallery] Category changed to:', e.target.value);
                         setUploadForm({ ...uploadForm, category: e.target.value });
@@ -627,10 +663,10 @@ export default function Gallery({ user }: GalleryProps) {
                         categories.map(category => {
                           const isSelected = uploadForm.category === category.name || uploadForm.category === category.id;
                           if (isSelected) {
-                            console.log('[Gallery] Selected category:', category.name, category.label);
+                            console.log('[Gallery] Selected category in select:', category.name, category.label);
                           }
                           return (
-                            <option key={category.id} value={category.name}>
+                            <option key={`${category.id}-${category.name}`} value={category.name}>
                               {category.label}
                             </option>
                           );
@@ -638,9 +674,22 @@ export default function Gallery({ user }: GalleryProps) {
                       )}
                     </select>
                     {categories.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Dostupné kategórie: {categories.length} ({categories.map(c => c.label).join(', ')})
-                      </p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-muted-foreground">
+                          Dostupné kategórie: {categories.length}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {categories.map(cat => (
+                            <Badge 
+                              key={cat.id} 
+                              variant={uploadForm.category === cat.name ? "default" : "secondary"}
+                              className="text-xs"
+                            >
+                              {cat.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div>

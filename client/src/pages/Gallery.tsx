@@ -95,15 +95,26 @@ export default function Gallery({ user }: GalleryProps) {
       const response = await fetch('/api/gallery/categories');
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories || []);
-        // Set default category if available
-        if (data.categories && data.categories.length > 0 && !uploadForm.category) {
-          const defaultCat = data.categories.find((cat: GalleryCategory) => cat.name === 'prevadzka') || data.categories[0];
-          setUploadForm(prev => ({ ...prev, category: defaultCat.name }));
+        const loadedCategories = data.categories || [];
+        console.log('[Gallery] Loaded categories:', loadedCategories);
+        setCategories(loadedCategories);
+        // Set default category if available and uploadForm doesn't have a valid category
+        if (loadedCategories.length > 0) {
+          const currentCategoryExists = loadedCategories.some(
+            (cat: GalleryCategory) => cat.name === uploadForm.category || cat.id === uploadForm.category
+          );
+          if (!currentCategoryExists || !uploadForm.category) {
+            const defaultCat = loadedCategories.find((cat: GalleryCategory) => cat.name === 'prevadzka') || loadedCategories[0];
+            if (defaultCat) {
+              setUploadForm(prev => ({ ...prev, category: defaultCat.name }));
+            }
+          }
         }
+      } else {
+        console.error('[Gallery] Failed to load categories:', response.status);
       }
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('[Gallery] Error loading categories:', error);
     }
   };
 
@@ -384,13 +395,21 @@ export default function Gallery({ user }: GalleryProps) {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('[Gallery] Category created:', result);
         toast({
           title: "Úspech",
           description: "Kategória bola úspešne pridaná"
         });
         setIsCategoryDialogOpen(false);
         setCategoryForm({ name: '', label: '' });
-        loadCategories();
+        // Wait a bit for the server to process, then reload categories
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await loadCategories();
+        // Set the newly created category as selected in upload form
+        if (result.category) {
+          setUploadForm(prev => ({ ...prev, category: result.category.name }));
+        }
       } else {
         const error = await response.json();
         toast({
@@ -590,15 +609,20 @@ export default function Gallery({ user }: GalleryProps) {
                       )}
                     </div>
                     <select
+                      key={`upload-category-${categories.length}`}
                       value={uploadForm.category}
                       onChange={(e) => setUploadForm({ ...uploadForm, category: e.target.value })}
                       className="w-full px-3 py-2 border border-input rounded-md bg-background"
                     >
-                      {categories.map(category => (
-                        <option key={category.id} value={category.name}>
-                          {category.label}
-                        </option>
-                      ))}
+                      {categories.length === 0 ? (
+                        <option value="">Načítavam kategórie...</option>
+                      ) : (
+                        categories.map(category => (
+                          <option key={category.id} value={category.name}>
+                            {category.label}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div>
@@ -920,15 +944,20 @@ export default function Gallery({ user }: GalleryProps) {
                   )}
                 </div>
                 <select
+                  key={`edit-category-${categories.length}`}
                   value={editForm.category}
                   onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background"
                 >
-                  {categories.map(category => (
-                    <option key={category.id} value={category.name}>
-                      {category.label}
-                    </option>
-                  ))}
+                  {categories.length === 0 ? (
+                    <option value="">Načítavam kategórie...</option>
+                  ) : (
+                    categories.map(category => (
+                      <option key={category.id} value={category.name}>
+                        {category.label}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
               <div>

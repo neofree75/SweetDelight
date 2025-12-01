@@ -832,7 +832,7 @@ export class ERPNextService {
 
   // Get price without VAT and VAT amount for an item
   // Returns: { priceWithoutVat: number, vatRate: number, vatAmount: number, priceWithVat: number }
-  // This method gets price WITHOUT VAT from Item Price/valuation_rate and VAT rate from Item Tax Template
+  // This method gets price WITHOUT VAT from valuation_rate in Item and VAT rate from Item Tax Template
   async getItemPriceWithVAT(itemCode: string, priceList?: string): Promise<{
     priceWithoutVat: number;
     vatRate: number;
@@ -844,29 +844,25 @@ export class ERPNextService {
       // Get VAT rate for this specific item from Item Tax Template
       const vatRate = await this.getItemVATRate(itemCode);
 
-      // Get price WITHOUT VAT from Item Price (price_list_rate in ERPNext is WITHOUT VAT)
-      let priceWithoutVat = await this.getItemPrice(itemCode, priceList);
-      
-      // If no Item Price found, try to get valuation_rate from Item (this is also WITHOUT VAT)
-      if (priceWithoutVat === 0) {
-        try {
-          const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
-            params: {
-              fields: '["valuation_rate"]'
-            }
-          });
-          const item = itemResponse.data?.data;
-          if (item && item.valuation_rate) {
-            priceWithoutVat = Number(item.valuation_rate) || 0;
-            console.log(`[getItemPriceWithVAT] Using valuation_rate for ${itemCode}: ${priceWithoutVat} (without VAT)`);
+      // Always get price WITHOUT VAT from valuation_rate in Item (this is the price without VAT)
+      let priceWithoutVat = 0;
+      try {
+        const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
+          params: {
+            fields: '["valuation_rate"]'
           }
-        } catch (error) {
-          console.log(`[getItemPriceWithVAT] Error fetching valuation_rate for ${itemCode}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        });
+        const item = itemResponse.data?.data;
+        if (item && item.valuation_rate) {
+          priceWithoutVat = Number(item.valuation_rate) || 0;
+          console.log(`[getItemPriceWithVAT] Using valuation_rate for ${itemCode}: ${priceWithoutVat} (without VAT)`);
         }
+      } catch (error) {
+        console.log(`[getItemPriceWithVAT] Error fetching valuation_rate for ${itemCode}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
       if (priceWithoutVat === 0) {
-        console.warn(`[getItemPriceWithVAT] No price found for ${itemCode}`);
+        console.warn(`[getItemPriceWithVAT] No valuation_rate found for ${itemCode}`);
         return {
           priceWithoutVat: 0,
           vatRate: 0,
@@ -895,22 +891,29 @@ export class ERPNextService {
       console.error(`[getItemPriceWithVAT] Error getting price with VAT for ${itemCode}:`, error);
       // Fallback to default VAT rate
       const defaultVatRate = await this.getDefaultVATRate();
-      let priceWithoutVat = await this.getItemPrice(itemCode, priceList);
+      let priceWithoutVat = 0;
+      
+      try {
+        const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
+          params: {
+            fields: '["valuation_rate"]'
+          }
+        });
+        const item = itemResponse.data?.data;
+        if (item && item.valuation_rate) {
+          priceWithoutVat = Number(item.valuation_rate) || 0;
+        }
+      } catch (error) {
+        // Ignore error
+      }
       
       if (priceWithoutVat === 0) {
-        try {
-          const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
-            params: {
-              fields: '["valuation_rate"]'
-            }
-          });
-          const item = itemResponse.data?.data;
-          if (item && item.valuation_rate) {
-            priceWithoutVat = Number(item.valuation_rate) || 0;
-          }
-        } catch (error) {
-          // Ignore error
-        }
+        return {
+          priceWithoutVat: 0,
+          vatRate: defaultVatRate,
+          vatAmount: 0,
+          priceWithVat: 0
+        };
       }
       
       const vatAmount = Math.round((priceWithoutVat * (defaultVatRate / 100)) * 100) / 100;

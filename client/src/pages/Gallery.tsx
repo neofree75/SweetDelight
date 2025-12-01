@@ -108,9 +108,21 @@ export default function Gallery({ user }: GalleryProps) {
   const loadCategories = async () => {
     try {
       console.log('[Gallery] Loading categories...');
-      const response = await fetch('/api/gallery/categories');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch('/api/gallery/categories', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('[Gallery] Response status:', response.status);
+      console.log('[Gallery] Response ok:', response.ok);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('[Gallery] Response data:', data);
         const loadedCategories = data.categories || [];
         console.log('[Gallery] Loaded categories:', loadedCategories);
         console.log('[Gallery] Categories count:', loadedCategories.length);
@@ -120,6 +132,8 @@ export default function Gallery({ user }: GalleryProps) {
         // Update categories state and force re-render of select
         setCategories(loadedCategories);
         setCategoriesKey(prev => prev + 1);
+        
+        console.log('[Gallery] Categories state updated, categoriesKey incremented');
         
         // Set default category if available and uploadForm doesn't have a valid category
         if (loadedCategories.length > 0) {
@@ -136,12 +150,21 @@ export default function Gallery({ user }: GalleryProps) {
             }
           }
         }
+        console.log('[Gallery] Categories loaded successfully');
       } else {
         const errorText = await response.text();
         console.error('[Gallery] Failed to load categories:', response.status, errorText);
       }
     } catch (error) {
-      console.error('[Gallery] Error loading categories:', error);
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error('[Gallery] Request timeout while loading categories');
+        } else {
+          console.error('[Gallery] Error loading categories:', error.message, error);
+        }
+      } else {
+        console.error('[Gallery] Unknown error loading categories:', error);
+      }
     }
   };
 

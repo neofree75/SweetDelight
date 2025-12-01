@@ -326,7 +326,7 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                 {/* Special Instructions */}
                 <div className="space-y-3">
                   <Label htmlFor="special-instructions" className="text-base font-medium">
-                    Osobitné pokyny (voliteľné)
+                    Predstava o torte (voliteľné)
                   </Label>
                   <Textarea
                     id="special-instructions"

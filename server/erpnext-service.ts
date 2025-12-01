@@ -832,7 +832,7 @@ export class ERPNextService {
 
   // Get price without VAT and VAT amount for an item
   // Returns: { priceWithoutVat: number, vatRate: number, vatAmount: number, priceWithVat: number }
-  // This method first tries to get price_with_vat from Website Item, then falls back to calculation
+  // This method gets price WITHOUT VAT from Item Price/valuation_rate and VAT rate from Item Tax Template
   async getItemPriceWithVAT(itemCode: string, priceList?: string): Promise<{
     priceWithoutVat: number;
     vatRate: number;
@@ -841,73 +841,10 @@ export class ERPNextService {
   }> {
     this.refreshClient();
     try {
-      // First, try to get price_with_vat directly from Website Item (if available)
-      // This is the preferred method as ERPNext stores the correct price with VAT
-      try {
-        const websiteItemResponse = await this.client.get('/resource/Website%20Item', {
-          params: {
-            fields: JSON.stringify(['price', 'price_with_vat', 'item_code']),
-            filters: JSON.stringify([['item_code', '=', itemCode]]),
-            limit_page_length: 1
-          }
-        });
-        
-        const websiteItems = websiteItemResponse.data?.data || [];
-        if (websiteItems.length > 0) {
-          const websiteItem = websiteItems[0];
-          const priceWithVatFromWebsite = websiteItem.price_with_vat ? Number(websiteItem.price_with_vat) : null;
-          const priceFromWebsite = websiteItem.price ? Number(websiteItem.price) : null;
-          
-          // If we have price_with_vat from Website Item, use it directly (this is the correct price with VAT from ERPNext)
-          if (priceWithVatFromWebsite) {
-            // Use price_with_vat as the price with VAT
-            const priceWithVat = priceWithVatFromWebsite;
-            
-            // If we also have price (without VAT), use it, otherwise calculate it
-            let priceWithoutVat = priceFromWebsite;
-            if (!priceWithoutVat) {
-              // If price is not available, get it from Item Price or valuation_rate
-              priceWithoutVat = await this.getItemPrice(itemCode, priceList);
-              if (priceWithoutVat === 0) {
-                try {
-                  const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
-                    params: {
-                      fields: '["valuation_rate"]'
-                    }
-                  });
-                  const item = itemResponse.data?.data;
-                  if (item && item.valuation_rate) {
-                    priceWithoutVat = Number(item.valuation_rate) || 0;
-                  }
-                } catch (error) {
-                  // Ignore error
-                }
-              }
-            }
-            
-            // Calculate VAT amount from the difference
-            const vatAmount = Math.round((priceWithVat - priceWithoutVat) * 100) / 100;
-            const vatRate = await this.getItemVATRate(itemCode);
-            
-            console.log(`[getItemPriceWithVAT] Using price_with_vat from Website Item for ${itemCode}: priceWithoutVat=${priceWithoutVat}, priceWithVat=${priceWithVat}, vatAmount=${vatAmount}, vatRate=${vatRate}%`);
-            
-            return {
-              priceWithoutVat,
-              vatRate,
-              vatAmount,
-              priceWithVat
-            };
-          }
-        }
-      } catch (websiteItemError) {
-        console.log(`[getItemPriceWithVAT] Could not fetch Website Item for ${itemCode}, using calculation: ${websiteItemError instanceof Error ? websiteItemError.message : 'Unknown error'}`);
-      }
-
-      // Fallback: Calculate from price without VAT
-      // Get VAT rate for this specific item
+      // Get VAT rate for this specific item from Item Tax Template
       const vatRate = await this.getItemVATRate(itemCode);
 
-      // Get price WITHOUT VAT from Item Price (price_list_rate in ERPNext is typically WITHOUT VAT)
+      // Get price WITHOUT VAT from Item Price (price_list_rate in ERPNext is WITHOUT VAT)
       let priceWithoutVat = await this.getItemPrice(itemCode, priceList);
       
       // If no Item Price found, try to get valuation_rate from Item (this is also WITHOUT VAT)
@@ -940,14 +877,13 @@ export class ERPNextService {
 
       // Calculate VAT amount from price WITHOUT VAT
       // VAT amount = price without VAT * (VAT rate / 100)
-      // Use more precise calculation to avoid rounding errors
       const vatAmount = Math.round((priceWithoutVat * (vatRate / 100)) * 100) / 100;
       
       // Calculate price WITH VAT = price without VAT + VAT amount
       // Round to 2 decimal places
       const priceWithVat = Math.round((priceWithoutVat + vatAmount) * 100) / 100;
 
-      console.log(`[getItemPriceWithVAT] Calculated for ${itemCode}: priceWithoutVat=${priceWithoutVat}, vatRate=${vatRate}%, vatAmount=${vatAmount}, priceWithVat=${priceWithVat}`);
+      console.log(`[getItemPriceWithVAT] For ${itemCode}: priceWithoutVat=${priceWithoutVat}, vatRate=${vatRate}%, vatAmount=${vatAmount}, priceWithVat=${priceWithVat}`);
 
       return {
         priceWithoutVat,

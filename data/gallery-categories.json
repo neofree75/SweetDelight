@@ -3,15 +3,24 @@
     "id": "prevadzka",
     "name": "prevadzka",
     "label": "Prevádzka",
+<<<<<<< HEAD
+    "createdAt": "2025-12-01T14:05:09.971Z",
+=======
     "createdAt": "2025-12-02T07:39:43.946Z",
+>>>>>>> 585cba49476cac8594d301e88fb21e90253e64ba
     "createdBy": "system",
     "isDefault": true
   },
   {
     "id": "produkty",
     "name": "produkty",
+<<<<<<< HEAD
+    "label": "Narodeninové torty",
+    "createdAt": "2025-12-01T14:05:09.971Z",
+=======
     "label": "Produkty",
     "createdAt": "2025-12-02T07:39:43.946Z",
+>>>>>>> 585cba49476cac8594d301e88fb21e90253e64ba
     "createdBy": "system",
     "isDefault": true
   },
@@ -19,15 +28,24 @@
     "id": "udalosti",
     "name": "udalosti",
     "label": "Udalosti",
+<<<<<<< HEAD
+    "createdAt": "2025-12-01T14:05:09.971Z",
+=======
     "createdAt": "2025-12-02T07:39:43.946Z",
+>>>>>>> 585cba49476cac8594d301e88fb21e90253e64ba
     "createdBy": "system",
     "isDefault": true
   },
   {
     "id": "timy",
     "name": "timy",
+<<<<<<< HEAD
+    "label": "Svadobné torty",
+    "createdAt": "2025-12-01T14:05:09.971Z",
+=======
     "label": "Tím",
     "createdAt": "2025-12-02T07:39:43.946Z",
+>>>>>>> 585cba49476cac8594d301e88fb21e90253e64ba
     "createdBy": "system",
     "isDefault": true
   }

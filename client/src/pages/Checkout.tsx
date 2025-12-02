@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,19 @@ interface CheckoutProps {
 }
 
 export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
-  const [deliveryDate, setDeliveryDate] = useState('');
+  // Calculate minimum delivery date (+2 days from today)
+  const minDeliveryDate = useMemo(() => {
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 2);
+    // Format as YYYY-MM-DD for date input
+    const year = minDate.getFullYear();
+    const month = String(minDate.getMonth() + 1).padStart(2, '0');
+    const day = String(minDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const [deliveryDate, setDeliveryDate] = useState(minDeliveryDate);
   const [deliveryTime, setDeliveryTime] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('qr_transfer');
@@ -71,6 +83,75 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
       [itemId]: note
     }));
   };
+
+  // Handle delivery date change with validation
+  const handleDeliveryDateChange = (value: string) => {
+    if (value && value < minDeliveryDate) {
+      // Date is before minimum, show warning and reset to minimum
+      toast({
+        title: "Neplatný dátum",
+        description: `Dátum doručenia musí byť minimálne ${formatDateForDisplay(minDeliveryDate)}. Dátum bol nastavený na minimálny možný.`,
+        variant: "destructive"
+      });
+      setDeliveryDate(minDeliveryDate);
+    } else {
+      setDeliveryDate(value);
+    }
+  };
+
+  // Handle delivery time change with validation (09:00 - 20:00)
+  const handleDeliveryTimeChange = (value: string) => {
+    if (value) {
+      const [hours, minutes] = value.split(':').map(Number);
+      const timeInMinutes = hours * 60 + minutes;
+      const minTimeInMinutes = 9 * 60; // 09:00
+      const maxTimeInMinutes = 20 * 60; // 20:00
+
+      if (timeInMinutes < minTimeInMinutes || timeInMinutes > maxTimeInMinutes) {
+        // Time is outside allowed range, show warning and reset to minimum
+        toast({
+          title: "Neplatný čas",
+          description: "Čas vyzdvihnutia musí byť medzi 09:00 a 20:00. Čas bol nastavený na 09:00.",
+          variant: "destructive"
+        });
+        setDeliveryTime('09:00');
+      } else {
+        setDeliveryTime(value);
+      }
+    } else {
+      setDeliveryTime(value);
+    }
+  };
+
+  // Format date for display (DD.MM.YYYY)
+  const formatDateForDisplay = (dateString: string): string => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  // Ensure delivery date is always at least minimum date
+  useEffect(() => {
+    if (deliveryDate && deliveryDate < minDeliveryDate) {
+      setDeliveryDate(minDeliveryDate);
+    }
+  }, [deliveryDate, minDeliveryDate]);
+
+  // Ensure delivery time is always within allowed range (09:00 - 20:00)
+  useEffect(() => {
+    if (deliveryTime) {
+      const [hours, minutes] = deliveryTime.split(':').map(Number);
+      const timeInMinutes = hours * 60 + minutes;
+      const minTimeInMinutes = 9 * 60; // 09:00
+      const maxTimeInMinutes = 20 * 60; // 20:00
+
+      if (timeInMinutes < minTimeInMinutes || timeInMinutes > maxTimeInMinutes) {
+        setDeliveryTime('09:00');
+      }
+    }
+  }, [deliveryTime]);
 
   const handleSubmitOrder = async () => {
     // Validácia povinných polí
@@ -424,10 +505,14 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
                     id="delivery-date"
                     type="date"
                     value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    onChange={(e) => handleDeliveryDateChange(e.target.value)}
+                    min={minDeliveryDate}
                     data-testid="input-delivery-date"
                     className="mt-1"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Minimálny dátum doručenia: <strong>{formatDateForDisplay(minDeliveryDate)}</strong>
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="delivery-time" className="flex items-center gap-2">
@@ -438,10 +523,15 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
                     id="delivery-time"
                     type="time"
                     value={deliveryTime}
-                    onChange={(e) => setDeliveryTime(e.target.value)}
+                    onChange={(e) => handleDeliveryTimeChange(e.target.value)}
+                    min="09:00"
+                    max="20:00"
                     data-testid="input-delivery-time"
                     className="mt-1"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Čas vyzdvihnutia: <strong>09:00 - 20:00</strong>
+                  </p>
                 </div>
               </CardContent>
             </Card>

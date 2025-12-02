@@ -1,4 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
+import type { File } from 'multer';
+import http from 'http';
+import https from 'https';
 import { 
   ERPNextItem, 
   ERPNextItemVariant, 
@@ -43,6 +46,32 @@ export class ERPNextService {
 
   private getDefaultWarehouse(): string {
     return process.env.ERPNEXT_DEFAULT_WAREHOUSE || 'Hotový tovar - Gcsro';
+  }
+
+  // Helper function to create axios client without Expect header
+  private createAxiosClientWithoutExpect(): AxiosInstance {
+    const client = axios.create({
+      baseURL: `${this.baseUrl}/api`,
+      timeout: 30000,
+      httpAgent: new http.Agent({ keepAlive: false }),
+      httpsAgent: new https.Agent({ keepAlive: false }),
+      headers: {
+        'Authorization': `token ${this.apiKey}:${this.apiSecret}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // Remove Expect header
+    client.interceptors.request.use((config) => {
+      if (config.headers) {
+        delete config.headers['Expect'];
+        delete config.headers['expect'];
+        delete config.headers['EXPECT'];
+      }
+      return config;
+    });
+    
+    return client;
   }
 
   // Helper function to strip HTML tags from text
@@ -3558,6 +3587,667 @@ export class ERPNextService {
         message: 'Chyba pri odosielaní správy. Skúste to prosím znova.'
       };
     }
+  }
+
+  // Get Photo Gallery Categories from ERPNext
+  async getPhotoGalleryCategories(): Promise<Array<{
+    id: string;
+    name: string;
+    label: string;
+    createdAt: string;
+    createdBy: string;
+    isDefault: boolean;
+    description?: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  }>> {
+    this.refreshClient();
+    try {
+      console.log('[getPhotoGalleryCategories] Fetching categories from ERPNext...');
+      
+      const response = await this.client.get('/resource/Photo%20Gallery%20Category', {
+        params: {
+          fields: JSON.stringify([
+            'name',
+            'category_name',
+            'description',
+            'is_active',
+            'sort_order',
+            'creation',
+            'owner'
+          ]),
+          filters: JSON.stringify([
+            ['is_active', '=', 1]
+          ]),
+          order_by: 'sort_order asc, category_name asc',
+          limit_page_length: 100
+        }
+      });
+
+      const categories = (response.data.data || []).map((cat: any) => {
+        // Map ERPNext category_name to name (for compatibility)
+        // Use category_name as both name and label if description is not available
+        const categoryName = cat.category_name || cat.name || '';
+        const label = cat.description ? this.stripHtmlTags(cat.description) : categoryName;
+        
+        return {
+          id: cat.name, // Use ERPNext document name as ID
+          name: categoryName.toLowerCase().replace(/\s+/g, '-'), // Normalize name
+          label: label || categoryName, // Use description as label, fallback to category_name
+          createdAt: cat.creation || new Date().toISOString(),
+          createdBy: cat.owner || 'system',
+          isDefault: false, // Categories from ERPNext are not default
+          description: cat.description ? this.stripHtmlTags(cat.description) : undefined,
+          sortOrder: cat.sort_order || 0,
+          isActive: cat.is_active === 1
+        };
+      });
+
+      console.log(`[getPhotoGalleryCategories] Found ${categories.length} active categories`);
+      return categories;
+    } catch (error: any) {
+      console.error('[getPhotoGalleryCategories] Error fetching categories:', error.message);
+      // Return empty array on error instead of throwing
+      return [];
+    }
+  }
+
+  // Create Photo Gallery Category in ERPNext
+  async createPhotoGalleryCategory(categoryData: {
+    category_name: string;
+    description?: string;
+    is_active?: boolean;
+    sort_order?: number;
+  }): Promise<{ success: boolean; category?: any; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[createPhotoGalleryCategory] Creating category:', categoryData);
+      
+      const response = await this.client.post('/resource/Photo%20Gallery%20Category', {
+        category_name: categoryData.category_name,
+        description: categoryData.description || '',
+        is_active: categoryData.is_active !== undefined ? categoryData.is_active : 1,
+        sort_order: categoryData.sort_order || 0
+      });
+
+      const createdCategory = response.data.data;
+      console.log('[createPhotoGalleryCategory] Category created:', createdCategory.name);
+      
+      return {
+        success: true,
+        category: createdCategory,
+        message: 'Kategória bola úspešne vytvorená'
+      };
+    } catch (error: any) {
+      console.error('[createPhotoGalleryCategory] Error creating category:', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa vytvoriť kategóriu';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Update Photo Gallery Category in ERPNext
+  async updatePhotoGalleryCategory(categoryId: string, updates: {
+    category_name?: string;
+    description?: string;
+    is_active?: boolean;
+    sort_order?: number;
+  }): Promise<{ success: boolean; category?: any; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[updatePhotoGalleryCategory] Updating category:', categoryId, updates);
+      
+      const response = await this.client.put(`/resource/Photo%20Gallery%20Category/${encodeURIComponent(categoryId)}`, updates);
+
+      const updatedCategory = response.data.data;
+      console.log('[updatePhotoGalleryCategory] Category updated:', updatedCategory.name);
+      
+      return {
+        success: true,
+        category: updatedCategory,
+        message: 'Kategória bola úspešne upravená'
+      };
+    } catch (error: any) {
+      console.error('[updatePhotoGalleryCategory] Error updating category:', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa upraviť kategóriu';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Delete Photo Gallery Category from ERPNext
+  async deletePhotoGalleryCategory(categoryId: string): Promise<{ success: boolean; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[deletePhotoGalleryCategory] Deleting category:', categoryId);
+      
+      await this.client.delete(`/resource/Photo%20Gallery%20Category/${encodeURIComponent(categoryId)}`);
+
+      console.log('[deletePhotoGalleryCategory] Category deleted:', categoryId);
+      
+      return {
+        success: true,
+        message: 'Kategória bola úspešne vymazaná'
+      };
+    } catch (error: any) {
+      console.error('[deletePhotoGalleryCategory] Error deleting category:', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa vymazať kategóriu';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Get Photo Gallery Images from ERPNext
+  async getPhotoGalleryImages(): Promise<Array<{
+    id: string;
+    title: string;
+    description?: string;
+    imageUrl: string;
+    category: string;
+    uploadedAt: string;
+    uploadedBy: string;
+    isPublic: boolean;
+  }>> {
+    this.refreshClient();
+    try {
+      console.log('[getPhotoGalleryImages] Fetching images from ERPNext...');
+      console.log('[getPhotoGalleryImages] Base URL:', this.baseUrl);
+      
+      const response = await this.client.get('/resource/Photo%20Gallery', {
+        params: {
+          fields: JSON.stringify([
+            'name',
+            'title',
+            'description',
+            'photo',
+            'category',
+            'is_active',
+            'creation',
+            'owner',
+            'modified'
+          ]),
+          // Try without filter first to see all images, then filter in code
+          // filters: JSON.stringify([
+          //   ['is_active', '=', 1]
+          // ]),
+          order_by: 'modified desc, creation desc',
+          limit_page_length: 500
+        }
+      });
+
+      const rawImages = response.data.data || [];
+      console.log(`[getPhotoGalleryImages] Raw images from ERPNext: ${rawImages.length}`);
+      console.log('[getPhotoGalleryImages] Sample raw image:', rawImages[0] ? {
+        name: rawImages[0].name,
+        title: rawImages[0].title,
+        photo: rawImages[0].photo,
+        category: rawImages[0].category,
+        is_active: rawImages[0].is_active
+      } : 'No images');
+
+      // TEMPORARY: Show all images regardless of is_active status
+      // TODO: Re-enable filtering when is_active field is properly set in ERPNext
+      console.log(`[getPhotoGalleryImages] TEMPORARY: Showing all ${rawImages.length} images (is_active filter disabled)`);
+
+      const images = rawImages.map((img: any) => {
+        // Get image URL - ERPNext stores images as file paths in 'photo' field
+        // Format: /files/image_name.jpg or full URL
+        let imageUrl = img.photo || '';
+        console.log(`[getPhotoGalleryImages] Processing image ${img.name}, raw photo field: "${imageUrl}"`);
+        
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          // If relative path, construct full URL using ERPNext base URL
+          const baseUrl = this.baseUrl.replace('/api', '');
+          if (imageUrl.startsWith('/files/')) {
+            // ERPNext file path - use base URL directly
+            imageUrl = `${baseUrl}${imageUrl}`;
+          } else if (imageUrl.startsWith('/')) {
+            imageUrl = `${baseUrl}${imageUrl}`;
+          } else {
+            imageUrl = `${baseUrl}/${imageUrl}`;
+          }
+        }
+        
+        console.log(`[getPhotoGalleryImages] Final imageUrl for ${img.name}: "${imageUrl}"`);
+
+        // Map category - get category name from category field
+        // Category is a link to Photo Gallery Category
+        let categoryName = img.category || '';
+        
+        return {
+          id: img.name, // Use ERPNext document name as ID
+          title: img.title || 'Bez názvu',
+          description: img.description ? this.stripHtmlTags(img.description) : undefined,
+          imageUrl: imageUrl || '',
+          category: categoryName,
+          uploadedAt: img.modified || img.creation || new Date().toISOString(),
+          uploadedBy: img.owner || 'system',
+          isPublic: img.is_active === 1 || img.is_active === true
+        };
+      });
+
+      console.log(`[getPhotoGalleryImages] Found ${images.length} public images`);
+      console.log('[getPhotoGalleryImages] Sample processed image:', images[0] ? {
+        id: images[0].id,
+        title: images[0].title,
+        imageUrl: images[0].imageUrl,
+        category: images[0].category
+      } : 'No images');
+      
+      return images;
+    } catch (error: any) {
+      console.error('[getPhotoGalleryImages] Error fetching images:', error.message);
+      if (error.response) {
+        console.error('[getPhotoGalleryImages] Error response:', error.response.data);
+      }
+      // Return empty array on error instead of throwing
+      return [];
+    }
+  }
+
+  // Get Photo Gallery Image by ID from ERPNext
+  async getPhotoGalleryImageById(imageId: string): Promise<{
+    id: string;
+    title: string;
+    description?: string;
+    imageUrl: string;
+    category: string;
+    uploadedAt: string;
+    uploadedBy: string;
+    isPublic: boolean;
+  } | null> {
+    this.refreshClient();
+    try {
+      console.log('[getPhotoGalleryImageById] Fetching image:', imageId);
+      
+      const response = await this.client.get(`/resource/Photo%20Gallery/${encodeURIComponent(imageId)}`);
+
+      const img = response.data.data;
+      if (!img) {
+        return null;
+      }
+
+      // Get image URL from 'photo' field
+      let imageUrl = img.photo || '';
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        const baseUrl = this.baseUrl.replace('/api', '');
+        if (imageUrl.startsWith('/files/')) {
+          imageUrl = `${baseUrl}${imageUrl}`;
+        } else if (imageUrl.startsWith('/')) {
+          imageUrl = `${baseUrl}${imageUrl}`;
+        } else {
+          imageUrl = `${baseUrl}/${imageUrl}`;
+        }
+      }
+
+      return {
+        id: img.name,
+        title: img.title || 'Bez názvu',
+        description: img.description ? this.stripHtmlTags(img.description) : undefined,
+        imageUrl: imageUrl || '',
+        category: img.category || '',
+        uploadedAt: img.modified || img.creation || new Date().toISOString(),
+        uploadedBy: img.owner || 'system',
+        isPublic: img.is_active === 1 || img.is_active === true
+      };
+    } catch (error: any) {
+      console.error('[getPhotoGalleryImageById] Error fetching image:', error.message);
+      return null;
+    }
+  }
+
+  // Create Photo Gallery Image in ERPNext
+  async createPhotoGalleryImage(imageData: {
+    title: string;
+    description?: string;
+    category: string;
+    photo: string; // File path or URL (using 'photo' field name)
+    is_active?: boolean;
+  }): Promise<{ success: boolean; image?: any; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[createPhotoGalleryImage] Creating image:', imageData);
+      
+      // Use helper method to create axios client without Expect header
+      const createClient = this.createAxiosClientWithoutExpect();
+      
+      const response = await createClient.post('/resource/Photo%20Gallery', {
+        title: imageData.title,
+        description: imageData.description || '',
+        category: imageData.category,
+        photo: imageData.photo,
+        is_active: imageData.is_active !== undefined ? imageData.is_active : 1
+      });
+
+      console.log('[createPhotoGalleryImage] Response status:', response.status);
+      console.log('[createPhotoGalleryImage] Response data:', JSON.stringify(response.data, null, 2));
+      
+      const createdImage = response.data.data;
+      console.log('[createPhotoGalleryImage] Image created:', createdImage.name);
+      
+      return {
+        success: true,
+        image: createdImage,
+        message: 'Obrázok bol úspešne vytvorený'
+      };
+    } catch (error: any) {
+      console.error('[createPhotoGalleryImage] Error creating image:', error.message);
+      if (error.response) {
+        console.error('[createPhotoGalleryImage] Error status:', error.response.status);
+        console.error('[createPhotoGalleryImage] Error response data:', JSON.stringify(error.response.data, null, 2));
+      }
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa vytvoriť obrázok';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Update Photo Gallery Image in ERPNext
+  async updatePhotoGalleryImage(imageId: string, updates: {
+    title?: string;
+    description?: string;
+    category?: string;
+    photo?: string;
+    is_active?: boolean;
+  }): Promise<{ success: boolean; image?: any; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[updatePhotoGalleryImage] Updating image:', imageId, updates);
+      
+      // Use helper method to create axios client without Expect header
+      const updateClient = this.createAxiosClientWithoutExpect();
+      
+      const response = await updateClient.put(`/resource/Photo%20Gallery/${encodeURIComponent(imageId)}`, updates);
+
+      const updatedImage = response.data.data;
+      console.log('[updatePhotoGalleryImage] Image updated:', updatedImage.name);
+      
+      return {
+        success: true,
+        image: updatedImage,
+        message: 'Obrázok bol úspešne upravený'
+      };
+    } catch (error: any) {
+      console.error('[updatePhotoGalleryImage] Error updating image:', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa upraviť obrázok';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Delete Photo Gallery Image from ERPNext
+  async deletePhotoGalleryImage(imageId: string): Promise<{ success: boolean; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[deletePhotoGalleryImage] Deleting image:', imageId);
+      
+      await this.client.delete(`/resource/Photo%20Gallery/${encodeURIComponent(imageId)}`);
+
+      console.log('[deletePhotoGalleryImage] Image deleted:', imageId);
+      
+      return {
+        success: true,
+        message: 'Obrázok bol úspešne vymazaný'
+      };
+    } catch (error: any) {
+      console.error('[deletePhotoGalleryImage] Error deleting image:', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa vymazať obrázok';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Upload file to ERPNext
+  async uploadFileToERPNext(file: File, options?: {
+    folder?: string;
+    doctype?: string;
+    docname?: string;
+    fieldname?: string;
+    isPrivate?: boolean;
+  }): Promise<{ success: boolean; fileUrl?: string; fileName?: string; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[uploadFileToERPNext] Uploading file:', file.originalname);
+      
+      // ERPNext File API expects multipart/form-data
+      const FormData = (await import('form-data')).default;
+      const formData = new FormData();
+      
+      // Add file
+      formData.append('file', file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype
+      });
+      
+      // Add optional parameters
+      // NOTE: Do NOT send 'folder' parameter - ERPNext will use default or create automatically
+      // NOTE: Do NOT send 'doctype' and 'docname' when creating new files - only when attaching to existing documents
+      // Sending doctype/docname without valid docname causes ValidationError
+      if (options?.docname && options?.doctype) {
+        // Only send doctype and docname if both are provided (attaching to existing document)
+        formData.append('doctype', options.doctype);
+        formData.append('docname', options.docname);
+      }
+      if (options?.fieldname) {
+        formData.append('fieldname', options.fieldname);
+      }
+      formData.append('is_private', options?.isPrivate ? '1' : '0');
+      
+      // Use axios but with custom config to prevent Expect header
+      // Create a custom axios instance for file uploads
+      const uploadClient = axios.create({
+        baseURL: `${this.baseUrl}/api`, // Make sure to use /api path
+        timeout: 120000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        // Use http/https agents without keepAlive to prevent Expect header
+        httpAgent: new http.Agent({ 
+          keepAlive: false,
+          maxSockets: 1
+        }),
+        httpsAgent: new https.Agent({ 
+          keepAlive: false,
+          maxSockets: 1
+        })
+      });
+      
+      // Add request interceptor to remove Expect header
+      uploadClient.interceptors.request.use((config) => {
+        if (config.headers) {
+          // Remove Expect header in all possible forms
+          delete config.headers['Expect'];
+          delete config.headers['expect'];
+          delete config.headers['EXPECT'];
+        }
+        return config;
+      });
+      
+      // Get form-data headers
+      const formHeaders = formData.getHeaders();
+      delete formHeaders['expect'];
+      delete formHeaders['Expect'];
+      delete formHeaders['EXPECT'];
+      
+      console.log('[uploadFileToERPNext] Making request to:', `${this.baseUrl}/api/method/upload_file`);
+      console.log('[uploadFileToERPNext] Using Authorization header');
+      
+      // Make the request using axios
+      const response = await uploadClient.post('/method/upload_file', formData, {
+        headers: {
+          ...formHeaders,
+          'Authorization': `token ${this.apiKey}:${this.apiSecret}`
+        }
+      });
+      
+      const uploadResult = response.data?.message || response.data;
+      
+      if (uploadResult && uploadResult.file_url) {
+        const fileUrl = uploadResult.file_url;
+        const fileName = uploadResult.file_name || file.originalname;
+        
+        console.log('[uploadFileToERPNext] File uploaded successfully:', fileUrl);
+        
+        return {
+          success: true,
+          fileUrl: fileUrl,
+          fileName: fileName,
+          message: 'Súbor bol úspešne nahraný'
+        };
+      } else {
+        console.error('[uploadFileToERPNext] Unexpected response format:', response.data);
+        return {
+          success: false,
+          message: 'Nepodarilo sa nahrať súbor - neočakávaný formát odpovede'
+        };
+      }
+    } catch (error: any) {
+      console.error('[uploadFileToERPNext] Error uploading file:', error.message);
+      if (error.response?.data) {
+        console.error('[uploadFileToERPNext] Error response:', error.response.data);
+      }
+      const errorMessage = error.response?.data?.message || error.message || 'Nepodarilo sa nahrať súbor';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  // Batch upload multiple files to ERPNext and create Photo Gallery records
+  async batchUploadPhotoGalleryImages(
+    files: Express.Multer.File[],
+    category: string,
+    options?: {
+      defaultTitle?: string;
+      defaultDescription?: string;
+    }
+  ): Promise<{
+    success: boolean;
+    uploaded: number;
+    failed: number;
+    results: Array<{
+      fileName: string;
+      success: boolean;
+      imageId?: string;
+      error?: string;
+    }>;
+  }> {
+    this.refreshClient();
+    const results: Array<{
+      fileName: string;
+      success: boolean;
+      imageId?: string;
+      error?: string;
+    }> = [];
+
+    let uploaded = 0;
+    let failed = 0;
+
+    console.log(`[batchUploadPhotoGalleryImages] Starting batch upload of ${files.length} files to category: ${category}`);
+
+    // Get category ERPNext document name (id) - ERPNext Link fields require document name, not category_name
+    let categoryDocName = category;
+    try {
+      const allCategories = await this.getPhotoGalleryCategories();
+      const matchedCategory = allCategories.find(cat => 
+        cat.name === category || cat.id === category || cat.label.toLowerCase() === category.toLowerCase()
+      );
+      if (matchedCategory) {
+        // Use ERPNext document name (id) for the Link field
+        categoryDocName = matchedCategory.id;
+        console.log(`[batchUploadPhotoGalleryImages] Resolved category "${category}" to ERPNext document name: "${categoryDocName}"`);
+      } else {
+        console.warn(`[batchUploadPhotoGalleryImages] Could not find category "${category}" in ERPNext categories`);
+      }
+    } catch (error) {
+      console.warn('[batchUploadPhotoGalleryImages] Could not resolve category, using provided:', category);
+    }
+
+    // Process files sequentially to avoid overwhelming ERPNext
+    for (const file of files) {
+      try {
+        console.log(`[batchUploadPhotoGalleryImages] Processing file: ${file.originalname}`);
+        
+        // Upload file to ERPNext
+        // Don't specify folder, doctype, or docname - let ERPNext handle it automatically
+        // We'll attach the file to Photo Gallery document after creating it
+        const uploadResult = await this.uploadFileToERPNext(file, {
+          isPrivate: false
+        });
+
+        if (!uploadResult.success || !uploadResult.fileUrl) {
+          results.push({
+            fileName: file.originalname,
+            success: false,
+            error: uploadResult.message || 'Failed to upload file'
+          });
+          failed++;
+          continue;
+        }
+
+        // Generate title from filename if not provided
+        const title = options?.defaultTitle || 
+          file.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+
+        // Create Photo Gallery record
+        const createResult = await this.createPhotoGalleryImage({
+          title,
+          description: options?.defaultDescription || '',
+          category: categoryDocName, // Use ERPNext document name (id) for Link field
+          photo: uploadResult.fileUrl,
+          is_active: true
+        });
+
+        if (!createResult.success || !createResult.image) {
+          results.push({
+            fileName: file.originalname,
+            success: false,
+            error: createResult.message || 'Failed to create gallery record'
+          });
+          failed++;
+          continue;
+        }
+
+        results.push({
+          fileName: file.originalname,
+          success: true,
+          imageId: createResult.image.name
+        });
+        uploaded++;
+
+        // Small delay between uploads to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error: any) {
+        console.error(`[batchUploadPhotoGalleryImages] Error processing ${file.originalname}:`, error.message);
+        results.push({
+          fileName: file.originalname,
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+        failed++;
+      }
+    }
+
+    console.log(`[batchUploadPhotoGalleryImages] Batch upload completed: ${uploaded} uploaded, ${failed} failed`);
+
+    return {
+      success: uploaded > 0,
+      uploaded,
+      failed,
+      results
+    };
   }
 }
 

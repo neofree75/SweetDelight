@@ -1869,11 +1869,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Gallery Categories API endpoints (must be before /api/gallery/:id)
 
-  // Get all gallery categories
+  // Get all gallery categories from ERPNext
   app.get("/api/gallery/categories", async (req, res) => {
     try {
-      console.log('[API] GET /api/gallery/categories - Fetching categories...');
-      const categories = await storage.getGalleryCategories();
+      console.log('[API] GET /api/gallery/categories - Fetching categories from ERPNext...');
+      const categories = await erpNextService.getPhotoGalleryCategories();
       console.log('[API] GET /api/gallery/categories - Found categories:', categories.length);
       console.log('[API] GET /api/gallery/categories - Categories:', JSON.stringify(categories, null, 2));
       res.json({ categories });
@@ -1883,7 +1883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new gallery category (Admin only)
+  // Create new gallery category in ERPNext (Admin only)
   app.post("/api/gallery/categories", async (req, res) => {
     try {
       const session = req.session as Session & { user?: any };
@@ -1901,33 +1901,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const categoryData = insertGalleryCategorySchema.parse({
-        ...req.body,
-        createdBy: userEmail
-      });
+      const categoryData = insertGalleryCategorySchema.parse(req.body);
 
-      // Check if category with same name already exists
-      const existingCategory = await storage.getGalleryCategoryByName(categoryData.name);
+      // Check if category with same name already exists in ERPNext
+      const allCategories = await erpNextService.getPhotoGalleryCategories();
+      const existingCategory = allCategories.find(cat => 
+        cat.name === categoryData.name || 
+        cat.label.toLowerCase() === categoryData.label.toLowerCase()
+      );
       if (existingCategory) {
         return res.status(400).json({ error: "Category with this name already exists" });
       }
 
-      console.log('[API] POST /api/gallery/categories - Creating category:', categoryData);
-      const category = await storage.createGalleryCategory(categoryData);
+      console.log('[API] POST /api/gallery/categories - Creating category in ERPNext:', categoryData);
+      
+      // Create category in ERPNext
+      const result = await erpNextService.createPhotoGalleryCategory({
+        category_name: categoryData.label, // Use label as category_name in ERPNext
+        description: categoryData.label, // Use label as description
+        is_active: true,
+        sort_order: 0
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+
+      // Map ERPNext category to frontend format
+      const category = {
+        id: result.category?.name || '',
+        name: categoryData.name,
+        label: categoryData.label,
+        createdAt: result.category?.creation || new Date().toISOString(),
+        createdBy: userEmail,
+        isDefault: false
+      };
+
       console.log('[API] POST /api/gallery/categories - Category created:', category);
       
-      // Verify category was saved by fetching all categories
-      const allCategories = await storage.getGalleryCategories();
-      console.log('[API] POST /api/gallery/categories - All categories after creation:', allCategories.length);
-      
       res.status(201).json({ category });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating gallery category:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid category data", details: error.errors });
+      }
       res.status(500).json({ error: "Failed to create gallery category" });
     }
   });
 
-  // Update gallery category (Admin only)
+  // Update gallery category in ERPNext (Admin only)
   app.put("/api/gallery/categories/:id", async (req, res) => {
     try {
       const session = req.session as Session & { user?: any };
@@ -1952,30 +1974,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No updates provided" });
       }
 
-      // Normalize name if provided
-      if (updates.name) {
-        updates.name = updates.name.trim().toLowerCase();
-        // Check if new name conflicts with existing category
-        const existingCategory = await storage.getGalleryCategoryByName(updates.name);
-        if (existingCategory && existingCategory.id !== id) {
+      // Check if category exists
+      const allCategories = await erpNextService.getPhotoGalleryCategories();
+      const existingCategory = allCategories.find(cat => cat.id === id);
+      if (!existingCategory) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+
+      // Check if new name conflicts with existing category
+      if (updates.name || updates.label) {
+        const newName = updates.name?.trim().toLowerCase() || existingCategory.name;
+        const newLabel = updates.label?.trim() || existingCategory.label;
+        const conflictingCategory = allCategories.find(cat => 
+          cat.id !== id && (cat.name === newName || cat.label.toLowerCase() === newLabel.toLowerCase())
+        );
+        if (conflictingCategory) {
           return res.status(400).json({ error: "Category with this name already exists" });
         }
       }
 
-      // Normalize label if provided
+      // Prepare ERPNext update data
+      const erpNextUpdates: any = {};
       if (updates.label) {
-        updates.label = updates.label.trim();
+        erpNextUpdates.category_name = updates.label.trim();
+        erpNextUpdates.description = updates.label.trim();
+      }
+      if (updates.name) {
+        // Note: category_name in ERPNext is the display name, not the normalized name
+        // We'll update it based on label if provided
       }
 
-      const updatedCategory = await storage.updateGalleryCategory(id, updates);
+      console.log('[API] PUT /api/gallery/categories/:id - Updating category in ERPNext:', id, erpNextUpdates);
       
-      if (!updatedCategory) {
-        return res.status(404).json({ error: "Category not found" });
+      const result = await erpNextService.updatePhotoGalleryCategory(id, erpNextUpdates);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
       }
+
+      // Map ERPNext category to frontend format
+      const updatedCategory = {
+        id: result.category?.name || id,
+        name: updates.name || existingCategory.name,
+        label: updates.label || existingCategory.label,
+        createdAt: existingCategory.createdAt,
+        createdBy: existingCategory.createdBy,
+        isDefault: false
+      };
       
       res.json({ category: updatedCategory });
     } catch (error: any) {
       console.error("Error updating gallery category:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid category data", details: error.errors });
+      }
       if (error.message) {
         return res.status(400).json({ error: error.message });
       }
@@ -1983,7 +2035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete gallery category (Admin only)
+  // Delete gallery category from ERPNext (Admin only)
   app.delete("/api/gallery/categories/:id", async (req, res) => {
     try {
       const session = req.session as Session & { user?: any };
@@ -2002,13 +2054,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const deleted = await storage.deleteGalleryCategory(id);
-      if (!deleted) {
+      
+      // Check if category exists
+      const allCategories = await erpNextService.getPhotoGalleryCategories();
+      const existingCategory = allCategories.find(cat => cat.id === id);
+      if (!existingCategory) {
         return res.status(404).json({ error: "Category not found" });
       }
 
+      // Check if any images use this category (check local storage for now)
+      const images = await storage.getGalleryImages();
+      const imagesUsingCategory = images.some(
+        img => img.category === id || img.category === existingCategory.name
+      );
+
+      if (imagesUsingCategory) {
+        return res.status(400).json({ error: "Cannot delete category that is used by images" });
+      }
+
+      console.log('[API] DELETE /api/gallery/categories/:id - Deleting category from ERPNext:', id);
+      
+      const result = await erpNextService.deletePhotoGalleryCategory(id);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting gallery category:", error);
       if (error instanceof Error && error.message.includes('Cannot delete')) {
         return res.status(400).json({ error: error.message });
@@ -2017,10 +2090,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all gallery images
+  // Get all gallery images from ERPNext
   app.get("/api/gallery", async (req, res) => {
     try {
-      const images = await storage.getGalleryImages();
+      console.log('[API] GET /api/gallery - Fetching images from ERPNext...');
+      const images = await erpNextService.getPhotoGalleryImages();
+      console.log('[API] GET /api/gallery - Found images:', images.length);
+      console.log('[API] GET /api/gallery - Sample images:', images.slice(0, 3).map(img => ({
+        id: img.id,
+        title: img.title,
+        imageUrl: img.imageUrl,
+        category: img.category
+      })));
       res.json({ images });
     } catch (error) {
       console.error("Error fetching gallery images:", error);
@@ -2028,11 +2109,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get single gallery image
+  // Debug endpoint - get all Photo Gallery records (including non-public)
+  // IMPORTANT: Must be registered BEFORE /api/gallery/:id to avoid route conflicts
+  app.get("/api/debug/gallery", async (req, res) => {
+    try {
+      erpNextService.refreshClient();
+      const response = await erpNextService.client.get('/resource/Photo%20Gallery', {
+        params: {
+          fields: JSON.stringify([
+            'name',
+            'title',
+            'description',
+            'photo',
+            'category',
+            'is_active',
+            'creation',
+            'owner',
+            'modified'
+          ]),
+          limit_page_length: 100
+        }
+      });
+      
+      const allImages = response.data.data || [];
+      res.json({
+        total: allImages.length,
+        active: allImages.filter((img: any) => img.is_active === 1 || img.is_active === true).length,
+        inactive: allImages.filter((img: any) => !(img.is_active === 1 || img.is_active === true)).length,
+        images: allImages.map((img: any) => ({
+          name: img.name,
+          title: img.title,
+          photo: img.photo,
+          category: img.category,
+          is_active: img.is_active,
+          hasPhoto: !!img.photo
+        }))
+      });
+    } catch (error: any) {
+      console.error("Error in debug gallery endpoint:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch debug gallery data",
+        message: error.message,
+        details: error.response?.data 
+      });
+    }
+  });
+
+  // Get single gallery image from ERPNext
   app.get("/api/gallery/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const image = await storage.getGalleryImage(id);
+      const image = await erpNextService.getPhotoGalleryImageById(id);
       
       if (!image) {
         return res.status(404).json({ error: "Image not found" });
@@ -2045,7 +2172,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload new gallery image (Admin only)
+  // Batch upload multiple gallery images to ERPNext (Admin only)
+  app.post("/api/gallery/batch", (req, res, next) => {
+    try {
+      // Get multer instance from app locals
+      const upload = (req as any).app?.locals?.upload;
+      if (!upload) {
+        console.error('[gallery-batch-upload] Multer instance not found in app.locals');
+        return res.status(500).json({ error: "File upload service not configured" });
+      }
+      upload.array('images', 50)(req, res, (err: any) => {
+        if (err) {
+          console.error('[gallery-batch-upload] Multer error:', err);
+          return res.status(400).json({ 
+            error: "File upload error",
+            message: err.message || "Failed to process uploaded files"
+          });
+        }
+        next();
+      });
+    } catch (error: any) {
+      console.error('[gallery-batch-upload] Error setting up multer:', error);
+      return res.status(500).json({ 
+        error: "File upload setup error",
+        message: error.message 
+      });
+    }
+  }, async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      const session = req.session as Session & { user?: any };
+      if (!session.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Check if user is System User (admin) in ERPNext
+      const userEmail = session.user.email;
+      const systemUserCheck = await erpNextService.isSystemUser(userEmail);
+      
+      if (!systemUserCheck.success || !systemUserCheck.isSystemUser) {
+        console.log(`[gallery-batch-upload] Access denied for user: ${userEmail} (not System User)`);
+        return res.status(403).json({ 
+          error: "Access denied",
+          message: "Only System Users can upload images to gallery"
+        });
+      }
+      
+      console.log(`[gallery-batch-upload] System User: ${userEmail} uploading ${req.files?.length || 0} images`);
+      
+      // Check if files were uploaded
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "At least one image file is required" });
+      }
+
+      const { category, description } = req.body;
+      
+      // Validate required fields
+      if (!category) {
+        return res.status(400).json({ error: "Category is required" });
+      }
+
+      // Batch upload to ERPNext
+      console.log(`[gallery-batch-upload] Starting batch upload of ${files.length} files to category: ${category}`);
+      const batchResult = await erpNextService.batchUploadPhotoGalleryImages(
+        files,
+        category,
+        {
+          defaultDescription: description || ''
+        }
+      );
+
+      if (batchResult.uploaded === 0) {
+        return res.status(500).json({ 
+          error: "Failed to upload all images",
+          details: batchResult.results
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        uploaded: batchResult.uploaded,
+        failed: batchResult.failed,
+        results: batchResult.results,
+        message: `Úspešne nahraných ${batchResult.uploaded} z ${files.length} obrázkov`
+      });
+      
+    } catch (error: any) {
+      console.error("Error batch uploading gallery images:", error);
+      
+      // Handle multer errors
+      if (error instanceof Error && error.message === 'Only image files are allowed!') {
+        return res.status(400).json({ error: "Only image files are allowed" });
+      }
+      
+      res.status(500).json({ 
+        error: "Failed to batch upload gallery images",
+        message: error.message 
+      });
+    }
+  });
+
+  // Upload new gallery image to ERPNext (Admin only)
   app.post("/api/gallery", (req, res, next) => {
     // Get multer instance from app locals
     const upload = (req as any).app.locals.upload;
@@ -2084,22 +2312,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Title is required" });
       }
 
-      // Use the uploaded file path
-      const imageUrl = `/assets/gallery/${req.file.filename}`;
-      console.log(`[gallery-upload] File saved: ${req.file.filename}`);
-      
-      const imageData: InsertGalleryImage = {
+      // Upload file to ERPNext
+      console.log(`[gallery-upload] Uploading file to ERPNext: ${req.file.originalname}`);
+      const uploadResult = await erpNextService.uploadFileToERPNext(req.file, {
+        doctype: 'Photo Gallery',
+        isPrivate: false
+      });
+
+      if (!uploadResult.success || !uploadResult.fileUrl) {
+        return res.status(500).json({ 
+          error: uploadResult.message || "Failed to upload file to ERPNext" 
+        });
+      }
+
+      console.log(`[gallery-upload] File uploaded to ERPNext: ${uploadResult.fileUrl}`);
+
+      // Get category ERPNext document name (id) - ERPNext Link fields require document name, not category_name
+      let categoryDocName = category || 'prevadzka';
+      try {
+        const allCategories = await erpNextService.getPhotoGalleryCategories();
+        const matchedCategory = allCategories.find(cat => 
+          cat.name === category || cat.id === category || cat.label.toLowerCase() === category?.toLowerCase()
+        );
+        if (matchedCategory) {
+          // Use ERPNext document name (id) for the Link field
+          categoryDocName = matchedCategory.id;
+          console.log(`[gallery-upload] Resolved category "${category}" to ERPNext document name: "${categoryDocName}"`);
+        } else {
+          console.warn(`[gallery-upload] Could not find category "${category}" in ERPNext categories, using provided value`);
+        }
+      } catch (error) {
+        console.warn('[gallery-upload] Could not resolve category, using provided:', category);
+      }
+
+      // Create Photo Gallery record in ERPNext
+      const createResult = await erpNextService.createPhotoGalleryImage({
         title,
         description: description || '',
-        category: category || 'prevadzka',
+        category: categoryDocName, // Use ERPNext document name (id) for Link field
+        photo: uploadResult.fileUrl,
+        is_active: true
+      });
+
+      if (!createResult.success || !createResult.image) {
+        return res.status(500).json({ 
+          error: createResult.message || "Failed to create gallery image in ERPNext" 
+        });
+      }
+
+      // Map ERPNext image to frontend format
+      // Get category name for frontend display
+      let categoryDisplayName = category || 'prevadzka';
+      try {
+        const allCategories = await erpNextService.getPhotoGalleryCategories();
+        const matchedCategory = allCategories.find(cat => cat.id === categoryDocName);
+        if (matchedCategory) {
+          categoryDisplayName = matchedCategory.name;
+        }
+      } catch (error) {
+        console.warn('[gallery-upload] Could not get category display name, using provided:', category);
+      }
+
+      const galleryImage = {
+        id: createResult.image.name,
+        title: createResult.image.title || title,
+        description: createResult.image.description ? createResult.image.description : undefined,
+        imageUrl: uploadResult.fileUrl,
+        category: categoryDisplayName,
+        uploadedAt: createResult.image.creation || new Date().toISOString(),
         uploadedBy: userEmail,
         isPublic: true
       };
 
-      const galleryImage = await storage.createGalleryImage(imageData, imageUrl);
+      console.log(`[gallery-upload] Gallery image created in ERPNext: ${galleryImage.id}`);
       res.status(201).json({ image: galleryImage });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading gallery image:", error);
       
       // Handle multer errors
@@ -2107,11 +2395,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Only image files are allowed" });
       }
       
-      res.status(500).json({ error: "Failed to upload gallery image" });
+      res.status(500).json({ 
+        error: "Failed to upload gallery image",
+        message: error.message 
+      });
     }
   });
 
-  // Update gallery image (Admin only)
+  // Update gallery image in ERPNext (Admin only)
   app.put("/api/gallery/:id", (req, res, next) => {
     // Get multer instance from app locals
     const upload = (req as any).app.locals.upload;
@@ -2138,42 +2429,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       
+      // Check if image exists
+      const existingImage = await erpNextService.getPhotoGalleryImageById(id);
+      if (!existingImage) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      // Prepare update data
+      const updates: any = {};
+      
       // Check if new image file was uploaded
       if (req.file) {
-        // New image uploaded - update with new file
-        const { title, description, category } = req.body;
-        const newImageUrl = `/assets/gallery/${req.file.filename}`;
+        console.log(`[gallery-edit] Uploading new image file to ERPNext: ${req.file.originalname}`);
         
-        // Update image with new file
-        const updates = {
-          title: title || '',
-          description: description || '',
-          category: category || 'prevadzka'
-        };
-        
-        const updatedImage = await storage.updateGalleryImage(id, updates);
-        if (!updatedImage) {
-          return res.status(404).json({ error: "Image not found" });
+        // Upload new file to ERPNext
+        console.log(`[gallery-edit] Uploading new file to ERPNext: ${req.file.originalname}`);
+        const uploadResult = await erpNextService.uploadFileToERPNext(req.file, {
+          doctype: 'Photo Gallery',
+          docname: id,
+          fieldname: 'photo',
+          isPrivate: false
+        });
+
+        if (!uploadResult.success || !uploadResult.fileUrl) {
+          return res.status(500).json({ 
+            error: uploadResult.message || "Failed to upload new image to ERPNext" 
+          });
         }
-        
-        // Update the image URL to point to new file
-        updatedImage.imageUrl = newImageUrl;
-        
-        res.json({ image: updatedImage });
-      } else {
-        // No new image - just update metadata
-        const updates = updateGalleryImageSchema.parse(req.body);
-        const updatedImage = await storage.updateGalleryImage(id, updates);
-        
-        if (!updatedImage) {
-          return res.status(404).json({ error: "Image not found" });
-        }
-        
-        res.json({ image: updatedImage });
+
+        updates.photo = uploadResult.fileUrl;
+        console.log(`[gallery-edit] New image uploaded: ${uploadResult.fileUrl}`);
       }
-    } catch (error) {
+
+      // Parse metadata updates
+      const { title, description, category } = req.body;
+      
+      if (title !== undefined) {
+        updates.title = title;
+      }
+      if (description !== undefined) {
+        updates.description = description;
+      }
+      if (category !== undefined) {
+        // Get category - find category by name to get ERPNext category name
+        const allCategories = await erpNextService.getPhotoGalleryCategories();
+        const matchedCategory = allCategories.find(cat => 
+          cat.name === category || cat.label.toLowerCase() === category.toLowerCase()
+        );
+        if (matchedCategory) {
+          // Use the category name from ERPNext (category_name field)
+          try {
+            const categoryDoc = await erpNextService.client.get(`/resource/Photo%20Gallery%20Category/${encodeURIComponent(matchedCategory.id)}`);
+            if (categoryDoc?.data?.data?.category_name) {
+              updates.category = categoryDoc.data.data.category_name;
+            } else {
+              updates.category = category;
+            }
+          } catch {
+            updates.category = category;
+          }
+        } else {
+          updates.category = category;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No updates provided" });
+      }
+
+      // Update Photo Gallery record in ERPNext
+      console.log(`[gallery-edit] Updating image in ERPNext: ${id}`, updates);
+      const updateResult = await erpNextService.updatePhotoGalleryImage(id, updates);
+      
+      if (!updateResult.success) {
+        return res.status(400).json({ 
+          error: updateResult.message || "Failed to update gallery image in ERPNext" 
+        });
+      }
+
+      // Get updated image
+      const updatedImage = await erpNextService.getPhotoGalleryImageById(id);
+      if (!updatedImage) {
+        return res.status(404).json({ error: "Image not found after update" });
+      }
+
+      res.json({ image: updatedImage });
+    } catch (error: any) {
       console.error("Error updating gallery image:", error);
-      res.status(500).json({ error: "Failed to update gallery image" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid image data", details: error.errors });
+      }
+      res.status(500).json({ 
+        error: "Failed to update gallery image",
+        message: error.message 
+      });
     }
   });
 
@@ -2222,7 +2571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete gallery image (Admin only)
+  // Delete gallery image from ERPNext (Admin only)
   app.delete("/api/gallery/:id", async (req, res) => {
     try {
       // Check if user is authenticated and is System User (admin)
@@ -2244,10 +2593,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const deleted = await storage.deleteGalleryImage(id);
       
-      if (!deleted) {
+      // Check if image exists
+      const existingImage = await erpNextService.getPhotoGalleryImageById(id);
+      if (!existingImage) {
         return res.status(404).json({ error: "Image not found" });
+      }
+      
+      const result = await erpNextService.deletePhotoGalleryImage(id);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
       }
       
       res.json({ success: true });

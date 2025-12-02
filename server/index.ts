@@ -13,33 +13,12 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 // Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Store gallery images directly in dist/public/assets/gallery for production
-    // This ensures they are immediately available for serving
-    const galleryPath = process.env.NODE_ENV === 'production' 
-      ? path.resolve(process.cwd(), 'dist', 'public', 'assets', 'gallery')
-      : path.resolve(process.cwd(), 'attached_assets', 'gallery');
-    
-    console.log(`[multer] NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`[multer] process.cwd(): ${process.cwd()}`);
-    console.log(`[multer] galleryPath: ${galleryPath}`);
-    
-    // Ensure directory exists
-    fs.mkdirSync(galleryPath, { recursive: true });
-    console.log(`[multer] Created gallery directory: ${galleryPath}`);
-    cb(null, galleryPath);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `gallery-${uniqueSuffix}${ext}`);
-  }
-});
+// Use memory storage for gallery images (to upload directly to ERPNext)
+// Use disk storage for other uploads if needed
+const memoryStorage = multer.memoryStorage();
 
 const upload = multer({
-  storage: storage,
+  storage: memoryStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },

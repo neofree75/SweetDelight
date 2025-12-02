@@ -68,10 +68,26 @@ export default function Gallery({ user }: GalleryProps) {
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [editingCategory, setEditingCategory] = useState<GalleryCategory | null>(null);
   const [uploadForm, setUploadForm] = useState({
-    title: '',
     description: '',
     category: 'prevadzka',
-    image: null as File | null
+    images: [] as File[] // For batch upload
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    uploading: boolean;
+    uploaded: number;
+    total: number;
+    fileProgress: Array<{
+      fileName: string;
+      progress: number; // 0-100
+      status: 'pending' | 'uploading' | 'success' | 'error';
+      error?: string;
+    }>;
+  }>({
+    uploading: false,
+    uploaded: 0,
+    total: 0,
+    fileProgress: []
   });
   const [editForm, setEditForm] = useState({
     title: '',
@@ -225,66 +241,216 @@ export default function Gallery({ user }: GalleryProps) {
     return category?.label || categoryIdOrName;
   };
 
-  // Upload obrázka
+  // Handle drag and drop
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(file => 
+      file.type.startsWith('image/')
+    );
+
+    if (files.length > 0) {
+      setUploadForm(prev => ({
+        ...prev,
+        images: [...prev.images, ...files]
+      }));
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setUploadForm(prev => ({
+        ...prev,
+        images: [...prev.images, ...files]
+      }));
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Upload obrázka (asynchronne, jedna po druhej)
   const handleUpload = async () => {
-    if (!uploadForm.title) {
+    if (uploadForm.images.length === 0) {
       toast({
         title: "Chyba",
-        description: "Vyplňte názov obrázka",
+        description: "Vyberte aspoň jeden obrázok na nahratie",
         variant: "destructive"
       });
       return;
     }
 
-    if (!uploadForm.image) {
+    if (!uploadForm.category) {
       toast({
         title: "Chyba",
-        description: "Vyberte obrázok na nahratie",
+        description: "Vyberte kategóriu",
         variant: "destructive"
       });
       return;
     }
 
-    try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('image', uploadForm.image);
-      formData.append('title', uploadForm.title);
-      formData.append('description', uploadForm.description || '');
-      formData.append('category', uploadForm.category);
+    // Initialize progress for all files
+    const initialProgress = uploadForm.images.map(file => ({
+      fileName: file.name,
+      progress: 0,
+      status: 'pending' as const
+    }));
 
-      const response = await fetch('/api/gallery', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+    setUploadProgress({
+      uploading: true,
+      uploaded: 0,
+      total: uploadForm.images.length,
+      fileProgress: initialProgress
+    });
 
-      if (response.ok) {
-        toast({
-          title: "Úspech",
-          description: "Obrázok bol úspešne pridaný do galérie"
+    let uploadedCount = 0;
+    let failedCount = 0;
+
+    // Upload files one by one
+    for (let i = 0; i < uploadForm.images.length; i++) {
+      const file = uploadForm.images[i];
+      
+      // Update status to uploading
+      setUploadProgress(prev => ({
+        ...prev,
+        fileProgress: prev.fileProgress.map((fp, idx) => 
+          idx === i ? { ...fp, status: 'uploading', progress: 0 } : fp
+        )
+      }));
+
+      try {
+        // Create FormData for single file upload
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('category', uploadForm.category);
+        formData.append('description', uploadForm.description || '');
+        // Generate title from filename (remove extension)
+        const title = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        formData.append('title', title);
+
+        // Simulate progress (since we can't track real upload progress easily)
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => ({
+            ...prev,
+            fileProgress: prev.fileProgress.map((fp, idx) => 
+              idx === i && fp.status === 'uploading' && fp.progress < 90
+                ? { ...fp, progress: Math.min(fp.progress + 10, 90) }
+                : fp
+            )
+          }));
+        }, 200);
+
+        const response = await fetch('/api/gallery', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
         });
+
+        clearInterval(progressInterval);
+
+        if (response.ok) {
+          // Mark as success
+          setUploadProgress(prev => ({
+            ...prev,
+            uploaded: prev.uploaded + 1,
+            fileProgress: prev.fileProgress.map((fp, idx) => 
+              idx === i ? { ...fp, status: 'success', progress: 100 } : fp
+            )
+          }));
+          uploadedCount++;
+        } else {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          // Mark as error
+          setUploadProgress(prev => ({
+            ...prev,
+            fileProgress: prev.fileProgress.map((fp, idx) => 
+              idx === i ? { 
+                ...fp, 
+                status: 'error', 
+                progress: 0,
+                error: error.error || 'Upload failed'
+              } : fp
+            )
+          }));
+          failedCount++;
+        }
+      } catch (error) {
+        console.error(`Error uploading ${file.name}:`, error);
+        // Mark as error
+        setUploadProgress(prev => ({
+          ...prev,
+          fileProgress: prev.fileProgress.map((fp, idx) => 
+            idx === i ? { 
+              ...fp, 
+              status: 'error', 
+              progress: 0,
+              error: 'Network error'
+            } : fp
+          )
+        }));
+        failedCount++;
+      }
+    }
+
+    // All uploads completed
+    setUploadProgress(prev => ({
+      ...prev,
+      uploading: false
+    }));
+
+    if (uploadedCount > 0) {
+      toast({
+        title: "Úspech",
+        description: `Úspešne nahraných ${uploadedCount} z ${uploadForm.images.length} obrázkov${failedCount > 0 ? ` (${failedCount} zlyhalo)` : ''}`
+      });
+      
+      // Close dialog and reset form after a short delay to show final results
+      setTimeout(() => {
         setIsUploadDialogOpen(false);
         const defaultCat = categories.find(cat => cat.name === 'prevadzka') || categories[0];
-        setUploadForm({ title: '', description: '', category: defaultCat?.name || 'prevadzka', image: null });
-        loadImages();
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Chyba",
-          description: error.error || "Nepodarilo sa pridať obrázok",
-          variant: "destructive"
+        setUploadForm({ 
+          title: '', 
+          description: '', 
+          category: defaultCat?.name || 'prevadzka', 
+          image: null,
+          images: []
         });
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
+        setUploadProgress({ uploading: false, uploaded: 0, total: 0, fileProgress: [] });
+        loadImages();
+      }, 2000);
+    } else {
       toast({
         title: "Chyba",
-        description: "Nepodarilo sa pridať obrázok. Skontrolujte pripojenie k serveru.",
+        description: "Nepodarilo sa nahrať žiadne obrázky",
         variant: "destructive"
       });
     }
   };
+
 
   // Úprava obrázka
   const handleEdit = async () => {
@@ -665,54 +831,30 @@ export default function Gallery({ user }: GalleryProps) {
               <User className="h-3 w-3 mr-1" />
               System User (Admin)
             </Badge>
-            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <Dialog open={isUploadDialogOpen} onOpenChange={(open) => {
+              setIsUploadDialogOpen(open);
+              // Reset upload progress when opening dialog
+              if (open) {
+                setUploadProgress({ uploading: false, uploaded: 0, total: 0, fileProgress: [] });
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="h-4 w-4" />
                   Pridať obrázok
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Pridať nový obrázok</DialogTitle>
+                  <DialogTitle>Pridať obrázky</DialogTitle>
                   <DialogDescription>
-                    Pridajte nový obrázok do fotogalérie cukrárne.
+                    Pretiahnite obrázky sem alebo kliknite na vybratie súborov. Obrázky sa pridajú do vybratej kategórie.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {/* Category Selection */}
                   <div>
-                    <label className="text-sm font-medium">Názov *</label>
-                    <Input
-                      value={uploadForm.title}
-                      onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                      placeholder="Názov obrázka"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Popis</label>
-                    <Textarea
-                      value={uploadForm.description}
-                      onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                      placeholder="Popis obrázka"
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium">Kategória</label>
-                      {user?.isAdmin && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openCategoryDialog()}
-                          className="text-xs"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Pridať kategóriu
-                        </Button>
-                      )}
-                    </div>
+                    <label className="text-sm font-medium mb-2 block">Kategória *</label>
                     <select
                       key={`upload-category-select-${categoriesKey}-${categories.length}`}
                       value={uploadForm.category || ''}
@@ -738,44 +880,167 @@ export default function Gallery({ user }: GalleryProps) {
                         })
                       )}
                     </select>
-                    {categories.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-xs text-muted-foreground">
-                          Dostupné kategórie: {categories.length}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {categories.map(cat => (
-                            <Badge 
-                              key={cat.id} 
-                              variant={uploadForm.category === cat.name ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {cat.label}
-                            </Badge>
-                          ))}
+                  </div>
+
+                  {/* Optional Description */}
+                  <div>
+                    <label className="text-sm font-medium">Popis (voliteľné)</label>
+                    <Textarea
+                      value={uploadForm.description}
+                      onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                      placeholder="Popis pre všetky obrázky"
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Drag and Drop Zone */}
+                  <div
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={cn(
+                      "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                      isDragging
+                        ? "border-primary bg-primary/10"
+                        : "border-muted-foreground/25 hover:border-primary/50"
+                    )}
+                  >
+                    <input
+                      type="file"
+                      id="file-upload"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className={cn(
+                          "p-4 rounded-full transition-colors",
+                          isDragging ? "bg-primary/20" : "bg-muted"
+                        )}>
+                          <Upload className={cn(
+                            "h-8 w-8 transition-colors",
+                            isDragging ? "text-primary" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {isDragging 
+                              ? "Pustite obrázky sem" 
+                              : "Pretiahnite obrázky sem alebo kliknite na vybratie"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Povolené formáty: JPG, PNG, GIF. Maximálna veľkosť: 5MB na súbor
+                          </p>
                         </div>
                       </div>
-                    )}
+                    </label>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Obrázok *</label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setUploadForm({ ...uploadForm, image: file });
+
+                  {/* Selected Files List */}
+                  {uploadForm.images.length > 0 && (
+                    <div className="border rounded-lg p-4 bg-muted/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium">
+                          Vybraté obrázky: {uploadForm.images.length}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUploadForm(prev => ({ ...prev, images: [] }))}
+                          className="text-xs"
+                        >
+                          Vymazať všetko
+                        </Button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-2">
+                        {uploadForm.images.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-3 p-2 bg-background rounded border hover:bg-muted/50 transition-colors"
+                          >
+                            <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(index)}
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Progress - Individual file progress */}
+                  {(uploadProgress.uploading || uploadProgress.fileProgress.length > 0) && (
+                    <div className="p-3 bg-muted rounded-md space-y-3">
+                      <p className="text-sm font-medium">
+                        {uploadProgress.uploading 
+                          ? `Nahrávam obrázky... ${uploadProgress.uploaded} / ${uploadProgress.total}`
+                          : `Nahrané: ${uploadProgress.uploaded} / ${uploadProgress.total}`
                         }
-                      }}
-                      className="mt-1 border-2 border-blue-500 bg-blue-50 hover:bg-blue-100 focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Povolené formáty: JPG, PNG, GIF. Maximálna veľkosť: 5MB
-                    </p>
-                  </div>
-                  <Button onClick={handleUpload} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                    Nahrať obrázok
+                      </p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {uploadProgress.fileProgress.map((file, index) => (
+                          <div key={index} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="truncate flex-1 mr-2">{file.fileName}</span>
+                              <span className={`text-xs font-medium ${
+                                file.status === 'success' ? 'text-green-600' :
+                                file.status === 'error' ? 'text-red-600' :
+                                file.status === 'uploading' ? 'text-blue-600' :
+                                'text-gray-500'
+                              }`}>
+                                {file.status === 'success' ? '✓ Hotovo' :
+                                 file.status === 'error' ? '✗ Chyba' :
+                                 file.status === 'uploading' ? `${file.progress}%` :
+                                 'Čaká...'}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${
+                                  file.status === 'success' ? 'bg-green-600' :
+                                  file.status === 'error' ? 'bg-red-600' :
+                                  file.status === 'uploading' ? 'bg-blue-600' :
+                                  'bg-gray-400'
+                                }`}
+                                style={{ width: `${file.progress}%` }}
+                              />
+                            </div>
+                            {file.error && (
+                              <p className="text-xs text-red-600 mt-1">{file.error}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={handleUpload} 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={uploadProgress.uploading || uploadForm.images.length === 0}
+                  >
+                    {uploadProgress.uploading 
+                      ? `Nahrávam... ${uploadProgress.uploaded}/${uploadProgress.total}`
+                      : uploadForm.images.length > 0
+                        ? `Nahrať ${uploadForm.images.length} ${uploadForm.images.length === 1 ? 'obrázok' : 'obrázkov'}`
+                        : "Vyberte obrázky"
+                    }
                   </Button>
                 </div>
               </DialogContent>
@@ -1149,21 +1414,7 @@ export default function Gallery({ user }: GalleryProps) {
                 />
               </div>
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Kategória</label>
-                  {user?.isAdmin && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openCategoryDialog()}
-                      className="text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Pridať kategóriu
-                    </Button>
-                  )}
-                </div>
+                <label className="text-sm font-medium mb-2 block">Kategória</label>
                 <select
                   key={`edit-category-${categories.length}`}
                   value={editForm.category}

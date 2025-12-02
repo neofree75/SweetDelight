@@ -1901,7 +1901,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const categoryData = insertGalleryCategorySchema.parse(req.body);
+      // Add createdBy from user email before validation
+      const categoryDataWithUser = {
+        ...req.body,
+        createdBy: userEmail
+      };
+      const categoryData = insertGalleryCategorySchema.parse(categoryDataWithUser);
 
       // Check if category with same name already exists in ERPNext
       const allCategories = await erpNextService.getPhotoGalleryCategories();

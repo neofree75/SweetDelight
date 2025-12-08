@@ -44,6 +44,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       path: req.path
     });
   });
+
+  // Debug endpoint to test registration directly
+  app.post("/api/debug/register", async (req, res) => {
+    try {
+      const { email, firstName, lastName, mobile } = req.body;
+      console.log('[DEBUG] Testing registration with:', { email, firstName, lastName, mobile });
+      
+      const result = await erpNextService.registerUser({
+        email: (email || 'test@goldenprotector.com').toLowerCase(),
+        first_name: firstName || 'Test',
+        last_name: lastName || 'User',
+        mobile_no: mobile || ''
+      });
+      
+      res.json({
+        success: true,
+        result,
+        message: 'Debug registration completed - check server logs'
+      });
+    } catch (error) {
+      console.error("[DEBUG] Registration error:", error);
+      res.status(500).json({ 
+        error: "Debug failed",
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
   
   // Health check endpoint
   app.get("/api/health", async (req, res) => {
@@ -715,10 +743,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
+      console.log('[API] POST /api/register - Request received');
+      console.log('[API] POST /api/register - Request body:', JSON.stringify(req.body, null, 2));
+      
       const { email, firstName, lastName, mobile } = req.body;
-      console.log('Registering new user:', email, 'with mobile:', mobile);
+      console.log('[API] POST /api/register - Extracted data:', { email, firstName, lastName, mobile });
       
       if (!email || !firstName || !lastName) {
+        console.log('[API] POST /api/register - Missing required fields:', { 
+          hasEmail: !!email, 
+          hasFirstName: !!firstName, 
+          hasLastName: !!lastName 
+        });
         return res.status(400).json({ 
           error: "All fields are required",
           message: "Email, meno a priezvisko sú povinné"
@@ -728,11 +764,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validácia emailu
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
+        console.log('[API] POST /api/register - Invalid email format:', email);
         return res.status(400).json({ 
           error: "Invalid email format",
           message: "Neplatný formát emailu"
         });
       }
+      
+      console.log('[API] POST /api/register - Validation passed, calling ERPNext service');
 
       // Use ERPNext registration service
       const registrationResult = await erpNextService.registerUser({
@@ -742,23 +781,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mobile_no: mobile || '' // Použi mobilné číslo ak je zadané
       });
       
+      console.log('[API] POST /api/register - ERPNext registration result:', registrationResult);
+      
       if (!registrationResult.success) {
+        console.log('[API] POST /api/register - Registration failed:', registrationResult.message);
         return res.status(400).json({ 
           error: "Registration failed",
           message: registrationResult.message
         });
       }
 
+      console.log('[API] POST /api/register - Registration successful');
       res.json({
         success: true,
         message: `${registrationResult.message} Používateľovi boli odoslané emaily s podrobnými informáciami o vytvorení hesla.`
       });
 
     } catch (error) {
-      console.error("Error during registration:", error);
+      console.error("[API] POST /api/register - Error during registration:", error);
+      if (error instanceof Error) {
+        console.error("[API] POST /api/register - Error details:", {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       res.status(500).json({ 
         error: "Registration failed",
         message: "Chyba pri registrácii"
+      });
+    }
+  });
+
+  // Test registration endpoint for debugging
+  app.post("/api/test-register", async (req, res) => {
+    try {
+      const { email, firstName, lastName, mobile } = req.body;
+      console.log('[TEST] Testing registration with:', { email, firstName, lastName, mobile });
+      
+      const testResult = await erpNextService.registerUser({
+        email: (email || 'test@goldenprotector.com').toLowerCase(),
+        first_name: firstName || 'Test',
+        last_name: lastName || 'User',
+        mobile_no: mobile || ''
+      });
+      
+      res.json({
+        success: true,
+        testResult,
+        message: 'Test registration completed - check server logs for details'
+      });
+    } catch (error) {
+      console.error("[TEST] Test registration error:", error);
+      res.status(500).json({ 
+        error: "Test failed",
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       });
     }
   });

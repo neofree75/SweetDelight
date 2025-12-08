@@ -1869,18 +1869,76 @@ export class ERPNextService {
   }): Promise<{ success: boolean; message: string }> {
     this.refreshClient();
     try {
+      console.log('[registerUser] Registering user:', { email: userData.email, first_name: userData.first_name, last_name: userData.last_name });
+      console.log('[registerUser] Calling ERPNext API: /method/external_reset.api.register.register_user');
+      console.log('[registerUser] ERPNext base URL:', this.baseUrl);
+      console.log('[registerUser] Full API URL:', `${this.baseUrl}/api/method/external_reset.api.register.register_user`);
+      console.log('[registerUser] Request payload:', JSON.stringify(userData, null, 2));
+      
       const response = await this.client.post('/method/external_reset.api.register.register_user', userData);
       
+      console.log('[registerUser] ERPNext API response status:', response.status);
+      console.log('[registerUser] ERPNext API response headers:', JSON.stringify(response.headers, null, 2));
+      console.log('[registerUser] ERPNext API response data:', JSON.stringify(response.data, null, 2));
+      
       let registrationSuccess = false;
-      if (response.data.message && response.data.message.success) {
+      let errorMessage = null;
+      
+      // ERPNext API môže vrátiť odpoveď v rôznych formátoch
+      if (response.data.message) {
+        if (typeof response.data.message === 'object') {
+          // Formát: { message: { success: true/false, error: "...", ... } }
+          if (response.data.message.success) {
+            registrationSuccess = true;
+          } else if (response.data.message.error) {
+            errorMessage = response.data.message.error;
+          } else if (response.data.message.message) {
+            // Niekedy je správa v message.message
+            if (response.data.message.message.includes('success') || response.data.message.message.includes('úspeš')) {
+              registrationSuccess = true;
+            } else {
+              errorMessage = response.data.message.message;
+            }
+          }
+        } else if (typeof response.data.message === 'string') {
+          // Formát: { message: "success message" }
+          if (response.data.message.toLowerCase().includes('success') || 
+              response.data.message.toLowerCase().includes('úspeš') ||
+              response.data.message.toLowerCase().includes('created') ||
+              response.data.message.toLowerCase().includes('vytvoren')) {
+            registrationSuccess = true;
+          } else {
+            errorMessage = response.data.message;
+          }
+        }
+      } else if (response.data.success !== undefined) {
+        // Formát: { success: true/false, message: "..." }
+        registrationSuccess = response.data.success;
+        if (response.data.message) {
+          errorMessage = response.data.message;
+        }
+      } else if (response.data.exc || response.data.exception) {
+        // Chyba v exc alebo exception poli
+        errorMessage = 'Chyba pri registrácii používateľa';
+      } else if (response.status === 200 || response.status === 201) {
+        // Ak je status 200/201 a nie je tam chyba, považujeme to za úspech
         registrationSuccess = true;
-      } else if (response.data.message && response.data.message.error) {
+      }
+      
+      if (errorMessage) {
+        console.log('[registerUser] Registration failed with error:', errorMessage);
         return {
           success: false,
-          message: response.data.message.error
+          message: errorMessage
         };
-      } else {
-        registrationSuccess = true;
+      }
+      
+      if (!registrationSuccess) {
+        console.log('[registerUser] Unexpected response format, treating as error:', response.data);
+        return {
+          success: false,
+          message: 'Neočakávaná odpoveď z ERPNext API'
+        };
       }
 
       // Poznámka: Customer a Contact záznamy sa vytvoria automaticky až po email verification
@@ -1923,32 +1981,88 @@ export class ERPNextService {
         };
       }
     } catch (error) {
-      this.logError('Error registering user in ERPNext:', error);
+      console.error('[registerUser] Error registering user via external_reset API:', error);
       
+      // Check if external_reset API endpoint doesn't exist (404) or returns 500
+      // In that case, try fallback: create user directly via User doctype
       if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const statusText = error.response?.statusText;
+        const responseData = error.response?.data;
+        
+        console.error('[registerUser] Axios error details:', {
+          status,
+          statusText,
+          data: JSON.stringify(responseData, null, 2),
+          message: error.message,
+          url: error.config?.url,
+          baseURL: error.config?.baseURL
+        });
+        
+        // Always try fallback first for any error from external_reset API
+        // since it might not be configured or available
+        console.log('[registerUser] Attempting fallback registration method...');
+        const fallbackResult = await this.registerUserFallback(userData);
+        if (fallbackResult.success) {
+          console.log('[registerUser] Fallback registration succeeded');
+          return fallbackResult;
+        }
+        console.log('[registerUser] Fallback registration also failed, returning original error');
+        
+        // If endpoint doesn't exist (404) or server error (500), try fallback
+        if (status === 404 || status === 500 || status === 405 || status === 403) {
+          console.log(`[registerUser] external_reset API returned ${status}, trying fallback: direct User creation`);
+          return await this.registerUserFallback(userData);
+        }
+        
+        // Also try fallback for any error that suggests the endpoint doesn't work
+        if (responseData && (
+          (typeof responseData === 'string' && responseData.includes('not found')) ||
+          (responseData.message && typeof responseData.message === 'string' && responseData.message.includes('not found'))
+        )) {
+          console.log('[registerUser] Endpoint not found message detected, trying fallback');
+          return await this.registerUserFallback(userData);
+        }
+        
         // Check for specific ERPNext validation error messages
-        if (error.response?.data?.exception) {
-          const exception = error.response.data.exception;
+        if (responseData?.exception) {
+          const exception = responseData.exception;
+          console.log('[registerUser] Exception found:', exception);
           if (typeof exception === 'string') {
             // Extract user-friendly message from ValidationError
-            if (exception.includes('už existuje')) {
+            if (exception.includes('už existuje') || exception.includes('already exists')) {
               return {
                 success: false,
                 message: 'Používateľ s týmto emailom už existuje'
               };
             }
+            // Try to extract more specific error message
+            if (exception.includes('ValidationError')) {
+              const match = exception.match(/ValidationError[^:]*:\s*(.+)/);
+              if (match && match[1]) {
+                return {
+                  success: false,
+                  message: match[1].trim()
+                };
+              }
+            }
           }
         }
         
-        if (error.response?.data?.message) {
+        if (responseData?.message) {
+          const errorMessage = typeof responseData.message === 'string' 
+            ? responseData.message 
+            : responseData.message.message || responseData.message.error;
+          console.log('[registerUser] Error message from response:', errorMessage);
           return {
             success: false,
-            message: error.response.data.message
+            message: errorMessage || 'Chyba pri registrácii používateľa'
           };
         }
-        if (error.response?.data?.exc) {
+        if (responseData?.exc) {
           // ERPNext often returns detailed error messages in exc field
-          const excMessage = error.response.data.exc;
+          const excMessage = responseData.exc;
+          console.log('[registerUser] Exception in exc field:', excMessage);
           if (typeof excMessage === 'string' && excMessage.includes('already exists')) {
             return {
               success: false,
@@ -1960,23 +2074,282 @@ export class ERPNextService {
             message: 'Chyba pri registrácii používateľa'
           };
         }
-        if (error.response?.status === 409) {
+        if (status === 409) {
           return {
             success: false,
             message: 'Používateľ s týmto emailom už existuje'
           };
         }
-        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+        if (status && status >= 400 && status < 500) {
+          // For 4xx errors, try fallback first (might be endpoint not found)
+          console.log(`[registerUser] Client error ${status}, trying fallback`);
+          const fallbackResult = await this.registerUserFallback(userData);
+          if (fallbackResult.success) {
+            return fallbackResult;
+          }
+          // If fallback also fails, return original error
           return {
             success: false,
-            message: 'Neplatné údaje pre registráciu'
+            message: `Neplatné údaje pre registráciu (${status})`
           };
+        }
+        if (status && status >= 500) {
+          // Try fallback for server errors
+          console.log('[registerUser] Server error, trying fallback');
+          return await this.registerUserFallback(userData);
+        }
+      }
+      
+      console.error('[registerUser] Unknown error type:', error);
+      // Try fallback as last resort
+      console.log('[registerUser] Trying fallback as last resort');
+      return await this.registerUserFallback(userData);
+    }
+  }
+
+  // Fallback method: Create user directly via ERPNext User doctype
+  private async registerUserFallback(userData: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    mobile_no?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    this.refreshClient();
+    try {
+      console.log('[registerUserFallback] Attempting to create user directly via User doctype');
+      
+      // Check if user already exists
+      try {
+        const existingUser = await this.client.get(`/resource/User/${userData.email}`);
+        if (existingUser.data && existingUser.data.name) {
+          console.log('[registerUserFallback] User already exists:', userData.email);
+          return {
+            success: false,
+            message: 'Používateľ s týmto emailom už existuje'
+          };
+        }
+      } catch (checkError: any) {
+        // 404 is expected if user doesn't exist
+        if (checkError.response?.status !== 404) {
+          console.error('[registerUserFallback] Error checking existing user:', checkError);
+        }
+      }
+      
+      // Create user via User doctype
+      // Note: ERPNext requires specific fields for User creation
+      const userPayload: any = {
+        email: userData.email.toLowerCase(),
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        send_welcome_email: 0, // Don't send welcome email, user will reset password
+        user_type: 'Website User',
+        enabled: 1
+      };
+      
+      // Add mobile_no only if provided
+      if (userData.mobile_no && userData.mobile_no.trim()) {
+        userPayload.mobile_no = userData.mobile_no.trim();
+      }
+      
+      console.log('[registerUserFallback] Creating user with payload:', { ...userPayload });
+      
+      const response = await this.client.post('/resource/User', userPayload);
+      
+      console.log('[registerUserFallback] ERPNext API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: JSON.stringify(response.data, null, 2)
+      });
+      
+      // ERPNext môže vrátiť úspešnú odpoveď v rôznych formátoch
+      const userCreated = response.data && (
+        response.data.name || 
+        (response.data.data && response.data.data.name) ||
+        response.status === 200 || 
+        response.status === 201
+      );
+      
+      if (userCreated) {
+        const userName = response.data?.name || response.data?.data?.name || userData.email;
+        console.log('[registerUserFallback] User created successfully:', userName);
+        
+        // Try to create customer record
+        try {
+          const customerData = {
+            customer_name: `${userData.first_name} ${userData.last_name}`,
+            customer_type: "Individual",
+            customer_group: "Internetový predaj",
+            territory: "Slovakia",
+            email_id: userData.email.toLowerCase(),
+            mobile_no: userData.mobile_no || ""
+          };
+
+          const customerId = await this.findOrCreateCustomer(customerData);
+          if (customerId) {
+            console.log(`[registerUserFallback] Customer ${customerId} created/found successfully`);
+          }
+        } catch (customerError) {
+          console.warn('[registerUserFallback] Customer creation failed:', customerError);
+        }
+        
+        return {
+          success: true,
+          message: 'Registrácia bola úspešná. Skontrolujte si email pre pokyny na nastavenie hesla.'
+        };
+      } else {
+        // Even if response format is unexpected, check if user was actually created
+        // by trying to fetch it
+        console.log('[registerUserFallback] Response format unexpected, checking if user exists...');
+        console.log('[registerUserFallback] Response data:', JSON.stringify(response.data, null, 2));
+        console.log('[registerUserFallback] Response status:', response.status);
+        
+        try {
+          // Wait a moment for ERPNext to process the user creation
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          const checkUser = await this.client.get(`/resource/User/${userData.email}`);
+          if (checkUser.data && checkUser.data.name) {
+            console.log('[registerUserFallback] User exists after creation, registration successful:', checkUser.data.name);
+            
+            // Try to create customer record (non-blocking - don't fail registration if this fails)
+            try {
+              const customerData = {
+                customer_name: `${userData.first_name} ${userData.last_name}`,
+                customer_type: "Individual",
+                customer_group: "Internetový predaj",
+                territory: "Slovakia",
+                email_id: userData.email.toLowerCase(),
+                mobile_no: userData.mobile_no || ""
+              };
+
+              const customerId = await this.findOrCreateCustomer(customerData);
+              if (customerId) {
+                console.log(`[registerUserFallback] Customer ${customerId} created/found successfully`);
+              }
+            } catch (customerError) {
+              // Don't fail registration if customer creation fails
+              console.warn('[registerUserFallback] Customer creation failed (non-critical):', customerError);
+            }
+            
+            return {
+              success: true,
+              message: 'Registrácia bola úspešná. Skontrolujte si email pre pokyny na nastavenie hesla.'
+            };
+          }
+        } catch (checkError: any) {
+          // User doesn't exist or error checking
+          if (checkError.response?.status === 404) {
+            console.error('[registerUserFallback] User creation failed - user does not exist');
+          } else {
+            console.error('[registerUserFallback] Error checking if user exists:', checkError);
+          }
+        }
+        
+        // If we get here, user was not created
+        console.error('[registerUserFallback] User creation failed - user does not exist after creation attempt');
+        return {
+          success: false,
+          message: 'Chyba pri vytváraní používateľa - neočakávaná odpoveď z ERPNext'
+        };
+      }
+    } catch (error) {
+      console.error('[registerUserFallback] Error in fallback registration:', error);
+      
+      // IMPORTANT: Even if ERPNext returns an error, the user might have been created
+      // Always check if user exists before returning error
+      console.log('[registerUserFallback] Checking if user was created despite error...');
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for ERPNext to process
+        const checkUser = await this.client.get(`/resource/User/${userData.email}`);
+        if (checkUser.data && checkUser.data.name) {
+          console.log('[registerUserFallback] User exists despite error response! Registration successful:', checkUser.data.name);
+          
+          // Try to create customer record (non-blocking)
+          try {
+            const customerData = {
+              customer_name: `${userData.first_name} ${userData.last_name}`,
+              customer_type: "Individual",
+              customer_group: "Internetový predaj",
+              territory: "Slovakia",
+              email_id: userData.email.toLowerCase(),
+              mobile_no: userData.mobile_no || ""
+            };
+
+            const customerId = await this.findOrCreateCustomer(customerData);
+            if (customerId) {
+              console.log(`[registerUserFallback] Customer ${customerId} created/found successfully`);
+            }
+          } catch (customerError) {
+            console.warn('[registerUserFallback] Customer creation failed (non-critical):', customerError);
+          }
+          
+          return {
+            success: true,
+            message: 'Registrácia bola úspešná. Skontrolujte si email pre pokyny na nastavenie hesla.'
+          };
+        }
+      } catch (checkError: any) {
+        // User doesn't exist, continue with error handling
+        if (checkError.response?.status !== 404) {
+          console.error('[registerUserFallback] Error checking if user exists:', checkError);
+        }
+      }
+      
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const statusText = error.response?.statusText;
+        const responseData = error.response?.data;
+        
+        console.error('[registerUserFallback] Axios error details:', {
+          status,
+          statusText,
+          data: JSON.stringify(responseData, null, 2),
+          message: error.message,
+          url: error.config?.url,
+          baseURL: error.config?.baseURL
+        });
+        
+        if (responseData?.exception) {
+          const exception = responseData.exception;
+          console.log('[registerUserFallback] Exception found:', exception);
+          if (typeof exception === 'string' && (exception.includes('už existuje') || exception.includes('already exists'))) {
+            return {
+              success: false,
+              message: 'Používateľ s týmto emailom už existuje'
+            };
+          }
+          // Return the exception message if available
+          if (typeof exception === 'string') {
+            return {
+              success: false,
+              message: exception
+            };
+          }
+        }
+        if (responseData?.message) {
+          const errorMsg = typeof responseData.message === 'string' 
+            ? responseData.message 
+            : (responseData.message.message || responseData.message.error || 'Chyba pri registrácii používateľa');
+          console.log('[registerUserFallback] Error message from response:', errorMsg);
+          return {
+            success: false,
+            message: errorMsg
+          };
+        }
+        if (responseData?.exc) {
+          console.log('[registerUserFallback] Exception in exc field:', responseData.exc);
+          if (typeof responseData.exc === 'string' && responseData.exc.includes('already exists')) {
+            return {
+              success: false,
+              message: 'Používateľ s týmto emailom už existuje'
+            };
+          }
         }
       }
       
       return {
         success: false,
-        message: 'Chyba pri registrácii používateľa'
+        message: 'Chyba pri registrácii používateľa. Skúste to neskôr alebo kontaktujte podporu.'
       };
     }
   }

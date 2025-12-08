@@ -64,6 +64,40 @@ export default function Registration() {
       });
 
       const result = await response.json();
+      
+      console.log('[Registration] API response:', result);
+      console.log('[Registration] Response status:', response.status);
+
+      if (!response.ok) {
+        // Handle error response
+        const errorMessage = result.message || result.error || "Nastala chyba pri registrácii";
+        console.error('[Registration] Registration failed:', errorMessage);
+        
+        // Check if user already exists
+        const userExists = errorMessage.toLowerCase().includes('už existuje') || 
+                          errorMessage.toLowerCase().includes('already exists');
+        
+        if (userExists) {
+          toast({
+            title: "Používateľ už existuje",
+            description: "Účet s týmto emailom už existuje. Môžete sa prihlásiť alebo použiť obnovenie hesla.",
+            variant: "destructive",
+            action: <AlertCircle className="h-4 w-4" />
+          });
+          // Redirect to login after a short delay
+          setTimeout(() => {
+            setLocation('/prihlasenie');
+          }, 3000);
+        } else {
+          toast({
+            title: "Registrácia neúspešná",
+            description: errorMessage,
+            variant: "destructive",
+            action: <AlertCircle className="h-4 w-4" />
+          });
+        }
+        return;
+      }
 
       if (result.success) {
         toast({

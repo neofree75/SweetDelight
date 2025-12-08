@@ -2069,6 +2069,13 @@ export class ERPNextService {
           const exception = responseData.exception;
           console.log('[registerUser] Exception found:', exception);
           if (typeof exception === 'string') {
+            // Check for DuplicateEntryError
+            if (exception.includes('DuplicateEntryError') || exception.includes('Duplicate entry')) {
+              return {
+                success: false,
+                message: 'Používateľ s týmto emailom už existuje'
+              };
+            }
             // Extract user-friendly message from ValidationError
             if (exception.includes('už existuje') || exception.includes('already exists')) {
               return {
@@ -2089,11 +2096,22 @@ export class ERPNextService {
           }
         }
         
+        // Check message field for errors
         if (responseData?.message) {
           const errorMessage = typeof responseData.message === 'string' 
             ? responseData.message 
             : responseData.message.message || responseData.message.error;
           console.log('[registerUser] Error message from response:', errorMessage);
+          
+          // Check for DuplicateEntryError in message
+          if (typeof errorMessage === 'string' && 
+              (errorMessage.includes('DuplicateEntryError') || errorMessage.includes('Duplicate entry'))) {
+            return {
+              success: false,
+              message: 'Používateľ s týmto emailom už existuje'
+            };
+          }
+          
           return {
             success: false,
             message: errorMessage || 'Chyba pri registrácii používateľa'

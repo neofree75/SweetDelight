@@ -1934,11 +1934,51 @@ export class ERPNextService {
       }
       
       if (!registrationSuccess) {
-        console.log('[registerUser] Unexpected response format, treating as error:', response.data);
-        return {
-          success: false,
-          message: 'Neočakávaná odpoveď z ERPNext API'
-        };
+        console.log('[registerUser] Unexpected response format, checking if user was created anyway...');
+        console.log('[registerUser] Response data:', JSON.stringify(response.data, null, 2));
+        
+        // Even if response format is unexpected, check if user was actually created
+        // ERPNext might return unexpected format but still create the user
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for ERPNext to process
+          const checkUser = await this.client.get(`/resource/User/${userData.email}`);
+          if (checkUser.data && checkUser.data.name) {
+            console.log('[registerUser] User exists despite unexpected response format! Registration successful:', checkUser.data.name);
+            
+            // Try to create customer record (non-blocking)
+            try {
+              const customerData = {
+                customer_name: `${userData.first_name} ${userData.last_name}`,
+                customer_type: "Individual",
+                customer_group: "Internetový predaj",
+                territory: "Slovakia",
+                email_id: userData.email.toLowerCase(),
+                mobile_no: userData.mobile_no || ""
+              };
+
+              const customerId = await this.findOrCreateCustomer(customerData);
+              if (customerId) {
+                console.log(`[registerUser] Customer ${customerId} created/found successfully`);
+              }
+            } catch (customerError) {
+              console.warn('[registerUser] Customer creation failed (non-critical):', customerError);
+            }
+            
+            return {
+              success: true,
+              message: 'Registrácia bola úspešná. Skontrolujte si email pre pokyny na nastavenie hesla.'
+            };
+          }
+        } catch (checkError: any) {
+          // User doesn't exist, try fallback
+          if (checkError.response?.status !== 404) {
+            console.error('[registerUser] Error checking if user exists:', checkError);
+          }
+        }
+        
+        // If user doesn't exist, try fallback method
+        console.log('[registerUser] User not found, trying fallback registration method...');
+        return await this.registerUserFallback(userData);
       }
 
       // Poznámka: Customer a Contact záznamy sa vytvoria automaticky až po email verification

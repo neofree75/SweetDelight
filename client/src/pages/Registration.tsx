@@ -5,7 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { UserPlus, CheckCircle, AlertCircle, HelpCircle, Mail, Key, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Registration() {
@@ -142,6 +150,120 @@ export default function Registration() {
               <p className="text-muted-foreground mt-2">
                 Vytvorte si účet pre jednoduchšie objednávanie
               </p>
+              <div className="mt-4">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      <HelpCircle className="h-4 w-4 mr-2" />
+                      Ako sa zaregistrovať?
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-serif flex items-center gap-2">
+                        <HelpCircle className="h-6 w-6 text-primary" />
+                        Ako sa zaregistrovať?
+                      </DialogTitle>
+                      <DialogDescription className="text-base pt-2">
+                        Jednoduchý návod pre registráciu vášho účtu
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-6 py-4">
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">1</span>
+                          Vyplňte registračný formulár
+                        </h3>
+                        <p className="text-muted-foreground pl-10">
+                          Vyplňte všetky potrebné údaje: vaše meno, priezvisko a emailovú adresu. 
+                          Telefónne číslo je voliteľné, ale odporúčame ho zadať pre rýchlejšiu komunikáciu 
+                          ohľadom vašich objednávok.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">2</span>
+                          Súhlas s podmienkami
+                        </h3>
+                        <p className="text-muted-foreground pl-10">
+                          Pred odoslaním formulára musíte súhlasiť s obchodnými podmienkami a ochranou 
+                          osobných údajov. Môžete si ich prečítať kliknutím na príslušné odkazy.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <Mail className="h-5 w-5 text-primary" />
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">3</span>
+                          Odošlite formulár a skontrolujte email
+                        </h3>
+                        <p className="text-muted-foreground pl-10">
+                          Po kliknutí na tlačidlo "Registrovať sa" vám na zadanú emailovú adresu 
+                          príde email s pokynmi na nastavenie hesla. <strong>Dôležité:</strong> Skontrolujte 
+                          aj priečinok so spam správami, ak email neuvidíte v hlavnej schránke.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <Key className="h-5 w-5 text-primary" />
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">4</span>
+                          Nastavte si heslo
+                        </h3>
+                        <p className="text-muted-foreground pl-10">
+                          V emaile nájdete odkaz na nastavenie hesla. Kliknite na neho a nastavte si 
+                          bezpečné heslo pre váš účet. Heslo by malo obsahovať aspoň 8 znakov a kombinovať 
+                          písmená, čísla a špeciálne znaky.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">5</span>
+                          Prihláste sa do svojho účtu
+                        </h3>
+                        <p className="text-muted-foreground pl-10">
+                          Po nastavení hesla sa môžete prihlásiť do svojho účtu pomocou emailovej adresy 
+                          a hesla. Odteraz môžete jednoducho objednávať naše výrobky a sledovať stav 
+                          vašich objednávok.
+                        </p>
+                      </div>
+
+                      <div className="bg-muted/50 rounded-lg p-4 mt-6">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <AlertCircle className="h-5 w-5 text-primary" />
+                          Dôležité informácie
+                        </h4>
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            <span>Registrácia je <strong>zadarmo</strong> a trvá len pár minút</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            <span>Ak už máte účet, jednoducho sa <Link href="/prihlasenie" className="text-primary hover:underline">prihláste</Link></span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            <span>V prípade problémov s registráciou nás <Link href="/kontakt" className="text-primary hover:underline">kontaktujte</Link></span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            <span>Email s pokynmi na nastavenie hesla príde do <strong>niekoľkých minút</strong></span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             
             <CardContent>

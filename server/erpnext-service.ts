@@ -2091,8 +2091,37 @@ export class ERPNextService {
           const exception = responseData.exception;
           console.log('[registerUser] Exception found:', exception);
           if (typeof exception === 'string') {
-            // Check for DuplicateEntryError
+            // Check for DuplicateEntryError - if user already exists, that's actually success!
             if (exception.includes('DuplicateEntryError') || exception.includes('Duplicate entry')) {
+              console.log('[registerUser] DuplicateEntryError detected - user already exists, treating as success');
+              // Verify user exists and return success
+              const userExists = await this.checkUserExists(userData.email, 1000);
+              if (userExists) {
+                // Try to create customer record (non-blocking)
+                try {
+                  const customerData = {
+                    customer_name: `${userData.first_name} ${userData.last_name}`,
+                    customer_type: "Individual",
+                    customer_group: "Internetový predaj",
+                    territory: "Slovakia",
+                    email_id: userData.email.toLowerCase(),
+                    mobile_no: userData.mobile_no || ""
+                  };
+
+                  const customerId = await this.findOrCreateCustomer(customerData);
+                  if (customerId) {
+                    console.log(`[registerUser] Customer ${customerId} created/found successfully`);
+                  }
+                } catch (customerError) {
+                  console.warn('[registerUser] Customer creation failed (non-critical):', customerError);
+                }
+                
+                return {
+                  success: true,
+                  message: 'Registrácia bola úspešná. Používateľ už existuje.'
+                };
+              }
+              // If user doesn't exist despite DuplicateEntryError, return error
               return {
                 success: false,
                 message: 'Používateľ s týmto emailom už existuje'
@@ -2100,6 +2129,14 @@ export class ERPNextService {
             }
             // Extract user-friendly message from ValidationError
             if (exception.includes('už existuje') || exception.includes('already exists')) {
+              // Check if user actually exists
+              const userExists = await this.checkUserExists(userData.email, 1000);
+              if (userExists) {
+                return {
+                  success: true,
+                  message: 'Registrácia bola úspešná. Používateľ už existuje.'
+                };
+              }
               return {
                 success: false,
                 message: 'Používateľ s týmto emailom už existuje'
@@ -2128,6 +2165,14 @@ export class ERPNextService {
           // Check for DuplicateEntryError in message
           if (typeof errorMessage === 'string' && 
               (errorMessage.includes('DuplicateEntryError') || errorMessage.includes('Duplicate entry'))) {
+            // Check if user actually exists
+            const userExists = await this.checkUserExists(userData.email, 1000);
+            if (userExists) {
+              return {
+                success: true,
+                message: 'Registrácia bola úspešná. Používateľ už existuje.'
+              };
+            }
             return {
               success: false,
               message: 'Používateľ s týmto emailom už existuje'
@@ -2143,7 +2188,16 @@ export class ERPNextService {
           // ERPNext often returns detailed error messages in exc field
           const excMessage = responseData.exc;
           console.log('[registerUser] Exception in exc field:', excMessage);
-          if (typeof excMessage === 'string' && excMessage.includes('already exists')) {
+          if (typeof excMessage === 'string' && 
+              (excMessage.includes('already exists') || excMessage.includes('DuplicateEntryError') || excMessage.includes('Duplicate entry'))) {
+            // Check if user actually exists
+            const userExists = await this.checkUserExists(userData.email, 1000);
+            if (userExists) {
+              return {
+                success: true,
+                message: 'Registrácia bola úspešná. Používateľ už existuje.'
+              };
+            }
             return {
               success: false,
               message: 'Používateľ s týmto emailom už existuje'
@@ -2155,6 +2209,14 @@ export class ERPNextService {
           };
         }
         if (status === 409) {
+          // 409 Conflict usually means duplicate
+          const userExists = await this.checkUserExists(userData.email, 1000);
+          if (userExists) {
+            return {
+              success: true,
+              message: 'Registrácia bola úspešná. Používateľ už existuje.'
+            };
+          }
           return {
             success: false,
             message: 'Používateľ s týmto emailom už existuje'
@@ -2188,9 +2250,10 @@ export class ERPNextService {
   }
 
   // Helper method to check if user exists
-  private async checkUserExists(email: string): Promise<boolean> {
+  private async checkUserExists(email: string, waitTime: number = 2000): Promise<boolean> {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500)); // Wait a moment for ERPNext to process
+      // Wait longer for ERPNext to process user creation
+      await new Promise(resolve => setTimeout(resolve, waitTime));
       const existingUser = await this.client.get(`/resource/User/${email}`);
       return !!(existingUser.data && existingUser.data.name);
     } catch (checkError: any) {
@@ -2420,7 +2483,38 @@ export class ERPNextService {
         if (responseData?.exception) {
           const exception = responseData.exception;
           console.log('[registerUserFallback] Exception found:', exception);
-          if (typeof exception === 'string' && (exception.includes('už existuje') || exception.includes('already exists'))) {
+          // Check for DuplicateEntryError - if user already exists, that's actually success!
+          if (typeof exception === 'string' && 
+              (exception.includes('DuplicateEntryError') || exception.includes('Duplicate entry') || 
+               exception.includes('už existuje') || exception.includes('already exists'))) {
+            console.log('[registerUserFallback] DuplicateEntryError detected - checking if user exists...');
+            const userExists = await this.checkUserExists(userData.email, 1000);
+            if (userExists) {
+              // Try to create customer record (non-blocking)
+              try {
+                const customerData = {
+                  customer_name: `${userData.first_name} ${userData.last_name}`,
+                  customer_type: "Individual",
+                  customer_group: "Internetový predaj",
+                  territory: "Slovakia",
+                  email_id: userData.email.toLowerCase(),
+                  mobile_no: userData.mobile_no || ""
+                };
+
+                const customerId = await this.findOrCreateCustomer(customerData);
+                if (customerId) {
+                  console.log(`[registerUserFallback] Customer ${customerId} created/found successfully`);
+                }
+              } catch (customerError) {
+                console.warn('[registerUserFallback] Customer creation failed (non-critical):', customerError);
+              }
+              
+              return {
+                success: true,
+                message: 'Registrácia bola úspešná. Používateľ už existuje.'
+              };
+            }
+            // If user doesn't exist despite DuplicateEntryError, return error
             return {
               success: false,
               message: 'Používateľ s týmto emailom už existuje'
@@ -2439,6 +2533,19 @@ export class ERPNextService {
             ? responseData.message 
             : (responseData.message.message || responseData.message.error || 'Chyba pri registrácii používateľa');
           console.log('[registerUserFallback] Error message from response:', errorMsg);
+          
+          // Check for DuplicateEntryError in message
+          if (typeof errorMsg === 'string' && 
+              (errorMsg.includes('DuplicateEntryError') || errorMsg.includes('Duplicate entry'))) {
+            const userExists = await this.checkUserExists(userData.email, 1000);
+            if (userExists) {
+              return {
+                success: true,
+                message: 'Registrácia bola úspešná. Používateľ už existuje.'
+              };
+            }
+          }
+          
           return {
             success: false,
             message: errorMsg
@@ -2446,7 +2553,15 @@ export class ERPNextService {
         }
         if (responseData?.exc) {
           console.log('[registerUserFallback] Exception in exc field:', responseData.exc);
-          if (typeof responseData.exc === 'string' && responseData.exc.includes('already exists')) {
+          if (typeof responseData.exc === 'string' && 
+              (responseData.exc.includes('already exists') || responseData.exc.includes('DuplicateEntryError') || responseData.exc.includes('Duplicate entry'))) {
+            const userExists = await this.checkUserExists(userData.email, 1000);
+            if (userExists) {
+              return {
+                success: true,
+                message: 'Registrácia bola úspešná. Používateľ už existuje.'
+              };
+            }
             return {
               success: false,
               message: 'Používateľ s týmto emailom už existuje'

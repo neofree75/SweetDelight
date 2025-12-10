@@ -2023,6 +2023,36 @@ export class ERPNextService {
     } catch (error) {
       console.error('[registerUser] Error registering user via external_reset API:', error);
       
+      // IMPORTANT: Check if user was created despite the error
+      // ERPNext might create the user even if it returns an error
+      const userExists = await this.checkUserExists(userData.email);
+      if (userExists) {
+        console.log('[registerUser] User exists despite error response! Registration successful:', userData.email);
+        // Try to create customer record (non-blocking)
+        try {
+          const customerData = {
+            customer_name: `${userData.first_name} ${userData.last_name}`,
+            customer_type: "Individual",
+            customer_group: "Internetový predaj",
+            territory: "Slovakia",
+            email_id: userData.email.toLowerCase(),
+            mobile_no: userData.mobile_no || ""
+          };
+
+          const customerId = await this.findOrCreateCustomer(customerData);
+          if (customerId) {
+            console.log(`[registerUser] Customer ${customerId} created/found successfully`);
+          }
+        } catch (customerError) {
+          console.warn('[registerUser] Customer creation failed (non-critical):', customerError);
+        }
+        
+        return {
+          success: true,
+          message: 'Registrácia bola úspešná. Skontrolujte si email pre pokyny na nastavenie hesla.'
+        };
+      }
+      
       // Check if external_reset API endpoint doesn't exist (404) or returns 500
       // In that case, try fallback: create user directly via User doctype
       if (axios.isAxiosError(error)) {
@@ -2039,19 +2069,10 @@ export class ERPNextService {
           baseURL: error.config?.baseURL
         });
         
-        // Always try fallback first for any error from external_reset API
-        // since it might not be configured or available
-        console.log('[registerUser] Attempting fallback registration method...');
-        const fallbackResult = await this.registerUserFallback(userData);
-        if (fallbackResult.success) {
-          console.log('[registerUser] Fallback registration succeeded');
-          return fallbackResult;
-        }
-        console.log('[registerUser] Fallback registration also failed, returning original error');
-        
         // If endpoint doesn't exist (404) or server error (500), try fallback
         if (status === 404 || status === 500 || status === 405 || status === 403) {
           console.log(`[registerUser] external_reset API returned ${status}, trying fallback: direct User creation`);
+          // registerUserFallback already checks if user exists
           return await this.registerUserFallback(userData);
         }
         
@@ -2061,6 +2082,7 @@ export class ERPNextService {
           (responseData.message && typeof responseData.message === 'string' && responseData.message.includes('not found'))
         )) {
           console.log('[registerUser] Endpoint not found message detected, trying fallback');
+          // registerUserFallback already checks if user exists
           return await this.registerUserFallback(userData);
         }
         
@@ -2165,6 +2187,22 @@ export class ERPNextService {
     }
   }
 
+  // Helper method to check if user exists
+  private async checkUserExists(email: string): Promise<boolean> {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait a moment for ERPNext to process
+      const existingUser = await this.client.get(`/resource/User/${email}`);
+      return !!(existingUser.data && existingUser.data.name);
+    } catch (checkError: any) {
+      // 404 is expected if user doesn't exist
+      if (checkError.response?.status === 404) {
+        return false;
+      }
+      console.error('[checkUserExists] Error checking user:', checkError);
+      return false;
+    }
+  }
+
   // Fallback method: Create user directly via ERPNext User doctype
   private async registerUserFallback(userData: {
     email: string;
@@ -2177,20 +2215,32 @@ export class ERPNextService {
       console.log('[registerUserFallback] Attempting to create user directly via User doctype');
       
       // Check if user already exists
-      try {
-        const existingUser = await this.client.get(`/resource/User/${userData.email}`);
-        if (existingUser.data && existingUser.data.name) {
-          console.log('[registerUserFallback] User already exists:', userData.email);
-          return {
-            success: false,
-            message: 'Používateľ s týmto emailom už existuje'
+      const userExists = await this.checkUserExists(userData.email);
+      if (userExists) {
+        console.log('[registerUserFallback] User already exists:', userData.email);
+        // User exists, try to create customer record if needed
+        try {
+          const customerData = {
+            customer_name: `${userData.first_name} ${userData.last_name}`,
+            customer_type: "Individual",
+            customer_group: "Internetový predaj",
+            territory: "Slovakia",
+            email_id: userData.email.toLowerCase(),
+            mobile_no: userData.mobile_no || ""
           };
+
+          const customerId = await this.findOrCreateCustomer(customerData);
+          if (customerId) {
+            console.log(`[registerUserFallback] Customer ${customerId} created/found successfully`);
+          }
+        } catch (customerError) {
+          console.warn('[registerUserFallback] Customer creation failed (non-critical):', customerError);
         }
-      } catch (checkError: any) {
-        // 404 is expected if user doesn't exist
-        if (checkError.response?.status !== 404) {
-          console.error('[registerUserFallback] Error checking existing user:', checkError);
-        }
+        
+        return {
+          success: true,
+          message: 'Registrácia bola úspešná. Používateľ už existuje.'
+        };
       }
       
       // Create user via User doctype

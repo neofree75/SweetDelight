@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
+import SEO from '@/components/SEO';
 import logo from '@assets/logo_1757937077215.png';
 
 interface ProductDetailProps {
@@ -259,21 +260,48 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
     return sorted.map(({ key, label, value }) => ({ key, label, value }));
   })();
 
+  const productImage = getProductImage(product.image);
+  const productDescription = product.web_long_description || product.description || product.short_description || '';
+  const breadcrumbs = [
+    { name: 'Domov', url: '/' },
+    { name: 'Obchod', url: '/obchod' },
+    { name: product.name, url: `/produkt/${product.id}` }
+  ];
+
   return (
-    <div className="min-h-screen bg-background pt-8">
-      <div className="container mx-auto px-4 py-12">
-        {/* Back Navigation */}
-        <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={handleGoBack}
-            className="mb-4"
-            data-testid="button-back-to-shop"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Späť na obchod
-          </Button>
-        </div>
+    <>
+      <SEO 
+        title={`${product.name} | Marsela Bakery`}
+        description={productDescription.substring(0, 160)}
+        keywords={`${product.name}, ${product.category}, zákusky, torty, dezerty, Marsela Bakery, objednávka online`}
+        canonical={`/produkt/${product.id}`}
+        ogImage={productImage}
+        ogType="product"
+        product={{
+          name: product.name,
+          description: productDescription,
+          image: productImage,
+          price: product.priceWithVat || product.price,
+          priceCurrency: "EUR",
+          availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          category: product.category
+        }}
+        breadcrumbs={breadcrumbs}
+      />
+      <div className="min-h-screen bg-background pt-8">
+        <div className="container mx-auto px-4 py-12">
+          {/* Back Navigation */}
+          <div className="mb-8">
+            <Button 
+              variant="ghost" 
+              onClick={handleGoBack}
+              className="mb-4"
+              data-testid="button-back-to-shop"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Späť na obchod
+            </Button>
+          </div>
 
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Product Image */}
@@ -692,5 +720,6 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
         })()}
       </div>
     </div>
+    </>
   );
 }

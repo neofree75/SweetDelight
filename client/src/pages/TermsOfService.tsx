@@ -1,8 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import SEO from '@/components/SEO';
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-background pt-8">
+    <>
+      <SEO 
+        title="Obchodné podmienky | Marsela Bakery"
+        description="Všeobecné obchodné podmienky pre služby cukrárne Marsela Bakery. Informácie o objednávkach, platbách, doručovaní a reklamáciách."
+        keywords="obchodné podmienky, všeobecné podmienky, objednávky, platby, doručovanie, reklamácie, Marsela Bakery"
+        canonical="/obchodne-podmienky"
+        noindex={false}
+      />
+      <div className="min-h-screen bg-background pt-8">
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
@@ -163,5 +172,6 @@ export default function TermsOfService() {
         </div>
       </div>
     </div>
+    </>
   );
 }

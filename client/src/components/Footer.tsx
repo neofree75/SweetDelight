@@ -69,6 +69,13 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/ako-objednat" data-testid="footer-link-how-to-order">
+                  <span className="text-background/80 hover:text-background transition-colors">
+                    Ako objednať
+                  </span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/kontakt" data-testid="footer-link-contact">
                   <span className="text-background/80 hover:text-background transition-colors">
                     Kontakt

@@ -31,6 +31,7 @@ import TermsOfService from "@/pages/TermsOfService";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Gallery from "@/pages/Gallery";
+import HowToOrder from "@/pages/HowToOrder";
 import NotFound from "@/pages/not-found";
 
 interface User {
@@ -110,6 +111,7 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       <Route path="/fotogaleria">
         <Gallery user={user} />
       </Route>
+      <Route path="/ako-objednat" component={HowToOrder} />
       <Route path="/obchodne-podmienky" component={TermsOfService} />
       <Route path="/ochrana-osobnych-udajov" component={PrivacyPolicy} />
       <Route component={NotFound} />

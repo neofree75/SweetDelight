@@ -1,9 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import SEO from '@/components/SEO';
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-background pt-8">
-      <div className="container mx-auto px-4 py-12">
+    <>
+      <SEO 
+        title="Ochrana osobných údajov | Marsela Bakery"
+        description="Informácie o spracúvaní osobných údajov v cukrárni Marsela Bakery. Zásady ochrany súkromia a GDPR súlad."
+        keywords="ochrana osobných údajov, GDPR, súkromie, zásady ochrany, Marsela Bakery"
+        canonical="/ochrana-osobnych-udajov"
+        noindex={false}
+      />
+      <div className="min-h-screen bg-background pt-8">
+        <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-4">
@@ -270,5 +279,6 @@ export default function PrivacyPolicy() {
         </div>
       </div>
     </div>
+    </>
   );
 }

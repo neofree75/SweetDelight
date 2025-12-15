@@ -87,6 +87,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sitemap.xml endpoint
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const siteUrl = process.env.SITE_URL || 'https://bakery.erpnext.sk';
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      // Static pages
+      const staticPages = [
+        { url: '', priority: '1.0', changefreq: 'daily' },
+        { url: '/obchod', priority: '0.9', changefreq: 'daily' },
+        { url: '/torta-na-mieru', priority: '0.8', changefreq: 'weekly' },
+        { url: '/fotogaleria', priority: '0.7', changefreq: 'weekly' },
+        { url: '/ako-objednat', priority: '0.8', changefreq: 'monthly' },
+        { url: '/o-nas', priority: '0.6', changefreq: 'monthly' },
+        { url: '/kontakt', priority: '0.7', changefreq: 'monthly' },
+        { url: '/obchodne-podmienky', priority: '0.5', changefreq: 'yearly' },
+        { url: '/ochrana-osobnych-udajov', priority: '0.5', changefreq: 'yearly' },
+      ];
+
+      // Fetch products for dynamic product pages
+      let productPages: Array<{ url: string; priority: string; changefreq: string }> = [];
+      try {
+        const products = await erpNextService.getItems();
+        productPages = products.slice(0, 1000).map(product => ({
+          url: `/produkt/${product.name}`,
+          priority: '0.8',
+          changefreq: 'weekly'
+        }));
+      } catch (error) {
+        console.error('[sitemap] Error fetching products:', error);
+      }
+
+      // Generate XML
+      const allPages = [...staticPages, ...productPages];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allPages.map(page => `  <url>
+    <loc>${siteUrl}${page.url}</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+      res.set('Content-Type', 'application/xml');
+      res.send(xml);
+    } catch (error) {
+      console.error('[sitemap] Error generating sitemap:', error);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
+  // Robots.txt endpoint
+  app.get("/robots.txt", (req, res) => {
+    const siteUrl = process.env.SITE_URL || 'https://bakery.erpnext.sk';
+    const robots = `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /checkout
+Disallow: /platba
+Disallow: /payment-success
+Disallow: /moj-ucet
+Disallow: /prihlasenie
+Disallow: /registracia
+Disallow: /zabudnute-heslo
+Disallow: /reset-password
+Disallow: /pokladna
+
+Sitemap: ${siteUrl}/sitemap.xml
+`;
+    res.set('Content-Type', 'text/plain');
+    res.send(robots);
+  });
+
   // Debug endpoint - check ERPNext config (safe for production)
   app.get("/api/debug/config", async (req, res) => {
     try {

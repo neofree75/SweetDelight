@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Hlavná stránka -->
+  <url>
+    <loc>https://marselabakery.sk/</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <!-- Obchod -->
+  <url>
+    <loc>https://marselabakery.sk/obchod</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- Torta na mieru -->
+  <url>
+    <loc>https://marselabakery.sk/torta-na-mieru</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Fotogaléria -->
+  <url>
+    <loc>https://marselabakery.sk/fotogaleria</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Ako objednať -->
+  <url>
+    <loc>https://marselabakery.sk/ako-objednat</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- O nás -->
+  <url>
+    <loc>https://marselabakery.sk/o-nas</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- Kontakt -->
+  <url>
+    <loc>https://marselabakery.sk/kontakt</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- Obchodné podmienky -->
+  <url>
+    <loc>https://marselabakery.sk/obchodne-podmienky</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <!-- Ochrana osobných údajov -->
+  <url>
+    <loc>https://marselabakery.sk/ochrana-osobnych-udajov</loc>
+    <lastmod>2025-01-27</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>
+

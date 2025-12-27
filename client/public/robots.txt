@@ -1,0 +1,27 @@
+# robots.txt pre Marsela Bakery
+# Tento súbor riadi, ako prehľadávače indexujú vašu stránku
+
+User-agent: *
+
+# Zablokuj API endpointy - nie sú určené pre indexovanie
+Disallow: /api/
+
+# Zablokuj privátne/autentifikačné stránky
+Disallow: /moj-ucet
+Disallow: /checkout
+Disallow: /platba
+Disallow: /payment-existing-order
+Disallow: /order-detail
+Disallow: /payment-success
+Disallow: /pokladna
+Disallow: /prihlasenie
+Disallow: /registracia
+Disallow: /zabudnute-heslo
+Disallow: /reset-password
+
+# Povol indexovanie všetkých ostatných stránok
+Allow: /
+
+# Sitemap
+Sitemap: https://marselabakery.sk/sitemap.xml
+

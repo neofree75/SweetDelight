@@ -245,6 +245,14 @@ Sitemap: ${siteUrl}/sitemap.xml
       const products = await erpNextService.getProductsForFrontend();
       console.log(`[api/products] Returning ${products.length} products to ${req.get('host')}`);
       
+      // Log VAT rates for debugging
+      const vatRates = products.map(p => p.vatRate).filter((v, i, a) => a.indexOf(v) === i);
+      const vatRateCounts = products.reduce((acc, p) => {
+        acc[p.vatRate || 0] = (acc[p.vatRate || 0] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>);
+      console.log(`[api/products] VAT rates in products:`, vatRateCounts);
+      
       if (products.length === 0) {
         console.warn(`[api/products] WARNING: No products returned! Check ERPNext connection.`);
         // Return empty array instead of error, so frontend can handle it gracefully
@@ -271,12 +279,14 @@ Sitemap: ${siteUrl}/sitemap.xml
   app.get("/api/products/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
+      console.log(`[api/products/:productId] Fetching product: ${productId}`);
       const product = await erpNextService.getProductById(productId);
       
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
       
+      console.log(`[api/products/:productId] Returning product ${productId} with VAT rate: ${product.vatRate}%`);
       res.json(product);
     } catch (error) {
       console.error("Error fetching product:", error);

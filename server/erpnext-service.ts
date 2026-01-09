@@ -808,22 +808,40 @@ export class ERPNextService {
   async getItemVATRate(itemCode: string): Promise<number> {
     this.refreshClient();
     try {
-      // First, get the Item to find its item_tax_template
+      // First, get the Item to find its taxes field (which contains Item Tax entries)
       const itemResponse = await this.client.get(`/resource/Item/${encodeURIComponent(itemCode)}`, {
         params: {
-          fields: '["item_tax_template"]'
+          fields: JSON.stringify(['taxes'])
         }
       });
 
       const item = itemResponse.data?.data;
-      if (!item || !item.item_tax_template) {
+      
+      // Check if item has taxes field with Item Tax entries
+      let templateName: string | null = null;
+      
+      if (item && Array.isArray(item.taxes) && item.taxes.length > 0) {
+        // Get item_tax_template from the first Item Tax entry
+        const firstTax = item.taxes[0];
+        if (firstTax && firstTax.item_tax_template) {
+          templateName = firstTax.item_tax_template;
+          console.log(`[getItemVATRate] Product ${itemCode} has Item Tax Template from taxes field: "${templateName}"`);
+        }
+      }
+      
+      // Fallback: try to get item_tax_template directly from Item (for backward compatibility)
+      if (!templateName && item && item.item_tax_template) {
+        templateName = item.item_tax_template;
+        console.log(`[getItemVATRate] Product ${itemCode} has Item Tax Template from item_tax_template field: "${templateName}"`);
+      }
+
+      if (!templateName) {
         // If no Item Tax Template, use default VAT rate
-        console.log(`[getItemVATRate] No Item Tax Template for ${itemCode}, using default VAT rate`);
+        console.log(`[getItemVATRate] ⚠️ No Item Tax Template assigned to product ${itemCode}, using default VAT rate`);
         return await this.getDefaultVATRate();
       }
 
       // Get the Item Tax Template
-      const templateName = item.item_tax_template;
       const encodedTemplateName = encodeURIComponent(templateName);
       const templateResponse = await this.client.get(`/resource/Item Tax Template/${encodedTemplateName}`);
 
@@ -837,8 +855,11 @@ export class ERPNextService {
       let maxRate = 0;
       let vatRate = 0;
       
+      console.log(`[getItemVATRate] Processing ${template.taxes.length} tax(es) in template "${templateName}" for ${itemCode}`);
       for (const tax of template.taxes) {
-        const rate = parseFloat(tax.tax_rate) || 0;
+        // Item Tax Template uses 'rate' field, not 'tax_rate'
+        const rate = parseFloat(tax.rate || tax.tax_rate) || 0;
+        console.log(`[getItemVATRate] Tax entry: rate=${rate}%, account_head=${tax.account_head || 'N/A'}, charge_type=${tax.charge_type || 'N/A'}`);
         if (rate > maxRate && rate > 0 && rate <= 100) {
           maxRate = rate;
           vatRate = rate;
@@ -846,7 +867,7 @@ export class ERPNextService {
       }
 
       if (vatRate > 0) {
-        console.log(`[getItemVATRate] Found VAT rate ${vatRate}% for ${itemCode} from Item Tax Template "${templateName}"`);
+        console.log(`[getItemVATRate] ✅ Found VAT rate ${vatRate}% for ${itemCode} from Item Tax Template "${templateName}"`);
         return vatRate;
       }
 
@@ -1739,6 +1760,13 @@ export class ERPNextService {
       timestamp: Date.now()
     };
 
+    // Log VAT rate distribution for debugging
+    const vatRateCounts = filteredProducts.reduce((acc, p) => {
+      acc[p.vatRate || 0] = (acc[p.vatRate || 0] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+    console.log(`[getProductsForFrontend] VAT rate distribution:`, vatRateCounts);
+
     console.log(`[getProductsForFrontend] Returning ${filteredProducts.length} products`);
     return filteredProducts;
   }
@@ -1747,12 +1775,25 @@ export class ERPNextService {
   async getProductById(productId: string): Promise<Product | null> {
     this.refreshClient();
     
-    // Najprv skús nájsť produkt v cached produktoch
+    // Always fetch fresh VAT rate and price to ensure it's up-to-date
+    // (cache might be stale if product was updated in ERPNext)
+    console.log(`[getProductById] Fetching fresh data for product ${productId}...`);
+    const currentVatRate = await this.getItemVATRate(productId);
+    const updatedPriceInfo = await this.getItemPriceWithVAT(productId);
+    
+    // Try to get product from cache for other fields (name, description, etc.)
     const products = await this.getProductsForFrontend();
     const cachedProduct = products.find(p => p.id === productId);
     
     if (cachedProduct) {
-      return cachedProduct;
+      console.log(`[getProductById] Found product ${productId} in cache. Updating VAT rate from ${cachedProduct.vatRate}% to ${currentVatRate}%`);
+      // Always return updated product with fresh VAT rate and prices
+      return {
+        ...cachedProduct,
+        vatRate: updatedPriceInfo.vatRate,
+        price: updatedPriceInfo.priceWithoutVat,
+        priceWithVat: updatedPriceInfo.priceWithVat
+      };
     }
     
     // Ak produkt nebol nájdený v cache (napr. TORTCUS001), načítaj ho priamo z ERPNext

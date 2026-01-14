@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Cake, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatPrice } from '@/lib/format-price';
+import { formatPrice, formatNumber } from '@/lib/format-price';
 import SEO from '@/components/SEO';
 
 // Hook to fetch custom cake product (TORTCUS001) for min order quantity
@@ -148,8 +148,25 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
     
     // Pripočítaj ceny atribútov k základnej cene
     const computedPriceWithoutVat = basePriceWithoutVat + attributesPriceTotal;
-    const computedPriceWithVat = roundCurrency(computedPriceWithoutVat * (1 + (vatRate || 20) / 100));
-    const effectiveVatRate = vatRate || roundCurrency(((computedPriceWithVat / computedPriceWithoutVat) - 1) * 100);
+    const defaultVatRate = 23; // Predvolená sadzba DPH 23%
+    
+    // Urči efektívnu sadzbu DPH
+    let effectiveVatRate = vatRate || defaultVatRate;
+    
+    // Ak vatRate nie je dostupná, skús vypočítať z základných cien
+    if (!vatRate && basePriceWithoutVat > 0 && basePriceWithVat > 0) {
+      const calculatedRate = roundCurrency(((basePriceWithVat / basePriceWithoutVat) - 1) * 100);
+      if (calculatedRate > 0 && calculatedRate < 100 && !isNaN(calculatedRate)) {
+        effectiveVatRate = calculatedRate;
+      }
+    }
+    
+    // Zabezpeč, aby effectiveVatRate bola platná hodnota
+    if (!effectiveVatRate || isNaN(effectiveVatRate) || effectiveVatRate <= 0) {
+      effectiveVatRate = defaultVatRate;
+    }
+    
+    const computedPriceWithVat = roundCurrency(computedPriceWithoutVat * (1 + effectiveVatRate / 100));
     
     // Vypočítaj hodnoty pre zobrazenie
     const basePriceWithVatDisplay = roundCurrency(basePriceWithoutVat * (1 + effectiveVatRate / 100));
@@ -284,9 +301,9 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
           </p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-8 lg:grid-cols-12">
           {/* Configuration Form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-7">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -342,25 +359,25 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
           </div>
 
           {/* Order Summary */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-5">
             <Card className="sticky top-8">
               <CardHeader>
                 <CardTitle>Súhrn objednávky</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {websiteItem && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {websiteItem.image && (
                       <img
                         src={websiteItem.image}
                         alt={websiteItem.title}
-                        className="w-full h-48 object-cover rounded-lg border"
+                        className="w-full h-56 object-cover rounded-lg border"
                       />
                     )}
                     <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">{websiteItem.title}</h3>
+                      <h3 className="text-xl font-semibold">{websiteItem.title}</h3>
                       {websiteItem.description && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
                           {websiteItem.description}
                         </p>
                       )}
@@ -368,10 +385,10 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                   </div>
                 )}
 
-                <div className="pt-3 border-t">
-                  <h4 className="font-medium text-sm mb-2">Vybraté možnosti:</h4>
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-base mb-3">Vybraté možnosti:</h4>
                   {selectedOptionCount > 0 ? (
-                    <dl className="space-y-2 text-sm">
+                    <div className="space-y-2.5">
                       {configurationOptions.map(option => {
                         const chosen = selectedAttributes[option.id];
                         if (!chosen) {
@@ -380,15 +397,15 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                         const parsed = parseAttributeWithPrice(chosen);
                         const price = option.optionPrices[chosen] || 0;
                         return (
-                          <div key={option.id} className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">{option.name}:</dt>
-                            <dd className="font-medium text-right">
-                              {parsed.name}{price > 0 ? ` ${price} €` : ''}
-                            </dd>
+                          <div key={option.id} className="text-foreground py-1">
+                            <div className="text-muted-foreground font-medium mb-0.5">{option.name}:</div>
+                            <div className="font-semibold">
+                              {parsed.name}{price > 0 ? ` ${formatNumber(price)} € bez DPH` : ''}
+                            </div>
                           </div>
                         );
                       })}
-                    </dl>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Zatiaľ ste nevybrali žiadne možnosti
@@ -397,32 +414,36 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                 </div>
 
                 {specialInstructions && (
-                  <div className="space-y-2 pt-3 border-t">
-                    <h4 className="font-medium text-sm">Osobitné pokyny:</h4>
-                    <p className="text-sm text-muted-foreground" data-testid="summary-instructions">
+                  <div className="space-y-2 pt-4 border-t">
+                    <h4 className="font-semibold text-base mb-2">Osobitné pokyny:</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed" data-testid="summary-instructions">
                       {specialInstructions}
                     </p>
                   </div>
                 )}
 
-                <div className="pt-4 border-t">
-                  {priceData.attributesPriceTotal > 0 && (
-                    <div className="mb-2 space-y-1">
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Základná cena:</span>
-                        <span>{formatPrice(priceData.basePriceWithVatDisplay)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Doplnky:</span>
-                        <span>+{formatPrice(priceData.attributesPriceWithVatDisplay)}</span>
-                      </div>
+                <div className="pt-5 border-t">
+                  <div className="mb-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Celková cena bez DPH:</span>
+                      <span className="font-medium">{formatPrice(priceData.priceWithoutVat)}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg font-medium">Orientačná cena:</span>
-                    <span className="text-2xl font-bold text-primary" data-testid="estimated-price">
-                      {formatPrice(priceData.priceWithVat)}
-                    </span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        DPH ({priceData.vatRate && !isNaN(priceData.vatRate) ? Math.round(priceData.vatRate) : 23}%):
+                      </span>
+                      <span className="font-medium">
+                        {formatPrice(roundCurrency(priceData.priceWithVat - priceData.priceWithoutVat))}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mb-3 pt-2 border-t">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xl font-semibold">Celková cena s DPH:</span>
+                      <span className="text-3xl font-bold text-primary" data-testid="estimated-price">
+                        {formatPrice(priceData.priceWithVat)}
+                      </span>
+                    </div>
                   </div>
                   
                   {customCakeProduct?.minOrderQuantity && customCakeProduct.minOrderQuantity > 1 && (

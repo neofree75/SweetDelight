@@ -214,6 +214,8 @@ export const cartItemSchema = z.object({
   // VAT information
   vatRate: z.number().default(0), // Sadzba DPH v percentách
   priceWithVat: z.number(), // Cena s DPH
+  // Skupina produktu (item_group z ERPNext / category z produktu)
+  itemGroup: z.string().optional(),
 });
 
 // Frontend Order schema
@@ -291,6 +293,7 @@ export const userOrderSchema = z.object({
   items: z.array(z.object({
     itemCode: z.string(), // Kód položky
     itemName: z.string(), // Názov položky
+    itemGroup: z.string().optional(), // Skupina produktu (item_group z ERPNext)
     qty: z.number(), // Množstvo
     rate: z.number(), // Cena za kus
     amount: z.number(), // Celková suma za položku bez DPH

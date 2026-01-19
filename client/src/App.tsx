@@ -282,6 +282,8 @@ function App() {
                       // VAT information
                       vatRate: product.vatRate,
                       priceWithVat: product.priceWithVat,
+                      // Skupina produktu (item_group / category)
+                      itemGroup: product.category,
                       // Ulož customAttributesWithPrices pre zobrazenie v košíku a súhrne
                       customAttributesWithPrices: (product as any).customAttributesWithPrices
                     }];

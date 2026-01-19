@@ -20,6 +20,7 @@ interface CartItem {
   quantity: number;
   image: string;
   additional_notes?: string;
+  itemGroup?: string;
 }
 
 interface User {
@@ -518,6 +519,9 @@ export default function Billing({ cartItems, user, onClearCart }: BillingProps) 
                         <div className="flex-1">
                           <span className="font-medium">{item.name}</span>
                           <span className="text-muted-foreground ml-2">× {item.quantity}</span>
+                          {item.itemGroup && (
+                            <p className="text-xs text-muted-foreground mt-0.5">Skupina: {item.itemGroup}</p>
+                          )}
                           {/* Zobraz atribúty s cenami pre custom cake */}
                           {(item as any).customAttributesWithPrices && Array.isArray((item as any).customAttributesWithPrices) && (item as any).customAttributesWithPrices.length > 0 && (
                             <div className="mt-1 space-y-0.5">

@@ -439,6 +439,9 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
                       />
                       <div className="flex-1">
                         <h3 className="font-semibold">{item.name}</h3>
+                        {item.itemGroup && (
+                          <p className="text-xs text-muted-foreground">Skupina: {item.itemGroup}</p>
+                        )}
                         <p className="text-sm text-muted-foreground">
                           {item.quantity} × €{item.price.toFixed(2)}
                         </p>

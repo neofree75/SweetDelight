@@ -138,6 +138,9 @@ export default function Cart({
                       <h4 className="font-medium text-foreground truncate">
                         {item.name}
                       </h4>
+                      {item.itemGroup && (
+                        <p className="text-xs text-muted-foreground">Skupina: {item.itemGroup}</p>
+                      )}
                       <p className="text-sm text-muted-foreground">
 {formatPrice(item.price)} každý
                       </p>

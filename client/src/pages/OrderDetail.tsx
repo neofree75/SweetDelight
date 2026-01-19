@@ -416,6 +416,9 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                               <div className="flex-1">
                                 <h5 className="font-medium">{item.name}</h5>
                                 <p className="text-sm text-muted-foreground">Kód: {item.id}</p>
+                                {item.itemGroup && (
+                                  <p className="text-xs text-muted-foreground">Skupina: {item.itemGroup}</p>
+                                )}
                                 {item.description && (
                                   <p className="text-xs text-muted-foreground italic mt-1">{item.description}</p>
                                 )}
@@ -494,6 +497,9 @@ export default function OrderDetail({ user }: OrderDetailProps) {
                                   <div>
                                     <div className="font-medium">{item.name}</div>
                                     <div className="text-xs text-muted-foreground">Kód: {item.id}</div>
+                                    {item.itemGroup && (
+                                      <div className="text-xs text-muted-foreground">Skupina: {item.itemGroup}</div>
+                                    )}
                                     {item.description && (
                                       <div className="text-xs text-muted-foreground italic mt-1">{item.description}</div>
                                     )}

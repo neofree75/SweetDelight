@@ -8,7 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./static";
 
 const app = express();
 
@@ -196,10 +196,9 @@ app.use((req, res, next) => {
     next();
   });
   
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // V dev: setupVite (cez dynamický import, aby sa vite nevkladal do produkčného bundle)
   if (app.get("env") === "development") {
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   } else {
     console.log('[index] Setting up static file serving (production mode)');

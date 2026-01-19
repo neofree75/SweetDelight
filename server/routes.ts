@@ -1291,6 +1291,7 @@ Sitemap: ${siteUrl}/sitemap.xml
             return {
             itemCode: item.item_code,
             itemName: item.item_name,
+              itemGroup: item.item_group || undefined,
               qty,
               rate,
               amount: amountWithoutVat,
@@ -1883,6 +1884,14 @@ Sitemap: ${siteUrl}/sitemap.xml
         const vatAmount = roundCurrency(netAmount * (vatRate / 100));
         const amountWithVat = roundCurrency(netAmount + vatAmount);
 
+        const derivedCategory = item.item_code === 'TORTCUS001' || 
+                   (item.item_name && item.item_name.toLowerCase().includes('torta na mieru')) || 
+                   (item.item_code && item.item_code.startsWith('custom-cake-')) 
+                     ? 'Torty na mieru' 
+                     : (item.item_code && item.item_code.startsWith('TORT')) || 
+                       (item.item_name && item.item_name.toLowerCase().includes('torta'))
+                     ? 'Torty'
+                     : 'Zákusky';
         return {
           id: item.item_code,
           name: item.item_name,
@@ -1894,15 +1903,8 @@ Sitemap: ${siteUrl}/sitemap.xml
           vatAmount,
           amountWithVat,
           description: item.description || '',
-          // Try to determine category from item code or name patterns
-          category: item.item_code === 'TORTCUS001' || 
-                   (item.item_name && item.item_name.toLowerCase().includes('torta na mieru')) || 
-                   item.item_code.startsWith('custom-cake-') 
-                     ? 'Torty na mieru' 
-                     : item.item_code.startsWith('TORT') || 
-                       (item.item_name && item.item_name.toLowerCase().includes('torta'))
-                     ? 'Torty'
-                     : 'Zákusky'
+          itemGroup: item.item_group || derivedCategory,
+          category: derivedCategory
         };
       });
 

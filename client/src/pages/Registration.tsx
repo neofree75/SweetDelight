@@ -37,10 +37,10 @@ export default function Registration() {
     e.preventDefault();
     
     // Základná validácia
-    if (!formData.firstName || !formData.lastName || !formData.email) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.mobile?.trim()) {
       toast({
         title: "Chyba validácie",
-        description: "Prosím vyplňte všetky povinné polia",
+        description: "Prosím vyplňte všetky povinné polia vrátane telefónneho čísla",
         variant: "destructive"
       });
       return;
@@ -67,7 +67,7 @@ export default function Registration() {
           email: formData.email,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          mobile: formData.mobile || undefined
+          mobile: formData.mobile.trim()
         })
       });
 
@@ -180,9 +180,8 @@ export default function Registration() {
                           Vyplňte registračný formulár
                         </h3>
                         <p className="text-muted-foreground pl-10">
-                          Vyplňte všetky potrebné údaje: vaše meno, priezvisko a emailovú adresu. 
-                          Telefónne číslo je voliteľné, ale odporúčame ho zadať pre rýchlejšiu komunikáciu 
-                          ohľadom vašich objednávok.
+                          Vyplňte všetky potrebné údaje: vaše meno, priezvisko, emailovú adresu a telefónne číslo. 
+                          Telefónne číslo je potrebné pre komunikáciu ohľadom vašich objednávok.
                         </p>
                       </div>
 
@@ -318,7 +317,7 @@ export default function Registration() {
 
                 <div>
                   <Label htmlFor="mobile" className="text-sm font-medium">
-                    Telefónne číslo
+                    Telefónne číslo *
                   </Label>
                   <Input
                     id="mobile"
@@ -326,6 +325,7 @@ export default function Registration() {
                     value={formData.mobile}
                     onChange={(e) => handleInputChange('mobile', e.target.value)}
                     placeholder="+421 123 456 789"
+                    required
                     data-testid="input-mobile"
                   />
                 </div>

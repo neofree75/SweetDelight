@@ -833,15 +833,17 @@ Sitemap: ${siteUrl}/sitemap.xml
       const { email, firstName, lastName, mobile } = req.body;
       console.log('[API] POST /api/register - Extracted data:', { email, firstName, lastName, mobile });
       
-      if (!email || !firstName || !lastName) {
+      const mobileTrimmed = typeof mobile === 'string' ? mobile.trim() : '';
+      if (!email || !firstName || !lastName || !mobileTrimmed) {
         console.log('[API] POST /api/register - Missing required fields:', { 
           hasEmail: !!email, 
           hasFirstName: !!firstName, 
-          hasLastName: !!lastName 
+          hasLastName: !!lastName,
+          hasMobile: !!mobileTrimmed 
         });
         return res.status(400).json({ 
           error: "All fields are required",
-          message: "Email, meno a priezvisko sú povinné"
+          message: "Email, meno, priezvisko a telefónne číslo sú povinné"
         });
       }
 
@@ -862,7 +864,7 @@ Sitemap: ${siteUrl}/sitemap.xml
         email: email.toLowerCase(),
         first_name: firstName,
         last_name: lastName,
-        mobile_no: mobile || '' // Použi mobilné číslo ak je zadané
+        mobile_no: mobileTrimmed
       });
       
       console.log('[API] POST /api/register - ERPNext registration result:', registrationResult);

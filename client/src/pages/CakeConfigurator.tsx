@@ -535,12 +535,13 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
       <div className="min-h-screen bg-background py-8 md:py-12">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Cake className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground">Konfigurátor torty</h1>
+            <div className="flex items-center justify-center mb-4">
+              <Cake className="h-8 w-8 text-primary mr-3" />
+              <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground">Torta na mieru</h1>
             </div>
-            <p className="text-muted-foreground">
-              Zložte si tortu podľa vlastných preferencií. Cena sa prepočítava podľa výberu.
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Vytvorte si vašu vlastnú tortu presne podľa vašich predstáv.
+              Vyberte si zo širokej ponuky ingrediencií a príchutí.
             </p>
           </div>
 

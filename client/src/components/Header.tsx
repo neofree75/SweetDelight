@@ -24,8 +24,8 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
   const navItems = [
     { path: '/', label: 'Domov' },
     { path: '/obchod', label: 'Obchod' },
-    { path: '/torta-na-mieru', label: 'Torta na mieru' },
-    { path: '/torta-na-mieru-2', label: 'Torta na mieru 2' },
+    // { path: '/torta-na-mieru', label: 'Torta na mieru - ARCH' }, // skryté
+    { path: '/torta-na-mieru-2', label: 'Torta na mieru' },
     { path: '/fotogaleria', label: 'Fotogaléria' },
     { path: '/ako-objednat', label: 'Ako objednať' },
     { path: '/o-nas', label: 'O nás' },

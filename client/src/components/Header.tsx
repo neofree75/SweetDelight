@@ -25,6 +25,7 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
     { path: '/', label: 'Domov' },
     { path: '/obchod', label: 'Obchod' },
     { path: '/torta-na-mieru', label: 'Torta na mieru' },
+    { path: '/torta-na-mieru-2', label: 'Torta na mieru 2' },
     { path: '/fotogaleria', label: 'Fotogaléria' },
     { path: '/ako-objednat', label: 'Ako objednať' },
     { path: '/o-nas', label: 'O nás' },

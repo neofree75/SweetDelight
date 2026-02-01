@@ -14,6 +14,7 @@ import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
 import ProductDetail from "@/pages/ProductDetail";
 import CustomCakeOrder from "@/pages/CustomCakeOrder";
+import CakeConfigurator from "@/pages/CakeConfigurator";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Checkout from "@/pages/Checkout";
@@ -75,6 +76,12 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       </Route>
       <Route path="/torta-na-mieru">
         <CustomCakeOrder
+          onAddToCart={onAddToCart}
+          onCartOpen={onCartOpen}
+        />
+      </Route>
+      <Route path="/torta-na-mieru-2">
+        <CakeConfigurator
           onAddToCart={onAddToCart}
           onCartOpen={onCartOpen}
         />

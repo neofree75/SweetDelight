@@ -628,7 +628,7 @@ Sitemap: ${siteUrl}/sitemap.xml
         const salesOrderId = await erpNextService.createSalesOrder({
           customer: customerId,
           company: erpCompany,
-          delivery_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
+          delivery_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days from now (fallback)
           transaction_date: new Date().toISOString().split('T')[0],
           items: salesOrderItems.map((item) => ({
             ...item,
@@ -1569,6 +1569,26 @@ Sitemap: ${siteUrl}/sitemap.xml
 
       if (!deliveryInfo || !deliveryInfo.date) {
         return res.status(400).json({ error: "Delivery information required" });
+      }
+
+      // Minimálny dátum vyzdvihnutia musí byť zhodný s Checkout.tsx (dnes + 3 kalendárne dni)
+      const minDeliveryDateStr = (() => {
+        const today = new Date();
+        const minDate = new Date(today);
+        minDate.setDate(today.getDate() + 3);
+        const year = minDate.getFullYear();
+        const month = String(minDate.getMonth() + 1).padStart(2, '0');
+        const day = String(minDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })();
+      if (
+        typeof deliveryInfo.date !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(deliveryInfo.date) ||
+        deliveryInfo.date < minDeliveryDateStr
+      ) {
+        return res.status(400).json({
+          error: `Dátum vyzdvihnutia musí byť najskôr ${minDeliveryDateStr} (min. 3 kalendárne dni vopred).`
+        });
       }
 
       // Calculate deposit and total amounts

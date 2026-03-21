@@ -22,11 +22,11 @@ interface CheckoutProps {
 }
 
 export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
-  // Calculate minimum delivery date (+2 days from today)
+  // Calculate minimum delivery / pickup date (+3 calendar days from today)
   const minDeliveryDate = useMemo(() => {
     const today = new Date();
     const minDate = new Date(today);
-    minDate.setDate(today.getDate() + 2);
+    minDate.setDate(today.getDate() + 3);
     // Format as YYYY-MM-DD for date input
     const year = minDate.getFullYear();
     const month = String(minDate.getMonth() + 1).padStart(2, '0');
@@ -514,7 +514,8 @@ export default function Checkout({ cartItems, onClearCart }: CheckoutProps) {
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Minimálny dátum doručenia: <strong>{formatDateForDisplay(minDeliveryDate)}</strong>
+                    Minimálny dátum doručenia / vyzdvihnutia (najskôr o 3 kalendárne dni):{' '}
+                    <strong>{formatDateForDisplay(minDeliveryDate)}</strong>
                   </p>
                 </div>
                 <div>

@@ -166,6 +166,11 @@ export default function Footer() {
                 Obchodné podmienky
               </span>
             </Link>
+            <Link href="/odstupenie-od-zmluvy" data-testid="footer-link-withdrawal">
+              <span className="text-background/60 hover:text-background text-sm transition-colors">
+                Odstúpenie od zmluvy
+              </span>
+            </Link>
           </div>
         </div>
       </div>

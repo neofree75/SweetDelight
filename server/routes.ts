@@ -13,6 +13,8 @@ import {
   updateGalleryImageSchema,
   insertGalleryCategorySchema,
   updateGalleryCategorySchema,
+  withdrawalLookupSchema,
+  withdrawalSubmitSchema,
   type CartItem,
   type Product,
   type ERPNextCustomer,
@@ -734,6 +736,90 @@ Sitemap: ${siteUrl}/sitemap.xml
     } catch (error) {
       console.error("Error fetching order details:", error);
       res.status(500).json({ error: "Failed to fetch order details" });
+    }
+  });
+
+  // ── Odstúpenie od zmluvy (zákon č. 108/2024 Z. z., účinné od 19.6.2026) ──
+  // Verejné endpointy – zámerne BEZ kontroly prihlásenia. Identita sa overuje
+  // kombináciou číslo objednávky + e-mail (zákon vyžaduje prístup aj bez konta).
+
+  // Vypočíta zostávajúce dni 14-dňovej lehoty od doručenia (fallback dátum objednávky)
+  const withdrawalRemainingDays = (order: any): number => {
+    const base = order?.delivery_date || order?.transaction_date;
+    if (!base) return 0;
+    const deadline = new Date(base);
+    deadline.setDate(deadline.getDate() + 14);
+    const msPerDay = 1000 * 60 * 60 * 24;
+    return Math.ceil((deadline.getTime() - Date.now()) / msPerDay);
+  };
+
+  // Krok 1 – overenie objednávky a načítanie položiek
+  app.post("/api/withdrawal/lookup", async (req, res) => {
+    try {
+      const parsed = withdrawalLookupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Neplatné vstupné údaje" });
+      }
+      const { orderId, email } = parsed.data;
+
+      const order = await erpNextService.getOrderForWithdrawal(orderId, email);
+      if (!order) {
+        // Neutrálna hláška – neprezrádzame, či objednávka existuje
+        return res.status(404).json({
+          error: "Objednávku sa nepodarilo overiť. Skontrolujte číslo objednávky a e-mail.",
+        });
+      }
+
+      res.json({
+        orderId: order.name,
+        transactionDate: order.transaction_date,
+        deliveryDate: order.delivery_date,
+        grandTotal: order.grand_total,
+        currency: order.currency || "EUR",
+        remainingDays: withdrawalRemainingDays(order),
+        items: (order.items || []).map((it: any) => ({
+          item_code: it.item_code,
+          item_name: it.item_name,
+          qty: it.qty,
+          rate: it.rate,
+        })),
+      });
+    } catch (error) {
+      console.error("[withdrawal/lookup] Error:", error);
+      res.status(500).json({ error: "Nastala chyba. Skúste to znova neskôr." });
+    }
+  });
+
+  // Krok 2 – odoslanie požiadavky o odstúpenie + automatické potvrdenie e-mailom (cez ERPNext)
+  app.post("/api/withdrawal/submit", async (req, res) => {
+    try {
+      const parsed = withdrawalSubmitSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Neplatné vstupné údaje" });
+      }
+      const data = parsed.data;
+
+      // Znova over identitu, aby nešlo obísť lookup
+      const order = await erpNextService.getOrderForWithdrawal(data.orderId, data.email);
+      if (!order) {
+        return res.status(404).json({
+          error: "Objednávku sa nepodarilo overiť. Skontrolujte číslo objednávky a e-mail.",
+        });
+      }
+
+      const result = await erpNextService.createWithdrawalRequest(data);
+      if (!result.success) {
+        return res.status(502).json({ error: result.message });
+      }
+
+      res.json({
+        success: true,
+        requestId: result.requestId,
+        message: "Vaše odstúpenie od zmluvy bolo zaregistrované. Potvrdenie sme odoslali na váš e-mail.",
+      });
+    } catch (error) {
+      console.error("[withdrawal/submit] Error:", error);
+      res.status(500).json({ error: "Nastala chyba. Skúste to znova neskôr." });
     }
   });
 

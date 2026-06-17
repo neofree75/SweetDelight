@@ -229,6 +229,37 @@ export const orderSchema = z.object({
   sessionId: z.string().optional(), // Pre správne zmazanie košíka
 });
 
+// ── Odstúpenie od zmluvy (zákon č. 108/2024 Z. z., účinné od 19.6.2026) ──
+// Online formulár na odstúpenie od zmluvy do 14 dní bez udania dôvodu.
+
+// Krok 1 – overenie objednávky (dostupné aj bez prihlásenia)
+export const withdrawalLookupSchema = z.object({
+  orderId: z.string().min(1, "Zadajte číslo objednávky"),
+  email: z.string().email("Neplatná e-mailová adresa"),
+});
+
+// Položka vybraná na odstúpenie
+export const withdrawalItemSchema = z.object({
+  item_code: z.string(),
+  item_name: z.string(),
+  qty: z.number().min(1),
+  rate: z.number(),
+});
+
+// Krok 2 – odoslanie požiadavky o odstúpenie
+export const withdrawalSubmitSchema = z.object({
+  orderId: z.string().min(1, "Zadajte číslo objednávky"),
+  email: z.string().email("Neplatná e-mailová adresa"),
+  fullName: z.string().min(2, "Zadajte meno a priezvisko"),
+  iban: z.string().optional(), // IBAN na vrátenie peňazí
+  reason: z.string().optional(), // Dôvod je nepovinný (zo zákona)
+  items: z.array(withdrawalItemSchema).min(1, "Vyberte aspoň jednu položku"),
+});
+
+export type WithdrawalLookup = z.infer<typeof withdrawalLookupSchema>;
+export type WithdrawalItem = z.infer<typeof withdrawalItemSchema>;
+export type WithdrawalSubmit = z.infer<typeof withdrawalSubmitSchema>;
+
 // ERPNext Item Attribute schema - matches ERPNext Item Attribute doctype
 export const erpNextItemAttributeSchema = z.object({
   name: z.string(), // ERPNext document name (ID)

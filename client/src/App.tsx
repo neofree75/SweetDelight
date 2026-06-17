@@ -29,6 +29,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import Profile from "@/pages/Profile";
 import Account from "@/pages/Account";
 import TermsOfService from "@/pages/TermsOfService";
+import Withdrawal from "@/pages/Withdrawal";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Gallery from "@/pages/Gallery";
@@ -120,6 +121,9 @@ function Router({ cartItems, onAddToCart, onCartOpen, onLogin, onClearCart, user
       </Route>
       <Route path="/ako-objednat" component={HowToOrder} />
       <Route path="/obchodne-podmienky" component={TermsOfService} />
+      <Route path="/odstupenie-od-zmluvy">
+        <Withdrawal user={user} />
+      </Route>
       <Route path="/ochrana-osobnych-udajov" component={PrivacyPolicy} />
       <Route component={NotFound} />
     </Switch>

@@ -1336,6 +1336,108 @@ export class ERPNextService {
     }
   }
 
+  // ── Odstúpenie od zmluvy (zákon č. 108/2024 Z. z., účinné od 19.6.2026) ──
+
+  // Načítaj objednávku pre odstúpenie a over identitu (číslo objednávky + e-mail).
+  // Dostupné aj bez prihlásenia – preto je e-mail jediným overovacím faktorom.
+  // Pri nezhode vracia null (neprezrádza existenciu objednávky).
+  async getOrderForWithdrawal(orderId: string, email: string): Promise<any | null> {
+    this.refreshClient();
+    try {
+      const order = await this.getSalesOrderById(orderId);
+      if (!order) {
+        return null;
+      }
+
+      // Over, že e-mail patrí k objednávke (rovnaká kontrola ako GET /api/orders/:orderId)
+      const orderEmail = (order.contact_email || '').toLowerCase().trim();
+      if (!orderEmail || orderEmail !== email.toLowerCase().trim()) {
+        console.log(`[getOrderForWithdrawal] Email mismatch for order ${orderId}`);
+        return null;
+      }
+
+      return order;
+    } catch (error) {
+      console.error(`[getOrderForWithdrawal] Error for order ${orderId}:`, error);
+      return null;
+    }
+  }
+
+  // Založ požiadavku o odstúpenie od zmluvy v ERPNext a spusti potvrdzovací e-mail.
+  // Primárne volá vlastnú API metódu (vzor registerUser); ak nie je dostupná,
+  // založí vstavaný Issue doctype ako fallback, aby požiadavka neostala nezaznamenaná.
+  async createWithdrawalRequest(payload: {
+    orderId: string;
+    email: string;
+    fullName: string;
+    iban?: string;
+    reason?: string;
+    items: Array<{ item_code: string; item_name: string; qty: number; rate: number }>;
+  }): Promise<{ success: boolean; requestId?: string; message: string }> {
+    this.refreshClient();
+
+    // 1) Skús vlastnú API metódu, ktorá záznam založí AJ pošle potvrdzovací e-mail
+    try {
+      const response = await this.client.post(
+        '/method/external_reset.api.withdrawal.create_withdrawal',
+        payload
+      );
+      if (response.status === 200 || response.status === 201) {
+        const requestId = response.data?.message?.name || response.data?.message?.request_id;
+        console.log('[createWithdrawalRequest] Created via custom API:', requestId);
+        return {
+          success: true,
+          requestId,
+          message: 'Požiadavka o odstúpenie bola zaregistrovaná.',
+        };
+      }
+    } catch (apiError: any) {
+      console.warn(
+        '[createWithdrawalRequest] Custom API method not available, falling back to Issue:',
+        apiError?.response?.status || apiError?.message
+      );
+    }
+
+    // 2) Fallback – založ Issue v ERPNext (potvrdzovací e-mail zabezpečí ERPNext Notification)
+    try {
+      const itemsList = payload.items
+        .map((i) => `- ${i.item_name} (${i.item_code}) × ${i.qty}`)
+        .join('\n');
+      const description =
+        `Odstúpenie od zmluvy (zákon č. 108/2024 Z. z.)\n\n` +
+        `Objednávka: ${payload.orderId}\n` +
+        `Zákazník: ${payload.fullName}\n` +
+        `E-mail: ${payload.email}\n` +
+        (payload.iban ? `IBAN na vrátenie: ${payload.iban}\n` : '') +
+        (payload.reason ? `Dôvod: ${payload.reason}\n` : '') +
+        `\nPoložky na vrátenie:\n${itemsList}`;
+
+      const issueResponse = await this.client.post('/resource/Issue', {
+        subject: `Odstúpenie od zmluvy – objednávka ${payload.orderId}`,
+        raised_by: payload.email,
+        description,
+        status: 'Open',
+      });
+
+      const requestId = issueResponse.data?.data?.name;
+      console.log('[createWithdrawalRequest] Created Issue:', requestId);
+      return {
+        success: true,
+        requestId,
+        message: 'Požiadavka o odstúpenie bola zaregistrovaná.',
+      };
+    } catch (issueError: any) {
+      console.error(
+        '[createWithdrawalRequest] Failed to create Issue:',
+        issueError?.response?.data || issueError?.message
+      );
+      return {
+        success: false,
+        message: 'Požiadavku sa nepodarilo zaregistrovať. Skúste to znova neskôr.',
+      };
+    }
+  }
+
   // Create Sales Invoice from Sales Order
   async createSalesInvoiceFromOrder(salesOrderId: string, invoiceData?: Partial<ERPNextSalesInvoice>, overrideCustomerId?: string): Promise<string | null> {
     this.refreshClient();

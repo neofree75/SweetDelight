@@ -16,7 +16,7 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent
 } from '@/components/ui/sidebar';
-import { ArrowLeft, ShoppingBag, Package, Calendar, FileText, User, Receipt } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Package, Calendar, FileText, User, Receipt, Undo2 } from 'lucide-react';
 import { formatPrice } from '@/lib/format-price';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -340,9 +340,23 @@ export default function OrderDetail({ user }: OrderDetailProps) {
               </Button>
             </div>
             <h1 className="text-lg font-playfair">Detail objednávky</h1>
-            <div></div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() =>
+                setLocation(
+                  `/odstupenie-od-zmluvy?orderId=${encodeURIComponent(orderId)}` +
+                    (user?.email ? `&email=${encodeURIComponent(user.email)}` : '')
+                )
+              }
+              data-testid="button-withdrawal-from-order"
+            >
+              <Undo2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Odstúpiť od zmluvy</span>
+            </Button>
           </header>
-          
+
           <main className="flex-1 overflow-auto bg-background min-h-0">
             <div className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

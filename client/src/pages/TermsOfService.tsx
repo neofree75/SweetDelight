@@ -1,3 +1,4 @@
+import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SEO from '@/components/SEO';
 
@@ -129,6 +130,32 @@ export default function TermsOfService() {
                   <li>Štandardné výrobky možno stornovať do 2 hodín od objednávky</li>
                   <li>Torty na mieru možno stornovať najneskôr 24 hodín pred termínom</li>
                   <li>Pri storno po začatí výroby sa záloha nevracia</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold mb-2">5.3 Odstúpenie od zmluvy (do 14 dní)</h4>
+                <ul className="text-muted-foreground space-y-2 list-disc ml-6">
+                  <li>
+                    Pri nákupe cez internet máte právo odstúpiť od zmluvy do 14 dní
+                    od prevzatia tovaru, a to aj bez udania dôvodu (zákon č. 108/2024 Z. z.).
+                  </li>
+                  <li>
+                    Odstúpiť môžete pohodlne online prostredníctvom{' '}
+                    <Link href="/odstupenie-od-zmluvy">
+                      <span className="text-primary underline hover:no-underline cursor-pointer">
+                        formulára na odstúpenie od zmluvy
+                      </span>
+                    </Link>
+                    {' '}– stačí číslo objednávky a e-mail, prihlásenie nie je potrebné.
+                  </li>
+                  <li>
+                    Po odoslaní vám automaticky pošleme potvrdenie e-mailom.
+                  </li>
+                  <li>
+                    Právo na odstúpenie sa nevzťahuje na tovar podliehajúci rýchlej skaze
+                    a na výrobky zhotovené na mieru podľa želania zákazníka.
+                  </li>
                 </ul>
               </div>
             </CardContent>

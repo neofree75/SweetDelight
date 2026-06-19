@@ -26,14 +26,27 @@ interface WithdrawalDialogProps {
   customerName?: string;
 }
 
-// Zostávajúce dni 14-dňovej lehoty (rovnaká logika ako server withdrawalRemainingDays)
-function remainingWithdrawalDays(order: UserOrder): number {
+// Zostávajúce dni 14-dňovej lehoty (rovnaká logika ako server withdrawalRemainingDays).
+// Lehota začína plynúť až prevzatím tovaru – ak doručenie ešte len bude, periodStarted = false.
+function remainingWithdrawalDays(order: UserOrder): {
+  remainingDays: number;
+  periodStarted: boolean;
+} {
   const base = order.deliveryDate || order.transactionDate;
-  if (!base) return 0;
+  if (!base) return { remainingDays: 0, periodStarted: true };
+  const msPerDay = 1000 * 60 * 60 * 24;
   const deadline = new Date(base);
   deadline.setDate(deadline.getDate() + 14);
-  const msPerDay = 1000 * 60 * 60 * 24;
-  return Math.ceil((deadline.getTime() - Date.now()) / msPerDay);
+  return {
+    remainingDays: Math.ceil((deadline.getTime() - Date.now()) / msPerDay),
+    periodStarted: new Date(base).getTime() <= Date.now(),
+  };
+}
+
+function formatSkDate(value?: string): string {
+  if (!value) return "";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("sk-SK");
 }
 
 export function WithdrawalDialog({ order, customerEmail, customerName }: WithdrawalDialogProps) {
@@ -55,8 +68,9 @@ export function WithdrawalDialog({ order, customerEmail, customerName }: Withdra
   const [iban, setIban] = useState("");
   const [reason, setReason] = useState("");
 
-  const remainingDays = remainingWithdrawalDays(order);
+  const { remainingDays, periodStarted } = remainingWithdrawalDays(order);
   const expired = remainingDays < 0;
+  const deliveryDateLabel = formatSkDate(order.deliveryDate);
 
   const selectedItems = order.items.filter((it, idx) => selected[`${it.itemCode}-${idx}`]);
 
@@ -180,11 +194,20 @@ export function WithdrawalDialog({ order, customerEmail, customerName }: Withdra
                   posúdime ju individuálne.
                 </AlertDescription>
               </Alert>
+            ) : !periodStarted ? (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  14-dňová lehota na odstúpenie začne plynúť až po doručení tovaru
+                  {deliveryDateLabel ? ` (${deliveryDateLabel})` : ""}. Od zmluvy môžete
+                  odstúpiť aj teraz, ešte pred doručením.
+                </AlertDescription>
+              </Alert>
             ) : (
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  Na odstúpenie od zmluvy vám zostáva <strong>{remainingDays} dní</strong>.
+                  Na odstúpenie od zmluvy vám zostáva <strong>{remainingDays} dní</strong> (14-dňová lehota).
                 </AlertDescription>
               </Alert>
             )}

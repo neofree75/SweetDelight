@@ -743,14 +743,21 @@ Sitemap: ${siteUrl}/sitemap.xml
   // Verejné endpointy – zámerne BEZ kontroly prihlásenia. Identita sa overuje
   // kombináciou číslo objednávky + e-mail (zákon vyžaduje prístup aj bez konta).
 
-  // Vypočíta zostávajúce dni 14-dňovej lehoty od doručenia (fallback dátum objednávky)
-  const withdrawalRemainingDays = (order: any): number => {
+  // Vypočíta zostávajúce dni 14-dňovej lehoty od doručenia (fallback dátum objednávky).
+  // Lehota začína plynúť až prevzatím tovaru – ak doručenie ešte len bude, vráti aj túto info.
+  const withdrawalRemainingDays = (
+    order: any,
+  ): { remainingDays: number; periodStarted: boolean } => {
     const base = order?.delivery_date || order?.transaction_date;
-    if (!base) return 0;
+    if (!base) return { remainingDays: 0, periodStarted: true };
+    const msPerDay = 1000 * 60 * 60 * 24;
     const deadline = new Date(base);
     deadline.setDate(deadline.getDate() + 14);
-    const msPerDay = 1000 * 60 * 60 * 24;
-    return Math.ceil((deadline.getTime() - Date.now()) / msPerDay);
+    const periodStarted = new Date(base).getTime() <= Date.now();
+    return {
+      remainingDays: Math.ceil((deadline.getTime() - Date.now()) / msPerDay),
+      periodStarted,
+    };
   };
 
   // Krok 1 – overenie objednávky a načítanie položiek
@@ -770,13 +777,15 @@ Sitemap: ${siteUrl}/sitemap.xml
         });
       }
 
+      const { remainingDays, periodStarted } = withdrawalRemainingDays(order);
       res.json({
         orderId: order.name,
         transactionDate: order.transaction_date,
         deliveryDate: order.delivery_date,
         grandTotal: order.grand_total,
         currency: order.currency || "EUR",
-        remainingDays: withdrawalRemainingDays(order),
+        remainingDays,
+        periodStarted,
         items: (order.items || []).map((it: any) => ({
           item_code: it.item_code,
           item_name: it.item_name,

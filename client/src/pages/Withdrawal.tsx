@@ -30,6 +30,7 @@ interface LookupResult {
   grandTotal?: number;
   currency: string;
   remainingDays: number;
+  periodStarted?: boolean;
   items: LookupItem[];
 }
 
@@ -225,7 +226,18 @@ export default function Withdrawal({ user }: WithdrawalProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {order.remainingDays >= 0 ? (
+              {order.periodStarted === false ? (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    14-dňová lehota na odstúpenie začne plynúť až po doručení tovaru
+                    {order.deliveryDate
+                      ? ` (${new Date(order.deliveryDate).toLocaleDateString('sk-SK')})`
+                      : ''}
+                    . Od zmluvy môžete odstúpiť aj teraz, ešte pred doručením.
+                  </AlertDescription>
+                </Alert>
+              ) : order.remainingDays >= 0 ? (
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>

@@ -313,6 +313,7 @@ export const userOrderSchema = z.object({
   status: z.string(), // Stav objednávky
   customer: z.string(), // ID zákazníka
   customerName: z.string(), // Meno zákazníka
+  email: z.string().optional(), // E-mail objednávky (contact_email) – pre odstúpenie od zmluvy
   transactionDate: z.string(), // Dátum objednávky
   deliveryDate: z.string().optional(), // Dátum doručenia
   deliveryTime: z.string().optional(), // Čas doručenia

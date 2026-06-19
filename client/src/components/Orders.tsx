@@ -12,6 +12,7 @@ import { Loader2, Package, Calendar, CreditCard, FileText, ChevronLeft, ChevronR
 import { format } from "date-fns";
 import { sk } from "date-fns/locale";
 import type { UserOrder } from "@shared/schema";
+import { WithdrawalDialog } from "@/components/WithdrawalDialog";
 
 interface OrdersResponse {
   orders: UserOrder[];
@@ -447,9 +448,14 @@ export function Orders() {
                   </div>
               </div>
               
-              {/* View Order Details button */}
+              {/* Akcie objednávky */}
                   <Separator className="my-4" />
-                  <div className="flex justify-end">
+                  <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                    <WithdrawalDialog
+                      order={order}
+                      customerEmail={order.email || data.customer?.email}
+                      customerName={order.customerName}
+                    />
                     <Button
                   onClick={() => setLocation(`/order-detail?orderId=${order.id}`)}
                       className="w-full sm:w-auto"

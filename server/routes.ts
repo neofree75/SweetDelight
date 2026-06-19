@@ -1359,6 +1359,7 @@ Sitemap: ${siteUrl}/sitemap.xml
           status: order.workflow_state || order.status, // Použi workflow_state ak existuje, inak status
           customer: order.customer,
           customerName: order.customer_name,
+          email: order.contact_email, // E-mail objednávky – pre overenie pri odstúpení od zmluvy
           transactionDate: order.transaction_date,
           deliveryDate: deliveryDate, // Use extracted date (without time)
           deliveryTime: deliveryTime, // Pridaj čas doručenia

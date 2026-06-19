@@ -1379,7 +1379,7 @@ export class ERPNextService {
     // 1) Skús vlastnú API metódu, ktorá záznam založí AJ pošle potvrdzovací e-mail
     try {
       const response = await this.client.post(
-        '/method/external_reset.api.withdrawal.create_withdrawal',
+        '/method/odstupenie_od_zmluvy.api.withdrawal.create_withdrawal',
         payload
       );
       if (response.status === 200 || response.status === 201) {

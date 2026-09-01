@@ -1,0 +1,173 @@
+=====================================================================
+ ODSTÚPENIE OD ZMLUVY – PROCES A TOK DÁT (Sweet Delight + ERPNext)
+=====================================================================
+Právny základ: § 20a zák. č. 108/2024 Z. z. o ochrane spotrebiteľa
+(novela 311/2025 Z. z., transpozícia smernice EÚ 2023/2673).
+Účinnosť povinnosti: od 19. 6. 2026.
+
+Cieľ: spotrebiteľ môže do 14 dní bez udania dôvodu odstúpiť od zmluvy
+uzatvorenej na diaľku, a to jednoducho online. Obchodník je povinný
+bezodkladne vydať potvrdenie o prijatí (s časovou pečiatkou ako dôkaz
+o dodržaní lehoty).
+
+
+---------------------------------------------------------------------
+1. KDE ZÁKAZNÍK ODSTÚPENIE PODÁ (2 vstupné body)
+---------------------------------------------------------------------
+
+A) VEREJNÝ FORMULÁR (bez prihlásenia)
+   - Adresa: /odstupenie-od-zmluvy  (stránka Withdrawal.tsx)
+   - Krok 1 (overenie): zákazník zadá ČÍSLO OBJEDNÁVKY + E-MAIL,
+     na ktorý objednávku zadal.
+   - Systém overí objednávku v ERPNext (e-mail sa musí zhodovať
+     s kontaktným e-mailom objednávky) a načíta jej položky.
+   - Krok 2 (údaje): zákazník vyberie položky na vrátenie a doplní
+     meno a priezvisko, voliteľne IBAN a dôvod.
+   - Krok 3: potvrdenie na obrazovke + odoslaný e-mail.
+
+B) TLAČIDLO „ODSTÚPIŤ OD ZMLUVY" v zozname objednávok (po prihlásení)
+   - Cesta: Môj účet → Objednávky (/moj-ucet?section=objednavky)
+   - Pri každej objednávke je tlačidlo „Odstúpiť od zmluvy"
+     (komponent WithdrawalDialog.tsx).
+   - Tlačidlo vidí prihlásený VLASTNÍK objednávky pri svojich
+     objednávkach; ADMIN (System User) ho vidí pri všetkých.
+   - Dialóg je PREDVYPLNENÝ z objednávky (číslo objednávky, e-mail,
+     položky, meno). Zákazník už len upraví výber položiek a doplní
+     IBAN / dôvod (nepovinné) a odošle.
+   - Zobrazuje aj zostávajúce dni 14-dňovej lehoty (resp. že lehota
+     začne plynúť až po doručení tovaru).
+
+   POZNÁMKA: dôvod odstúpenia NIE je povinný – zákon to nevyžaduje.
+
+
+---------------------------------------------------------------------
+2. TECHNICKÝ TOK DÁT (čo sa deje po odoslaní)
+---------------------------------------------------------------------
+
+  Zákazník (prehliadač)
+        │  odošle formulár
+        ▼
+  Node server eshopu  ──  POST /api/withdrawal/submit
+        │  1) znova overí objednávku + e-mail (getOrderForWithdrawal)
+        │  2) zavolá ERPNext API (tokenom, nie ako hosť)
+        ▼
+  ERPNext appka „odstupenie_od_zmluvy"
+        │  metóda: odstupenie_od_zmluvy.api.withdrawal.create_withdrawal
+        │  vytvorí dokument:  Withdrawal Request
+        ▼
+  DocType „Withdrawal Request" v ERPNext
+        - before_insert: nastaví ČAS PRIJATIA (received_datetime)
+          a stav „Prijaté"
+        - after_insert: automaticky pošle POTVRDZOVACÍ E-MAIL zákazníkovi
+
+  DÔLEŽITÉ: záznam vzniká VÝHRADNE ako „Withdrawal Request".
+  (Starý núdzový zápis do „Issue" bol odstránený – ak by zápis zlyhal,
+   zákazník dostane chybovú hlášku a nič sa nezaloží na pol ceste.)
+
+
+---------------------------------------------------------------------
+3. KTO ČO ROBÍ – ROLY
+---------------------------------------------------------------------
+
+ZÁKAZNÍK (spotrebiteľ)
+  - Vyplní a ODOŠLE odstúpenie (cez verejný formulár alebo cez tlačidlo
+    v účte). Je teda autorom žiadosti.
+
+SYSTÉM (ERPNext appka) – automaticky, bez zásahu človeka
+  - Zaeviduje žiadosť ako „Withdrawal Request".
+  - Nastaví časovú pečiatku prijatia (dôkaz o dodržaní lehoty).
+  - Pošle zákazníkovi potvrdenie o PRIJATÍ e-mailom.
+  - Počiatočný stav = „Prijaté".
+
+OBCHODNÍK / OBSLUHA v ERPNext (System Manager alebo Sales User)
+  - V ERPNext otvorí zoznam „Withdrawal Request" a žiadosť spracuje
+    RUČNE:
+      * posúdi nárok (napr. výnimky podľa zákona – tovar na mieru,
+        rýchlo sa kaziaci tovar, hygienicky balený a pod.),
+      * zabezpečí vrátenie tovaru a vrátenie peňazí (na IBAN),
+      * MENÍ STAV žiadosti podľa priebehu.
+  - Systém NEschvaľuje ani NEvracia peniaze automaticky – to robí
+    obchodník mimo appky (zákon to ani nevyžaduje).
+
+  Tlačidlo v ERPNext „Znovu odoslať potvrdenie" – obsluha ním môže
+  manuálne znova poslať potvrdzovací e-mail zákazníkovi (ak ešte
+  nebol odoslaný).
+
+
+---------------------------------------------------------------------
+4. STAVY ŽIADOSTI (kto potvrdzuje / mení)
+---------------------------------------------------------------------
+
+  Prijaté     → nastaví SYSTÉM automaticky pri založení žiadosti
+  Potvrdené   → nastaví OBSLUHA ručne (potvrdila prijatie/nárok)
+  Spracované  → nastaví OBSLUHA ručne (tovar/peniaze vybavené)
+  Zamietnuté  → nastaví OBSLUHA ručne (napr. zákonná výnimka,
+                neoprávnená žiadosť)
+
+  Pozn.: „Prijaté" je automatický stav = potvrdenie PRIJATIA oznámenia.
+  Ostatné stavy mení zodpovedný pracovník v ERPNext Desk.
+
+
+---------------------------------------------------------------------
+5. E-MAILY – ČO, KOMU, KEDY
+---------------------------------------------------------------------
+
+(1) POTVRDENIE O PRIJATÍ ODSTÚPENIA   [AUTOMATICKY]
+    - Komu:      ZÁKAZNÍKOVI (na e-mail uvedený v žiadosti /
+                 kontaktný e-mail objednávky)
+    - Kedy:      ihneď po odoslaní žiadosti (after_insert)
+    - Odosielateľ: ERPNext (appka)
+    - Šablóna:   templates/emails/withdrawal_confirmation.html
+    - Obsah:     evidenčné číslo žiadosti (napr. ODST-2026-00001),
+                 PRESNÝ DÁTUM A ČAS PRIJATIA (dôkaz o lehote),
+                 číslo objednávky/faktúry, tovar/služba, a info, že
+                 ide o potvrdenie PRIJATIA (ďalší postup – vrátenie
+                 tovaru a peňazí – sa rieši samostatne).
+    - Po odoslaní sa v žiadosti nastaví „Potvrdenie odoslané = áno"
+      a čas odoslania potvrdenia.
+
+(2) OZNÁMENIE OBCHODNÍKOVI / OBSLUHE   [momentálne NIE je automatické]
+    - V súčasnej verzii appky NEodchádza automatický e-mail obchodníkovi.
+    - Obsluha nové žiadosti sleduje priamo v ERPNext v zozname
+      „Withdrawal Request" (filter podľa stavu „Prijaté").
+    - ODPORÚČANIE (voliteľné rozšírenie): v ERPNext nastaviť
+      „Notification" na DocType „Withdrawal Request" (pri vytvorení),
+      ktorá pošle interný e-mail na adresu obchodu (napr. objednávky@…),
+      aby obsluha nemusela zoznam kontrolovať ručne. Toto je
+      konfigurácia v ERPNext, netreba meniť kód.
+
+
+---------------------------------------------------------------------
+6. ČO SA UKLADÁ DO ERPNEXT (polia žiadosti Withdrawal Request)
+---------------------------------------------------------------------
+  - Číselný rad / evidenčné číslo: ODST-RRRR-NNNNN
+  - Číslo objednávky / faktúry (order_reference)
+  - Tovar / služba (goods_description) – zhrnutie vybraných položiek
+  - Položky na vrátenie (tabuľka items: kód, názov, množstvo, cena)
+  - Meno a priezvisko (customer_name)
+  - E-mail pre potvrdenie (customer_email)
+  - IBAN na vrátenie platby (iban) – nepovinné
+  - Dôvod (reason) – nepovinné
+  - Dátum a čas prijatia (received_datetime) – systém, len na čítanie
+  - Stav (status)
+  - Potvrdenie odoslané + čas odoslania – systém, len na čítanie
+  - Zdroj (source = Web)
+
+
+---------------------------------------------------------------------
+7. STRUČNÝ SÚHRN (jedným pohľadom)
+---------------------------------------------------------------------
+  1. Zákazník odošle odstúpenie (web formulár alebo tlačidlo v účte).
+  2. ERPNext appka automaticky založí „Withdrawal Request",
+     opečiatkuje čas prijatia a pošle zákazníkovi e-mailové potvrdenie.
+  3. Obsluha v ERPNext žiadosť ručne spracuje (posúdi, vráti tovar/
+     peniaze) a postupne mení stav: Prijaté → Potvrdené → Spracované
+     (alebo Zamietnuté).
+  4. Jediný automatický e-mail je POTVRDENIE PRIJATIA zákazníkovi;
+     interné upozornenie obchodníkovi sa dá doplniť cez ERPNext
+     Notification (voliteľné).
+
+=====================================================================
+ Pozn. po nasadení: aktualizovať VOP a poučenie o práve na odstúpenie;
+ dozorný orgán je Slovenská obchodná inšpekcia (SOI).
+=====================================================================

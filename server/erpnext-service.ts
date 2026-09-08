@@ -24,9 +24,11 @@ export class ERPNextService {
   private apiSecret: string;
   private productCache: { data: Product[]; timestamp: number } | null = null;
   private vatRateCache: { rate: number; timestamp: number } | null = null;
-  private readonly CACHE_DURATION = 30 * 1000; // 30 sekúnd
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre katalóg produktov
   private readonly VAT_CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre sadzbu DPH
   private readonly WEBSITE_ITEMS_LIMIT = 1000; // Max počet Website Items načítaných naraz
+  // Produkty vylúčené z katalógu pre obchod (načítavajú sa len priamo cez getProductById)
+  private readonly PRODUCTS_EXCLUDED_FROM_CATALOG = ['TORTCUS001'];
   private readonly ITEM_FETCH_LIMIT = 1000; // Max počet Item záznamov načítaných naraz
   private readonly ERP_PAGE_SIZE = 100; // Počet záznamov načítaných v jednej stránke z ERPNext API
   private customerCreationLocks: Map<string, Promise<string | null>> = new Map();
@@ -1822,7 +1824,7 @@ export class ERPNextService {
 
     // Vyfiltrovať TORTCUS001 z produktov zobrazovaných v obchode
     // (Tento produkt sa používa len pre torty na mieru cez špeciálnu stránku)
-    const filteredProducts = products.filter(product => product.id !== 'TORTCUS001');
+    const filteredProducts = products.filter(product => !this.PRODUCTS_EXCLUDED_FROM_CATALOG.includes(product.id));
     console.log(`[getProductsForFrontend] After filtering: ${filteredProducts.length} products (from ${products.length} total)`);
 
     // Ulož do cache
@@ -1848,16 +1850,18 @@ export class ERPNextService {
     
     // Always fetch fresh VAT rate and price to ensure it's up-to-date
     // (cache might be stale if product was updated in ERPNext)
+    // Poznámka: getItemPriceWithVAT si sadzbu DPH načíta sám, netreba ju zisťovať zvlášť
     console.log(`[getProductById] Fetching fresh data for product ${productId}...`);
-    const currentVatRate = await this.getItemVATRate(productId);
     const updatedPriceInfo = await this.getItemPriceWithVAT(productId);
     
     // Try to get product from cache for other fields (name, description, etc.)
-    const products = await this.getProductsForFrontend();
-    const cachedProduct = products.find(p => p.id === productId);
+    // Produkty vylúčené z katalógu tam nikdy nebudú, tak sa vyhneme načítaniu celého katalógu
+    const cachedProduct = this.PRODUCTS_EXCLUDED_FROM_CATALOG.includes(productId)
+      ? undefined
+      : (await this.getProductsForFrontend()).find(p => p.id === productId);
     
     if (cachedProduct) {
-      console.log(`[getProductById] Found product ${productId} in cache. Updating VAT rate from ${cachedProduct.vatRate}% to ${currentVatRate}%`);
+      console.log(`[getProductById] Found product ${productId} in cache. Updating VAT rate from ${cachedProduct.vatRate}% to ${updatedPriceInfo.vatRate}%`);
       // Always return updated product with fresh VAT rate and prices
       return {
         ...cachedProduct,
@@ -1896,11 +1900,10 @@ export class ERPNextService {
         imageUrl = item.image;
       }
 
-      // Get price without VAT and VAT information from ERPNext
-      const priceInfo = await this.getItemPriceWithVAT(item.name);
-      const priceWithoutVat = priceInfo.priceWithoutVat;
-      const vatRate = priceInfo.vatRate;
-      const priceWithVat = priceInfo.priceWithVat;
+      // Cena a DPH sú už načítané na začiatku getProductById pre ten istý item (item.name === productId)
+      const priceWithoutVat = updatedPriceInfo.priceWithoutVat;
+      const vatRate = updatedPriceInfo.vatRate;
+      const priceWithVat = updatedPriceInfo.priceWithVat;
 
       // Načítať slideshow obrázky z Website Item
       let galleryImages: string[] = [];

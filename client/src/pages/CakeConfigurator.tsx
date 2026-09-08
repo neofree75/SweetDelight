@@ -11,11 +11,11 @@ import {
   ChevronRight,
   CheckCircle,
   Circle,
+  Info,
   Layers,
   Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatPrice } from '@/lib/format-price';
 import SEO from '@/components/SEO';
 import {
   CAKE_SHAPES,
@@ -134,10 +134,6 @@ function isKremBezLaktozyAttribute(opt: SpecificationOption): boolean {
   return (s.includes('krem') || s.includes('krém')) && (s.includes('laktoz') || s.includes('laktóz'));
 }
 
-function roundCurrency(v: number) {
-  return Math.round((v + Number.EPSILON) * 100) / 100;
-}
-
 export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfiguratorProps) {
   const [step, setStep] = useState(0);
   const [tierCount, setTierCount] = useState<number>(1);
@@ -148,7 +144,7 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
   const [tierToggles, setTierToggles] = useState<TierToggles[]>([]); // glutenFree, lactoseFree per tier
   const { toast } = useToast();
 
-  const { data: customCakeProduct, isLoading: productLoading } = useCustomCakeProduct();
+  const { data: customCakeProduct } = useCustomCakeProduct();
   const { data: websiteItem, isLoading: websiteItemLoading } = useWebsiteItem('WEB-ITM-0425');
 
   const vatRate = customCakeProduct?.vatRate ?? DEFAULT_VAT_RATE;
@@ -367,48 +363,10 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
   });
 
   // --- Cenotvorba ---
-
-  const { priceWithoutVat, priceWithVat, tierBreakdown, surcharge, surchargeLabel } = useMemo(() => {
-    const shapePrice = tvarOption && tvarValue ? (tvarOption.optionPrices[tvarValue] ?? 0) : 0;
-    const zapichPrice = zapichOption && zapichValue ? (zapichOption.optionPrices[zapichValue] ?? 0) : 0;
-    let total = shapePrice + zapichPrice;
-    const breakdown: { tier: number; label: string; amount: number }[] = [];
-
-    for (let i = 0; i < effectiveTierCount; i++) {
-      const t = safeTierConfigs[i];
-      if (!t) continue;
-
-      let tierSum = 0;
-      getDisplayedTierOptions(i).forEach((opt) => {
-        const selectedValue = t[opt.id];
-        if (selectedValue) {
-          tierSum += opt.optionPrices[selectedValue] ?? 0;
-        }
-      });
-
-      total += tierSum;
-      breakdown.push({
-        tier: i + 1,
-        label: `Poschodie ${i + 1}`,
-        amount: roundCurrency(tierSum),
-      });
-    }
-
-    const surchargeAmount = TIER_SURCHARGES[effectiveTierCount] ?? 0;
-    const surchargeLabel =
-      effectiveTierCount === 2 ? 'Príplatok za 2-poschodovú tortu' : effectiveTierCount >= 3 ? 'Príplatok za viacposchodovú tortu' : '';
-
-    total = roundCurrency(total + surchargeAmount);
-    const withVat = roundCurrency(total * (1 + vatRate / 100));
-
-    return {
-      priceWithoutVat: total,
-      priceWithVat: withVat,
-      tierBreakdown: breakdown,
-      surcharge: surchargeAmount,
-      surchargeLabel,
-    };
-  }, [tvarOption, tvarValue, zapichOption, zapichValue, effectiveTierCount, safeTierConfigs, tierToggles, tierOptions, vatRate]);
+  // Torta na mieru sa v konfigurátore neoceňuje – žiadne ceny ani príplatky sa nezobrazujú.
+  // Objednávka odchádza s cenou 0 €, cenu stanoví cukráreň a pošle e-mailom, SMS alebo telefonicky.
+  const priceWithoutVat = 0;
+  const priceWithVat = 0;
 
   // --- Pridanie do košíka ---
 
@@ -441,7 +399,6 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
       });
       parts.push(`P${i + 1}: ${tierParts.join(', ')}`);
     });
-    if (surcharge > 0) parts.push(surchargeLabel);
     return parts.join(' | ');
   };
 
@@ -449,18 +406,15 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
     const customAttributesWithPrices: Array<{ name: string; value: string; price: number }> = [];
     if (tvarOption && tvarValue) {
       const parsed = parseAttributeWithPrice(tvarValue);
-      const price = tvarOption.optionPrices[tvarValue] ?? 0;
-      customAttributesWithPrices.push({ name: tvarOption.name, value: parsed.name, price });
+      customAttributesWithPrices.push({ name: tvarOption.name, value: parsed.name, price: 0 });
     }
     if (pocetPoschodiOption && pocetPoschodiValue) {
       const parsed = parseAttributeWithPrice(pocetPoschodiValue);
-      const price = pocetPoschodiOption.optionPrices[pocetPoschodiValue] ?? 0;
-      customAttributesWithPrices.push({ name: pocetPoschodiOption.name, value: parsed.name, price });
+      customAttributesWithPrices.push({ name: pocetPoschodiOption.name, value: parsed.name, price: 0 });
     }
     if (zapichOption && zapichValue) {
       const parsed = parseAttributeWithPrice(zapichValue);
-      const price = zapichOption.optionPrices[zapichValue] ?? 0;
-      customAttributesWithPrices.push({ name: zapichOption.name, value: parsed.name, price });
+      customAttributesWithPrices.push({ name: zapichOption.name, value: parsed.name, price: 0 });
     }
     safeTierConfigs.forEach((t, i) => {
       const toggles = getTierToggles(i);
@@ -477,11 +431,9 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
         const val = t[opt.id];
         if (!val) return;
         const parsed = parseAttributeWithPrice(val);
-        const price = opt.optionPrices[val] ?? 0;
-        customAttributesWithPrices.push({ name: `P${i + 1} ${opt.name}`, value: parsed.name, price });
+        customAttributesWithPrices.push({ name: `P${i + 1} ${opt.name}`, value: parsed.name, price: 0 });
       });
     });
-    if (surcharge > 0) customAttributesWithPrices.push({ name: 'Príplatok poschodie', value: surchargeLabel, price: surcharge });
 
     const product = {
       id: `cake-config-${Date.now()}`,
@@ -516,7 +468,9 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
 
   // --- Render ---
 
-  if (productLoading || websiteItemLoading) {
+  // Blokujeme len na dotaz, bez ktorého sa konfigurátor nedá vykresliť.
+  // customCakeProduct (vatRate, minOrderQuantity) má fallback a doplní sa po dotečení.
+  if (websiteItemLoading) {
     return (
       <div className="container mx-auto py-12 flex items-center justify-center min-h-[320px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -528,7 +482,7 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
     <>
       <SEO
         title="Konfigurátor torty | Torta na mieru 2 | Marsela Bakery"
-        description="Vytvorte si tortu na mieru krok za krokom: tvar, počet poschodí, korpus, krém, doplnok, veľkosť. Cena sa počíta podľa výberu."
+        description="Vytvorte si tortu na mieru krok za krokom: tvar, počet poschodí, korpus, krém, doplnok, veľkosť. Cenu stanovíme individuálne a pošleme e-mailom, SMS alebo telefonicky."
         keywords="konfigurátor torty, torta na mieru, poschodová torta, korpus, krém, priemer, Marsela Bakery"
         canonical="/torta-na-mieru-2"
       />
@@ -587,10 +541,9 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
                       <SelectContent>
                         {(tvarOption?.options ?? []).map((value) => {
                           const parsed = parseAttributeWithPrice(value);
-                          const price = tvarOption?.optionPrices[value] ?? 0;
                           return (
                             <SelectItem key={value} value={value}>
-                              {parsed.name}{price > 0 ? ` (+${formatPrice(price)})` : ''}
+                              {parsed.name}
                             </SelectItem>
                           );
                         })}
@@ -608,10 +561,9 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
                       <SelectContent>
                         {(zapichOption?.options ?? []).map((value) => {
                           const parsed = parseAttributeWithPrice(value);
-                          const price = zapichOption?.optionPrices[value] ?? 0;
                           return (
                             <SelectItem key={value} value={value}>
-                              {parsed.name}{price > 0 ? ` (+${formatPrice(price)})` : ''}
+                              {parsed.name}
                             </SelectItem>
                           );
                         })}
@@ -641,10 +593,9 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
                         <SelectContent>
                           {pocetPoschodiOption.options.map((value) => {
                             const parsed = parseAttributeWithPrice(value);
-                            const price = pocetPoschodiOption.optionPrices[value] ?? 0;
                             return (
                               <SelectItem key={value} value={value}>
-                                {parsed.name}{price > 0 ? ` (+${formatPrice(price)})` : ''}
+                                {parsed.name}
                               </SelectItem>
                             );
                           })}
@@ -733,20 +684,22 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
                             return <li key={opt.id}>{opt.name}: {parsed.name}</li>;
                           })}
                         </ul>
-                        <div className="text-sm font-medium mt-1">{tierBreakdown[i]?.amount ?? 0} €</div>
                       </div>
                     );})}
-                    {surcharge > 0 && (
-                      <div className="border-t pt-3 text-muted-foreground">
-                        {surchargeLabel}: {formatPrice(surcharge)}
-                      </div>
-                    )}
                   </div>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-t pt-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground">Celkom bez DPH: {formatPrice(priceWithoutVat)}</div>
-                      <div className="text-2xl font-bold text-primary">Celkom s DPH: {formatPrice(priceWithVat)}</div>
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-medium">Cena torty: 0 €</p>
+                        <p className="text-sm text-muted-foreground">
+                          Torta na mieru sa oceňuje individuálne. Objednávka bude zaevidovaná s cenou 0 €,
+                          následne ju oceníme a cenu vám pošleme e-mailom, SMS správou alebo vám zavoláme.
+                        </p>
+                      </div>
                     </div>
+                  </div>
+                  <div className="flex justify-end border-t pt-4">
                     <Button onClick={handleAddToCart} size="lg">
                       Pridať do košíka
                     </Button>
@@ -776,14 +729,15 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
             </CardContent>
           </Card>
 
-          {/* Bokový blok – zobrazenie ceny pri prechode cez kroky (voliteľné, na mobile pod kartou) */}
+          {/* Bokový blok – informácia o individuálnom ocenení (ceny sa v konfigurátore nezobrazujú) */}
           <Card className="mt-6 md:mt-8">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Odhadovaná cena s DPH</span>
-                <span className="text-xl font-bold text-primary">
-                  {tvarValue ? formatPrice(priceWithVat) : '—'}
-                </span>
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-sm text-muted-foreground">
+                  Cenu torty na mieru stanovíme individuálne podľa vášho výberu a pošleme vám ju
+                  e-mailom, SMS správou alebo telefonicky.
+                </p>
               </div>
               {minOrderQuantity > 1 && (
                 <p className="text-sm text-muted-foreground mt-2">Min. objednávka: {minOrderQuantity} kusov</p>
@@ -866,10 +820,9 @@ function TierForm({
             <SelectContent>
               {opt.options.map((value) => {
                 const parsed = parseAttributeWithPrice(value);
-                const price = opt.optionPrices[value] ?? 0;
                 return (
                   <SelectItem key={value} value={value}>
-                    {parsed.name}{price > 0 ? ` (+${formatPrice(price)})` : ''}
+                    {parsed.name}
                   </SelectItem>
                 );
               })}

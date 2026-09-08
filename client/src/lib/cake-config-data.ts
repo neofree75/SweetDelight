@@ -101,13 +101,13 @@ export const DIAMETER_OPTIONS: DiameterOption[] = [
   { id: '35', label: '35 cm', cm: 35, price: 22 },
 ];
 
-/** Príplatok za viacposchodovú tortu (EUR bez DPH): 2 poschodia +35, 3+ poschodia +70 */
+/** Torta na mieru sa neoceňuje v konfigurátore – žiadne príplatky za počet poschodí */
 export const TIER_SURCHARGES: Record<number, number> = {
   1: 0,
-  2: 35,
-  3: 70,
-  4: 70,
-  5: 70,
+  2: 0,
+  3: 0,
+  4: 0,
+  5: 0,
 };
 
 export const DEFAULT_VAT_RATE = 20;

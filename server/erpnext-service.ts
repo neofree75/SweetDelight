@@ -24,9 +24,16 @@ export class ERPNextService {
   private apiSecret: string;
   private productCache: { data: Product[]; timestamp: number } | null = null;
   private vatRateCache: { rate: number; timestamp: number } | null = null;
+  private itemVatRateMapCache: { map: Map<string, number>; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre katalóg produktov
   private readonly VAT_CACHE_DURATION = 5 * 60 * 1000; // 5 minút pre sadzbu DPH
   private readonly WEBSITE_ITEMS_LIMIT = 1000; // Max počet Website Items načítaných naraz
+  // Skalárne polia Website Itemu, ktoré vieme získať priamo z list endpointu (bez detailu na každý záznam)
+  private readonly WEBSITE_ITEM_LIST_FIELDS = [
+    "name", "item_code", "item_name", "web_item_name", "item_group", "stock_uom",
+    "published", "route", "website_image", "description", "short_description",
+    "web_long_description", "slideshow", "has_variants", "creation"
+  ];
   // Produkty vylúčené z katalógu pre obchod (načítavajú sa len priamo cez getProductById)
   private readonly PRODUCTS_EXCLUDED_FROM_CATALOG = ['TORTCUS001'];
   private readonly ITEM_FETCH_LIMIT = 1000; // Max počet Item záznamov načítaných naraz
@@ -320,6 +327,63 @@ export class ERPNextService {
 
   // Get all active items from ERPNext (published on website via Website Item)
   // Fallback to Item doctype if Website Item fails or returns no results
+  /**
+   * Doplní child tabuľku website_specifications ku všetkým Website Items jedným hromadným dotazom.
+   * Pri zlyhaní spadne späť na načítanie detailu po jednom (pôvodné správanie).
+   */
+  private async attachWebsiteSpecifications(websiteItems: any[]): Promise<any[]> {
+    if (websiteItems.length === 0) {
+      return [];
+    }
+
+    try {
+      const specs = await this.fetchAllRecords<any>(
+        '/resource/Item%20Website%20Specification',
+        {
+          fields: JSON.stringify(["parent", "label", "description", "idx"]),
+          filters: JSON.stringify([["parenttype", "=", "Website Item"]]),
+          parent: 'Website Item',
+          order_by: 'parent asc, idx asc'
+        },
+        this.WEBSITE_ITEMS_LIMIT * 20,
+        'Item Website Specification (hromadne)',
+        1000
+      );
+
+      const specsByParent = new Map<string, any[]>();
+      for (const spec of specs) {
+        const list = specsByParent.get(spec.parent) || [];
+        list.push(spec);
+        specsByParent.set(spec.parent, list);
+      }
+
+      console.log(`[attachWebsiteSpecifications] Loaded ${specs.length} specifications for ${specsByParent.size} Website Items in one request`);
+
+      // Poradie riadkov child tabuľky určuje idx – rovnako ako pri načítaní detailu dokumentu
+      for (const list of specsByParent.values()) {
+        list.sort((a, b) => (Number(a.idx) || 0) - (Number(b.idx) || 0));
+      }
+
+      return websiteItems.map(wi => ({
+        ...wi,
+        website_specifications: specsByParent.get(wi.name) || []
+      }));
+    } catch (error) {
+      this.logError('[attachWebsiteSpecifications] Bulk fetch failed, falling back to per-item detail:', error);
+
+      const detailed = await Promise.all(websiteItems.map(async (wi: any) => {
+        try {
+          const detailResponse = await this.client.get(`/resource/Website%20Item/${encodeURIComponent(wi.name)}`);
+          return detailResponse.data.data || wi;
+        } catch (detailError) {
+          console.log(`[attachWebsiteSpecifications] Failed to fetch detail for Website Item ${wi.name}:`, detailError);
+          return { ...wi, website_specifications: [] };
+        }
+      }));
+      return detailed;
+    }
+  }
+
   async getItems(): Promise<ERPNextItem[]> {
     this.refreshClient();
     
@@ -329,40 +393,29 @@ export class ERPNextService {
       
       // Najprv načítaj Website Items, ktoré sú published
       // Používame URL encoding pre medzery v názve doctype
-      // POZOR: List endpoint môže nevrátiť všetky polia, preto budeme načítavať detail pre každý
+      // Všetky skalárne polia berieme rovno z list endpointu (jeden request namiesto N detailov),
+      // child tabuľka website_specifications sa dopĺňa hromadne nižšie.
       const websiteItemsList = await this.fetchAllRecords<any>(
         '/resource/Website%20Item',
         {
-          fields: JSON.stringify(["name", "published"]), // Len minimálne polia pre list
+          fields: JSON.stringify(this.WEBSITE_ITEM_LIST_FIELDS),
           filters: JSON.stringify([["published", "=", 1]])
         },
         this.WEBSITE_ITEMS_LIMIT,
-        'Website Item (published)'
+        'Website Item (published)',
+        500
       );
 
       console.log(`[getItems] Found ${websiteItemsList.length} published Website Items in list`);
       if (websiteItemsList.length >= this.WEBSITE_ITEMS_LIMIT) {
         console.log(`[getItems] Warning: reached WEBSITE_ITEMS_LIMIT ${this.WEBSITE_ITEMS_LIMIT}, results may be truncated`);
       }
-      
-      // Načítaj detail pre každý Website Item paralelne, aby sme získali item_code a ostatné polia
-      const websiteItemsPromises = websiteItemsList.slice(0, this.WEBSITE_ITEMS_LIMIT).map(async (wi: any) => {
-        try {
-          const detailResponse = await this.client.get(`/resource/Website%20Item/${encodeURIComponent(wi.name)}`);
-          if (detailResponse.data.data) {
-            return detailResponse.data.data;
-          }
-          return null;
-        } catch (error) {
-          console.log(`[getItems] Failed to fetch detail for Website Item ${wi.name}:`, error);
-          return null;
-        }
-      });
-      
-      const websiteItemsResults = await Promise.all(websiteItemsPromises);
-      const websiteItems = websiteItemsResults.filter((wi: any) => wi !== null);
-      
-      console.log(`[getItems] Loaded ${websiteItems.length} Website Item details`);
+
+      const websiteItems = await this.attachWebsiteSpecifications(
+        websiteItemsList.slice(0, this.WEBSITE_ITEMS_LIMIT)
+      );
+
+      console.log(`[getItems] Loaded ${websiteItems.length} Website Items (hromadne)`);
       
       if (websiteItems.length > 0) {
         console.log('[getItems] Sample Website Items:', websiteItems.slice(0, 3).map((wi: any) => ({
@@ -1537,6 +1590,7 @@ export class ERPNextService {
   async clearProductCache(): Promise<void> {
     this.refreshClient();
     this.productCache = null;
+    this.itemVatRateMapCache = null;
     console.log('Product cache cleared');
   }
 
@@ -1718,6 +1772,91 @@ export class ERPNextService {
     }
   }
 
+  /**
+   * Načíta sadzbu DPH pre všetky Item-y dvoma hromadnými dotazmi namiesto 2 dotazov na každý produkt.
+   * Vracia mapu item_code -> sadzba DPH. Položky bez priradenej šablóny v mape nie sú
+   * (volajúci pre ne použije predvolenú sadzbu, rovnako ako getItemVATRate).
+   */
+  private async getItemVatRateMap(): Promise<Map<string, number>> {
+    if (this.itemVatRateMapCache &&
+        Date.now() - this.itemVatRateMapCache.timestamp < this.VAT_CACHE_DURATION) {
+      return this.itemVatRateMapCache.map;
+    }
+
+    const map = new Map<string, number>();
+    try {
+      const [itemTaxRows, templateRows] = await Promise.all([
+        this.fetchAllRecords<any>(
+          '/resource/Item%20Tax',
+          {
+            fields: JSON.stringify(["parent", "item_tax_template", "idx"]),
+            filters: JSON.stringify([["parenttype", "=", "Item"]]),
+            parent: 'Item',
+            order_by: 'parent asc, idx asc'
+          },
+          this.ITEM_FETCH_LIMIT * 5,
+          'Item Tax (hromadne)',
+          1000
+        ),
+        this.fetchAllRecords<any>(
+          '/resource/Item%20Tax%20Template%20Detail',
+          {
+            fields: JSON.stringify(["parent", "tax_rate"]),
+            filters: JSON.stringify([["parenttype", "=", "Item Tax Template"]]),
+            parent: 'Item Tax Template'
+          },
+          1000,
+          'Item Tax Template Detail (hromadne)',
+          1000
+        )
+      ]);
+
+      // Šablóna -> najvyššia platná sadzba (rovnaká logika ako v getItemVATRate)
+      const rateByTemplate = new Map<string, number>();
+      for (const row of templateRows) {
+        const rate = parseFloat(row.tax_rate) || 0;
+        if (rate > 0 && rate <= 100 && rate > (rateByTemplate.get(row.parent) || 0)) {
+          rateByTemplate.set(row.parent, rate);
+        }
+      }
+
+      // Item -> sadzba (berieme prvý riadok Item Tax, ako pôvodné taxes[0])
+      for (const row of itemTaxRows) {
+        if (map.has(row.parent) || !row.item_tax_template) continue;
+        const rate = rateByTemplate.get(row.item_tax_template);
+        if (rate !== undefined) {
+          map.set(row.parent, rate);
+        }
+      }
+
+      console.log(`[getItemVatRateMap] Loaded VAT rates for ${map.size} items from ${rateByTemplate.size} templates (2 requests)`);
+      this.itemVatRateMapCache = { map, timestamp: Date.now() };
+    } catch (error) {
+      this.logError('[getItemVatRateMap] Bulk VAT fetch failed, falling back to per-item lookup:', error);
+    }
+
+    return map;
+  }
+
+  /**
+   * Rovnaký výpočet ako getItemPriceWithVAT, ale bez sieťových volaní –
+   * cena sa berie z už načítaného valuation_rate a sadzba z hromadnej mapy.
+   */
+  private computePriceWithVAT(valuationRate: any, vatRate: number): {
+    priceWithoutVat: number;
+    vatRate: number;
+    vatAmount: number;
+    priceWithVat: number;
+  } {
+    const priceWithoutVat = Number(valuationRate) || 0;
+    if (priceWithoutVat === 0) {
+      return { priceWithoutVat: 0, vatRate: 0, vatAmount: 0, priceWithVat: 0 };
+    }
+    const vatAmount = Math.round((priceWithoutVat * (vatRate / 100)) * 100) / 100;
+    const priceWithVat = Math.round((priceWithoutVat + vatAmount) * 100) / 100;
+    return { priceWithoutVat, vatRate, vatAmount, priceWithVat };
+  }
+
   // Transform ERPNext items to frontend product format with caching
   async getProductsForFrontend(): Promise<Product[]> {
     this.refreshClient();
@@ -1745,7 +1884,12 @@ export class ERPNextService {
       valuation_rate: i.valuation_rate
     })));
 
-    // Note: VAT rate is now fetched per item in getItemPriceWithVAT
+    // Sadzby DPH a predvolenú sadzbu načítame hromadne (2 requesty pre celý katalóg)
+    // namiesto 3 requestov na každý produkt.
+    const [vatRateMap, defaultVatRate] = await Promise.all([
+      this.getItemVatRateMap(),
+      this.getDefaultVATRate()
+    ]);
 
     // Transform items to products
     const products = await Promise.all(items.map(async item => {
@@ -1757,8 +1901,11 @@ export class ERPNextService {
         imageUrl = item.image;
       }
 
-      // Get price without VAT and VAT information from ERPNext
-      const priceInfo = await this.getItemPriceWithVAT(item.name);
+      // Cena aj DPH sú už načítané hromadne – valuation_rate príde z Item listu v getItems()
+      const priceInfo = this.computePriceWithVAT(
+        (item as any).valuation_rate,
+        vatRateMap.get(item.name) ?? defaultVatRate
+      );
       const priceWithoutVat = priceInfo.priceWithoutVat;
       const vatRate = priceInfo.vatRate;
       const priceWithVat = priceInfo.priceWithVat;

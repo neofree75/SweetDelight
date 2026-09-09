@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartItem } from "@shared/schema";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import OrderPauseBanner from "@/components/OrderPauseBanner";
 import Cart from "@/components/Cart";
 import CookieConsent from "@/components/CookieConsent";
 import Home from "@/pages/Home";
@@ -246,7 +247,9 @@ function App() {
             user={user}
             onLogout={handleLogout}
           />
-          
+
+          <OrderPauseBanner />
+
           <main className="flex-1 min-h-0">
             <Router 
               cartItems={cartItems}

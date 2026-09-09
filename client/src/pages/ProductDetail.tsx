@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
+import { ORDERS_PAUSED, PAUSE_BANNER_TITLE, PAUSE_BANNER_TEXT } from '@/lib/order-pause';
 import SEO from '@/components/SEO';
 import logo from '@assets/logo_1757937077215.png';
 
@@ -508,7 +509,16 @@ export default function ProductDetail({ onAddToCart, onCartOpen }: ProductDetail
             )}
 
             {/* Add to Cart Section */}
-            {product.inStock ? (
+            {ORDERS_PAUSED ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-serif">{PAUSE_BANNER_TITLE}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">{PAUSE_BANNER_TEXT}</p>
+                </CardContent>
+              </Card>
+            ) : product.inStock ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl font-serif">Objednať</CardTitle>

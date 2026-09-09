@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import heroImage from '@assets/generated_images/_DSC6502.jpg';
+import { ORDERS_PAUSED } from '@/lib/order-pause';
 
 export default function Hero() {
   return (
@@ -35,15 +36,17 @@ export default function Hero() {
               Objednať teraz
             </Button>
           </Link>
-          <Link href="/torta-na-mieru">
-            <Button 
-              size="lg" 
-              className="text-lg px-8 py-3 bg-accent/90 backdrop-blur-sm border border-accent-border text-white"
-              data-testid="button-custom-cake"
-            >
-              Torta na mieru
-            </Button>
-          </Link>
+          {!ORDERS_PAUSED && (
+            <Link href="/torta-na-mieru">
+              <Button 
+                size="lg" 
+                className="text-lg px-8 py-3 bg-accent/90 backdrop-blur-sm border border-accent-border text-white"
+                data-testid="button-custom-cake"
+              >
+                Torta na mieru
+              </Button>
+            </Link>
+          )}
           <Link href="/o-nas">
             <Button 
               variant="outline" 

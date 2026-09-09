@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SEO from '@/components/SEO';
+import { ORDERS_PAUSED, PAUSE_BUTTON_LABEL, PAUSE_BANNER_TEXT } from '@/lib/order-pause';
 import {
   CAKE_SHAPES,
   TIER_COUNTS,
@@ -699,10 +700,21 @@ export default function CakeConfigurator({ onAddToCart, onCartOpen }: CakeConfig
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-end border-t pt-4">
-                    <Button onClick={handleAddToCart} size="lg">
-                      Pridať do košíka
-                    </Button>
+                  <div className="border-t pt-4">
+                    {ORDERS_PAUSED ? (
+                      <div className="space-y-2 text-right">
+                        <p className="text-sm text-muted-foreground text-left">{PAUSE_BANNER_TEXT}</p>
+                        <Button disabled size="lg" data-testid="button-orders-paused-configurator">
+                          {PAUSE_BUTTON_LABEL}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end">
+                        <Button onClick={handleAddToCart} size="lg">
+                          Pridať do košíka
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

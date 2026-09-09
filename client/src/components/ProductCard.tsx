@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Minus } from 'lucide-react';
 import { Product } from '@shared/schema';
 import { formatPrice } from '@/lib/format-price';
+import { ORDERS_PAUSED, PAUSE_BUTTON_LABEL } from '@/lib/order-pause';
 import logo from '@assets/logo_1757937077215.png';
 
 interface ProductCardProps {
@@ -168,7 +169,11 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
       </CardContent>
       
       <CardFooter className="p-4 pt-0">
-        {product.inStock ? (
+        {ORDERS_PAUSED ? (
+          <Button disabled className="w-full" data-testid={`button-orders-paused-${product.id}`}>
+            {PAUSE_BUTTON_LABEL}
+          </Button>
+        ) : product.inStock ? (
           <div className="w-full space-y-3">
             {/* Minimum quantity notice */}
             {getMinQuantity() > 1 && (

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Menu, X, LogIn, UserPlus, LogOut, FileText } from 'lucide-react';
 import logo from '@assets/logo_1757937077215.png';
+import { ORDERS_PAUSED } from '@/lib/order-pause';
 
 interface User {
   email: string;
@@ -25,7 +26,8 @@ export default function Header({ cartItemCount = 0, onCartClick, user, onLogout 
     { path: '/', label: 'Domov' },
     { path: '/obchod', label: 'Obchod' },
     // { path: '/torta-na-mieru', label: 'Torta na mieru - ARCH' }, // skryté
-    { path: '/torta-na-mieru-2', label: 'Torta na mieru' },
+    // Konfigurátor torty je skrytý, kým sú objednávky pozastavené (viď lib/order-pause.ts)
+    ...(ORDERS_PAUSED ? [] : [{ path: '/torta-na-mieru-2', label: 'Torta na mieru' }]),
     { path: '/fotogaleria', label: 'Fotogaléria' },
     { path: '/ako-objednat', label: 'Ako objednať' },
     { path: '/o-nas', label: 'O nás' },

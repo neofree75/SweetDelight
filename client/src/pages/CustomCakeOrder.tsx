@@ -9,6 +9,7 @@ import { Loader2, Cake, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice, formatNumber } from '@/lib/format-price';
 import SEO from '@/components/SEO';
+import { ORDERS_PAUSED, PAUSE_BUTTON_LABEL, PAUSE_BANNER_TEXT } from '@/lib/order-pause';
 
 // Hook to fetch custom cake product (TORTCUS001) for min order quantity
 function useCustomCakeProduct() {
@@ -452,17 +453,31 @@ export default function CustomCakeOrder({ onAddToCart, onCartOpen }: CustomCakeO
                     </div>
                   )}
                   
-                  <Button
-                    onClick={handleAddToCart}
-                    disabled={!isFormValid}
-                    className="w-full"
-                    size="lg"
-                    data-testid="button-add-to-cart"
-                  >
-                    Pridať do košíka
-                  </Button>
+                  {ORDERS_PAUSED ? (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">{PAUSE_BANNER_TEXT}</p>
+                      <Button
+                        disabled
+                        className="w-full"
+                        size="lg"
+                        data-testid="button-orders-paused-custom-cake"
+                      >
+                        {PAUSE_BUTTON_LABEL}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={handleAddToCart}
+                      disabled={!isFormValid}
+                      className="w-full"
+                      size="lg"
+                      data-testid="button-add-to-cart"
+                    >
+                      Pridať do košíka
+                    </Button>
+                  )}
                   
-                  {!isFormValid && (
+                  {!ORDERS_PAUSED && !isFormValid && (
                     <p className="text-sm text-muted-foreground mt-2 text-center">
                       Vyberte všetky povinné možnosti
                     </p>
